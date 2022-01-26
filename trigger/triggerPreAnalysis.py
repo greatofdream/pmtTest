@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-import uproot3 as uproot, numpy as np, h5py
+import uproot, numpy as np, h5py
 from pandas import Series
 import argparse
 from triggerAnalysis import waveAna
 
 if __name__=="__main__":
     psr = argparse.ArgumentParser()
-    psr.add_argument('-i', dest='ipt', nargs='+', help='input root file')
+    psr.add_argument('-i', dest='ipt', help='input root file')
     psr.add_argument('-o', dest='opt', help='output h5 file')
     #psr.add_argument('-k', dest='tpl',help='template')
     psr.add_argument('-c', dest='channel', nargs='+', default=[0,1],help='channel used in DAQ')
@@ -18,11 +18,12 @@ if __name__=="__main__":
 
     triggerch = args.trigger
     storedtype = [('EventID', '<i4'), ('allCharge','<f4'),('minPeakCharge','<f4'),('minPeak','<f4'),('minPeakPos','<i4'),('baseline','<f4'),('std','<f4'),('riseTime','<f4'),('downTime','<f4'),('FWHM','<f4'),('begin10','<f4'),('begin50','<f4'),('begin90','<f4'),('end10','<f4'),('end50','<f4'),('end90','<f4'),('begin5mV','<f4'),('end5mV','<f4'),('nearPosMax','<f4'),('nearPosMean', '<f4'),('nearPosStd','<f4'),('fitTime','<f4')]# ,('peakCharge','<f4'),('peak','<f4')
-    eventIds = uproot.lazyarray(args.ipt, "Readout","TriggerNo")
-    waveforms = uproot.lazyarray(args.ipt, "Readout","Waveform", basketcache=uproot.cache.ThreadSafeArrayCache("25 MB"))
-    channelIds = uproot.lazyarray(args.ipt, "Readout","ChannelId")
-    sec = uproot.lazyarray(args.ipt, "Readout", "Sec")
-    nanosec = uproot.lazyarray(args.ipt, "Readout", "NanoSec")
+    with uproot.open(args.ipt) as ipt:
+        eventIds = ipt["Readout/TriggerNo"].array(library='np')
+        waveforms = ipt["Readout/Waveform"].array(library='np')
+        channelIds = ipt["Readout/ChannelId"].array(library='np')
+        sec = ipt["Readout/Sec"].array(library='np')
+        nanosec = ipt["Readout/NanoSec"].array(library='np')
     baselength = 50
 
     entries = waveforms.shape[0]
