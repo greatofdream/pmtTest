@@ -3,7 +3,7 @@ import uproot, numpy as np, h5py
 from pandas import Series
 import argparse
 from triggerAnalysis import waveAna
-
+import tqdm
 if __name__=="__main__":
     psr = argparse.ArgumentParser()
     psr.add_argument('-i', dest='ipt', help='input root file')
@@ -22,8 +22,6 @@ if __name__=="__main__":
         eventIds = ipt["Readout/TriggerNo"].array(library='np')
         waveforms = ipt["Readout/Waveform"].array(library='np')
         channelIds = ipt["Readout/ChannelId"].array(library='np')
-        sec = ipt["Readout/Sec"].array(library='np')
-        nanosec = ipt["Readout/NanoSec"].array(library='np')
     baselength = 50
 
     entries = waveforms.shape[0]
@@ -44,7 +42,7 @@ if __name__=="__main__":
     triggerInfo = np.zeros((entries,), dtype=[('EventID','<i4'),('triggerTime','<f4')])
     print('begin loop')
     # channelid在采数的过程中没有发生变化，而且所有通道均被采集，其实长度一致
-    for i, (wave, eid, ch, sc, nsc) in enumerate(zip(waveforms, eventIds, channelIds, sec, nanosec)):
+    for i, (wave, eid, ch) in tqdm.tqdm(enumerate(zip(waveforms, eventIds, channelIds))):
         wave = wave.reshape((ch.shape[0],-1))
         chmap = Series(range(ch.shape[0]), index=ch)
         waveana.setTriggerWave(wave[chmap.loc[triggerch]][:waveCut])
