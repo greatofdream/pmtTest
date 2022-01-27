@@ -20,10 +20,11 @@ class waveAna(object):
         self.tpl = []
     def setTriggerWave(self, triggerWave, uprising=True):
         self.triggerWave = triggerWave
-        self.triggerTime = self.getTriggerTime(100, 0.1, uprising)
+        self.triggerTime = self.getTriggerTime(50, 0.1, uprising)
         # print(self.triggerTime)
-    def getTriggerTime(self, begin=100, threshold=0.1, uprising=True):
-        baseline = np.average(self.triggerWave[0:100])
+    def getTriggerTime(self, begin=50, threshold=0.1, uprising=True):
+        # TODO: 初始的baseline长度不应该硬编码
+        baseline = np.average(self.triggerWave[0:50])
         baseline2 = np.average(self.triggerWave[-150:-50])
         thresholdLevel = baseline2*threshold+baseline*(1-threshold)
         if uprising:

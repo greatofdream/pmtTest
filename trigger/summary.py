@@ -14,10 +14,10 @@ def likelihood(x, *args):
 def fitInterval(minpeakpos, minpeak, threshold=5):
     timeselect = minpeakpos[minpeak>threshold]
     x0 = [np.mean(timeselect), np.std(timeselect)]
-    result = minmize(likelihood, x0, args=(timeselect))
+    result = minimize(likelihood, x0, args=(timeselect))
 def getInterval(minpeakpos, minpeak, threshold=5):
     # TODO: 使用histogram处理
-    hist = np.histogram(minpeakpos[minpeak>threshold], bins=200, range=[200,400])
+    hist = np.histogram(minpeakpos[minpeak>threshold], bins=400, range=[0,400])
     mean, sigma = int(hist[1][np.argmax(hist[0])]), np.std(minpeakpos[minpeak>threshold])
     begin, end = int(mean-3*sigma), int(mean+3*sigma)
     return (begin, end, mean, sigma)
@@ -33,8 +33,13 @@ if __name__=="__main__":
         #waveformLength = 1500
         for j in range(len(args.channel)):
             info.append(ipt['ch{}'.format(args.channel[j])][:])
+        trigger = ipt['trigger'][:]
     interval = np.zeros((len(args.channel),), dtype=[('start', np.float64), ('end', np.float64), ('mean', np.float64), ('sigma', np.float64)])
+    relative_interval = np.zeros((len(args.channel),), dtype=[('start', np.float64), ('end', np.float64), ('mean', np.float64), ('sigma', np.float64)])
+    
     for j in range(len(args.channel)):
         interval[j] = getInterval(info[j]['minPeakPos'], info[j]['minPeak'])
+        relative_interval[j] = getInterval(info[j]['minPeakPos'] - trigger['triggerTime'], info[j]['minPeak'])
     with h5py.File(args.opt, 'w') as opt:
         opt.create_dataset('interval', data=interval, compression='gzip')
+        opt.create_dataset('rinterval', data=relative_interval, compression='gzip')

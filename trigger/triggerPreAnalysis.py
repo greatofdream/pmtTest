@@ -42,7 +42,7 @@ if __name__=="__main__":
     triggerInfo = np.zeros((entries,), dtype=[('EventID','<i4'),('triggerTime','<f4')])
     print('begin loop')
     # channelid在采数的过程中没有发生变化，而且所有通道均被采集，其实长度一致
-    for i, (wave, eid, ch) in tqdm.tqdm(enumerate(zip(waveforms, eventIds, channelIds))):
+    for i, (wave, eid, ch) in enumerate(zip(waveforms, eventIds, channelIds)):
         wave = wave.reshape((ch.shape[0],-1))
         chmap = Series(range(ch.shape[0]), index=ch)
         waveana.setTriggerWave(wave[chmap.loc[triggerch]][:waveCut])
