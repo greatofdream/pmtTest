@@ -6,21 +6,21 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest/
 wavecut:=0
 field:=std
 # anaNum
-all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.png)
+all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.pdf)
 peak: $(anaNum:%=ExReslut/%/peak.pdf)
 
 define preanalysis
 
-ExResult/$(1)/$(2)ns/preanalysis%.h5: $$(Ex1DataNewDir)$(1)/*$(1)_%.root
+ExResult/$(1)/$(2)ns/h5/preanalysis%.h5: $$(Ex1DataNewDir)$(1)/*$(1)_%.root
 	mkdir -p $$(dir $$@)
 	time python3 DCRPreAna.py -i $$^ -l $(2) -c $$(channels) -o $$@ > $$@.log 2>&1
-ExResult/$(1)/$(2)ns/preanalysis0.h5: $$(wildcard $$(Ex1DataNewDir)$(1)/*$(1).root)
+ExResult/$(1)/$(2)ns/h5/preanalysis0.h5: $$(wildcard $$(Ex1DataNewDir)$(1)/*$(1).root)
 	mkdir -p $$(dir $$@)
 	time python3 DCRPreAna.py -i $$^ -l $(2) -c $$(channels) -o $$@ > $$@.log 2>&1
-ExResult/$(1)/$(2)ns/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root))))
+ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/h5/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/h5/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
 
-ExResult/$(1)/$(2)ns/peak.pdf: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
+ExResult/$(1)/$(2)ns/peak.pdf: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
 	python3 calcTriggerRate.py -c $$(channels) -i $$^ -o $$@ > $$@.log 2>&1
 
 ExResult/$(1)/$(2)ns/correlation.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
@@ -65,8 +65,8 @@ ExResult/$(1)/$(2)ns/charge2.root: ExResult/$(1)/$(2)ns/2.csv
 	root -lbq 'csvroot.C+("$$^","$$@")'
 
 
-ExResult/$(1)/$(2)ns/charge.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
-	python3 spePrePlot.py -c $$(channels) -i $$^ -o $$(dir $$@) > $$@.log 2>&1
+ExResult/$(1)/$(2)ns/charge.pdf: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
+	python3 srcuproot3/spePrePlot.py -c $$(channels) -i $$^ -o $$@ > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/darkNoise.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
 	python3 spednPrePlot.py -c $$(channels) -i $$^ -o $$(dir $$@) > $$@.log 2>&1
 

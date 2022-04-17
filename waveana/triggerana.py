@@ -1,5 +1,5 @@
 import numpy as np
-from waveana import Waveana, interpolate
+from .waveana import Waveana, interpolate
 '''
 use trigger channel to extract information from other numpy waveforms
 '''
