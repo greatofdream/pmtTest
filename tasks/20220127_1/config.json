@@ -1,0 +1,7 @@
+{
+    "task": "QE",
+    "runno": [668, 670],
+    "testPMT": "2009-4040",
+    "testch": 2,
+    "refch": 3
+}
