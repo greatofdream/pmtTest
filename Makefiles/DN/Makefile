@@ -6,7 +6,7 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest/
 wavecut:=0
 field:=std
 # anaNum
-all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/DN.pdf)
+all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/DN.pdf) $(anaNum:%=ExResult/%/$(wavecut)ns/profile.h5)
 
 
 define preanalysis
@@ -32,24 +32,11 @@ ExResult/$(1)/$(2)ns/0$$(field)gr4.pdf: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
 ExResult/$(1)/$(2)ns/0chargegr10.pdf: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
 	python3 checkByField.py -q 0 -f minPeakCharge -c $(2) -l 10 -r $$^ -o $$@ -i $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
 
-ExResult/$(1)/$(2)ns/profile02500.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
-	python3 waveProfile.py -i $$^ -c 0 2 -t 500 -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
-ExResult/$(1)/$(2)ns/profile02.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
-	python3 waveProfile.py -i $$^ -c 0 2 --tl 15 --tr 30 -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
+ExResult/$(1)/$(2)ns/profile.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/charge.h5
+	python3 srcuproot3/waveProfile.py -i $$< --refer $$(word 2,$$^) -c $$(channels)  -o $$@ -r $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)*.root) > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/FP.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
 	python3 fpCheck.py -i $$^ -c 2 -t 15 -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
 
-ExResult/$(1)/$(2)ns/profile13500.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
-	python3 waveProfile.py -i $$^ -c 1 3 -t 500 -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
-
-ExResult/$(1)/$(2)ns/profile0.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
-	python3 waveProfile.py -i $$^ -c 0  -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
-ExResult/$(1)/$(2)ns/profile1.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
-	python3 waveProfile.py -i $$^ -c 1  -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
-ExResult/$(1)/$(2)ns/profile2.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
-	python3 waveProfile.py -i $$^ -c 2  -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
-ExResult/$(1)/$(2)ns/profile3.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
-	python3 waveProfile.py -i $$^ -c 3  -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
 
 ExResult/$(1)/$(2)ns/0.csv: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
 	mkdir -p $$(dir $$@)

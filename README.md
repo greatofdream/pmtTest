@@ -7,6 +7,9 @@
 + 基础参数测量流程：直接分析每个波形中最大峰的电荷分布
   + `Charge`, `Gain`,`P/V`,`Resolution`,`DarkNoise Rate`
   + `DCRPreAna.py`:直接分析
+  + `srcuproot3/spePrePlot.py`:绘制分析结果的分布图
+  + `srcuproot3/calcTriggerRate.py`:计算暗噪声计数率DCR，输出的内容单位是kHz,在log日志中
+  + `srcuproot3/waveProfile.py`:筛选出峰值附近的波形，累加并平均。
 + 高级参数测量流程：分析激光触发后的时间窗(基础参数测量给出)->根据窗口选择出触发后的波形参数
   + `Charge`,`Gain`,`P/V`,`Resolution`,`DE`,`TR`,`TF`,`TH`,`Prompt pulse`, `Delay pulse`,`TTS`
   + `TriggerPreAna.py`:考虑触发时间窗后，进行预分析
