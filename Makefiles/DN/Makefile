@@ -6,7 +6,7 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest/
 wavecut:=0
 field:=std
 # anaNum
-all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.pdf) $(anaNum:%=ExResult/%/$(wavecut)ns/DN.pdf)
+all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/DN.pdf)
 
 
 define preanalysis
@@ -65,7 +65,7 @@ ExResult/$(1)/$(2)ns/charge2.root: ExResult/$(1)/$(2)ns/2.csv
 	root -lbq 'csvroot.C+("$$^","$$@")'
 
 
-ExResult/$(1)/$(2)ns/charge.pdf: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
+ExResult/$(1)/$(2)ns/charge.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
 	python3 srcuproot3/spePrePlot.py -c $$(channels) -i $$^ -o $$@ > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/darkNoise.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
 	python3 spednPrePlot.py -c $$(channels) -i $$^ -o $$(dir $$@) > $$@.log 2>&1

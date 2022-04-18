@@ -1,3 +1,4 @@
+from unittest import result
 import matplotlib.pyplot as plt
 import h5py, argparse
 import numpy as np
@@ -6,6 +7,8 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import matplotlib.colors as colors
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+import matplotlib.patches as mpatches
+
 psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input h5 file')
 psr.add_argument('-o', dest='opt', help='output png file')
@@ -13,6 +16,7 @@ psr.add_argument('-c', dest='channel', nargs='+', default=[0,1],help='channel us
 args = psr.parse_args()
 #plt.style.use('fivethirtyeight')
 info = []
+results = np.zeros(len(args.channel), dtype=[('peakC','<f4'), ('vallyC','<f4'),('PV','<f4'),('chargeMu','<f4'),('chargeSigma','<f4')])
 with h5py.File(args.ipt, 'r') as ipt:
     waveformLength = ipt.attrs['waveformLength']
     #waveformLength = 1500
@@ -31,7 +35,7 @@ white = np.array([1, 1, 1, 0.5])
 newcolors[0, :] = white
 cmap = ListedColormap(newcolors)
 print('begin plot')
-pdf = PdfPages(args.opt)
+pdf = PdfPages(args.opt+'.pdf')
 nearMax = 10
 for j in range(len(args.channel)):
     selectNearMax = info[j]['nearPosMax']<=nearMax
@@ -54,9 +58,23 @@ for j in range(len(args.channel)):
     pdf.savefig(fig)
     ax.set_yscale('linear')
     ax.set_ylim([0, 2*np.max(h[0][50:200])])
+    pi = h[1][50:200][np.argmax(h[0][50:200])]
+    vi = h[1][10:80][np.argmin(h[0][10:80])]
+    pv = np.max(h[0][50:200])
+    vv = np.min(h[0][10:80])
+    plt.scatter([pi,vi],[pv,vv])
+    selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)]
+    results[j] = (pi,vi,pv/vv,np.mean(selectinfo), np.std(selectinfo))
+    handles, labels = ax.get_legend_handles_labels()
+    handles.append(mpatches.Patch(color='none', label='Gain:{:.2f}'.format(pi/50/1.6)))
+    handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
+    handles.append(mpatches.Patch(color='none', label='$\mu_{p>3mV}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_{p>3mV}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
+    ax.legend(handles=handles)
     # plt.savefig('{}/{}chargeLinear.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     plt.close()
+
     # peak分布
     fig, ax = plt.subplots()
     ax.set_title('peak height distribution')
@@ -296,3 +314,5 @@ for j in range(len(args.channel)):
     pdf.savefig(fig)
     '''
 pdf.close()
+with h5py.File(args.opt, 'w') as opt:
+    opt.create_dataset('res',data=results, compression='gzip')
