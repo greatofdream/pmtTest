@@ -15,13 +15,13 @@
   + `pulseRatio.py`:分析前后脉冲比例 `pulseRatioWOnoise.py`:去除暗噪声计数的结果
   + `QE.py`: 分析触发比例
 ## Example
-+ 暗噪声分析run679, channels 2和3
++ 暗噪声分析run679, channels 2和3;根据需要调整需要的核数，比如16核`-j16`
   ```
-  make anaNum=679 channels="2 3" -f Makefiles/DN/Makefile
+  make anaNum=679 channels="2 3" -f Makefiles/DN/Makefile -j16
   ```
-+ 激光触发分析run680, channels 2和3， 触发通道1
++ 激光触发分析run680, channels 2和3， 触发通道1;根据需要调整需要的核数，比如16核`-j16`
   ```
-  make anaNum=680 channels="2 3" triggerch=1 -f Makefiles/Trigger/Makefile
+  make anaNum=680 channels="2 3" triggerch=1 -f Makefiles/Trigger/Makefile -j16
   ```
 + `QE`测量依赖于两次的交换测量，需要在task中创建一个`xxx/config.json`，执行
   ```
