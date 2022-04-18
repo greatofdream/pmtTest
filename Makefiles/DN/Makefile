@@ -6,8 +6,8 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest/
 wavecut:=0
 field:=std
 # anaNum
-all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.pdf)
-peak: $(anaNum:%=ExReslut/%/peak.pdf)
+all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.pdf) $(anaNum:%=ExResult/%/$(wavecut)ns/DN.pdf)
+
 
 define preanalysis
 
@@ -20,8 +20,8 @@ ExResult/$(1)/$(2)ns/h5/preanalysis0.h5: $$(wildcard $$(Ex1DataNewDir)$(1)/*$(1)
 ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/h5/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/h5/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
 
-ExResult/$(1)/$(2)ns/peak.pdf: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
-	python3 calcTriggerRate.py -c $$(channels) -i $$^ -o $$@ > $$@.log 2>&1
+ExResult/$(1)/$(2)ns/DN.pdf: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
+	python3 srcuproot3/calcTriggerRate.py -c $$(channels) -i $$^ -o $$@ > $$@.log 2>&1
 
 ExResult/$(1)/$(2)ns/correlation.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
 	python3 chCorelation.py -i $$^ -c $$(channels)  -o $$(dir $$@) -r $$(Ex1DataNewDir)$(1)/*$(1).root $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root) > $$@.log 2>&1
