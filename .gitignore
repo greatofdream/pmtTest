@@ -1,1 +1,9 @@
 *.pdf
+*.h5
+node_modules
+tasks/2022*
+*/__pycache__
+src/Ex1
+trigger/__pycache__
+trigger/Ex1
+
