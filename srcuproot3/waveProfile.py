@@ -62,6 +62,7 @@ plt.close()
 '''
 
 waveforms = uproot.concatenate([i+':Readout' for i in args.root], filter_name='Waveform',library='np')['Waveform']
+
 with uproot.open(args.root[0]) as ipt:
     channelIds = ipt["Readout/ChannelId"].array(library='np')
 nchannel = len(channelIds[0])
@@ -74,33 +75,35 @@ indexs = []
 storeWave = np.zeros((len(args.channel),length*2))
 for j in range(len(args.channel)):
     # indexTF = info[j]['minPeak']>threshold
-    indexTF = (info[j]['minPeakCharge']>thresholdL[j])&(info[j]['minPeakCharge']<thresholdR[j])
+    indexTF = (info[j]['minPeakCharge']>thresholdL[j])&(info[j]['minPeakCharge']<thresholdR[j])&(info[j]['minPeakCharge']>30)#避开全为噪声部分
     index = np.where(indexTF)[0]
-    
+    print(np.sum(indexTF))
+ 
     fig, ax = plt.subplots()
     ax.set_title('ch{}, entries:{}'.format(ch[j],index.shape[0]))
-    for i in index:
-        pos0 = info[j][i]['minPeakPos']
-        trig = int(info[j][i]['begin5mV'])
-        baseline = info[j][i]['baseline']
-        pos = int(pos0)
-        begin = pos - length
-        end = pos + length
-        if begin<0:
-            begin = 0
-        if end>waveformLength:
-            end = waveformLength
-        trigBegin = trig-length
-        trigEnd = trig+length
-        if trigBegin<0:
-            trigBegin = 0
-        if trigEnd>waveformLength:
-            trigEnd = waveformLength
-            if (trigEnd-trigBegin)>2*length:
-                trigEnd = trigBegin+2*length
-        wave = waveforms[i].reshape((nchannel,-1))
-        storeWave[j,(length+trigBegin-trig):(length+trigEnd-trig)] += wave[chmap.loc[ch[j]]][trigBegin:trigEnd]-baseline
-        ax.plot(range(begin-pos+length,(end-pos+length)),wave[chmap.loc[ch[j]]][begin:end],rasterized=True)
+    if(index.shape[0]>0):
+        for i in index:
+            pos0 = info[j][i]['minPeakPos']
+            trig = int(info[j][i]['begin5mV'])
+            baseline = info[j][i]['baseline']
+            pos = int(pos0)
+            begin = pos - length
+            end = pos + length
+            if begin<0:
+                begin = 0
+            if end>waveformLength:
+                end = waveformLength
+            trigBegin = trig-length
+            trigEnd = trig+length
+            if trigBegin<0:
+                trigBegin = 0
+            if trigEnd>waveformLength:
+                trigEnd = waveformLength
+                if (trigEnd-trigBegin)>2*length:
+                    trigEnd = trigBegin+2*length
+            wave = waveforms[i].reshape((nchannel,-1))
+            storeWave[j,(length+trigBegin-trig):(length+trigEnd-trig)] += wave[chmap.loc[ch[j]]][trigBegin:trigEnd]-baseline
+            ax.plot(range(begin-pos+length,(end-pos+length)),wave[chmap.loc[ch[j]]][begin:end],rasterized=True)
     ax.set_xlabel('t/ns')
     ax.set_ylabel('V/mV')
     # plt.savefig('{}/profile{}tr{}.png'.format(args.opt,ch[j], threshold))
@@ -115,6 +118,7 @@ for j in range(len(args.channel)):
     # plt.savefig('{}/profileSum{}tr{}-{}.png'.format(args.opt,ch[j], thresholdL, thresholdR))
     pdf.savefig(fig)
     plt.close()
+
 pdf.close()
 with h5py.File(args.opt,'w') as opt:
     opt.create_dataset('spe', data=storeWave,compression='gzip')

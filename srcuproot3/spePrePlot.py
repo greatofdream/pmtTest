@@ -58,10 +58,10 @@ for j in range(len(args.channel)):
     pdf.savefig(fig)
     ax.set_yscale('linear')
     if h[0].shape[0]>200:
-        ax.set_ylim([0, 2*np.max(h[0][50:200])])
-        pi = h[1][50:200][np.argmax(h[0][50:200])]
-        vi = h[1][10:80][np.argmin(h[0][10:80])]
-        pv = np.max(h[0][50:200])
+        ax.set_ylim([0, 2*np.max(h[0][70:150])])
+        pi = h[1][70:150][np.argmax(h[0][70:150])]
+        vi = h[1][15:70][np.argmin(h[0][15:70])]
+        pv = np.max(h[0][70:150])
         vv = np.min(h[0][10:80])
         plt.scatter([pi,vi],[pv,vv])
         selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)]
