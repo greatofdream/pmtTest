@@ -57,20 +57,21 @@ for j in range(len(args.channel)):
     ax.set_xlim([-5, 1000])
     pdf.savefig(fig)
     ax.set_yscale('linear')
-    ax.set_ylim([0, 2*np.max(h[0][50:200])])
-    pi = h[1][50:200][np.argmax(h[0][50:200])]
-    vi = h[1][10:80][np.argmin(h[0][10:80])]
-    pv = np.max(h[0][50:200])
-    vv = np.min(h[0][10:80])
-    plt.scatter([pi,vi],[pv,vv])
-    selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)]
-    results[j] = (pi,vi,pv/vv,np.mean(selectinfo), np.std(selectinfo))
-    handles, labels = ax.get_legend_handles_labels()
-    handles.append(mpatches.Patch(color='none', label='Gain:{:.2f}'.format(pi/50/1.6)))
-    handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
-    handles.append(mpatches.Patch(color='none', label='$\mu_{p>3mV}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
-    handles.append(mpatches.Patch(color='none', label='$\sigma_{p>3mV}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
-    ax.legend(handles=handles)
+    if h[0].shape[0]>200:
+        ax.set_ylim([0, 2*np.max(h[0][50:200])])
+        pi = h[1][50:200][np.argmax(h[0][50:200])]
+        vi = h[1][10:80][np.argmin(h[0][10:80])]
+        pv = np.max(h[0][50:200])
+        vv = np.min(h[0][10:80])
+        plt.scatter([pi,vi],[pv,vv])
+        selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)]
+        results[j] = (pi,vi,pv/vv,np.mean(selectinfo), np.std(selectinfo))
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(mpatches.Patch(color='none', label='Gain:{:.2f}'.format(pi/50/1.6)))
+        handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
+        handles.append(mpatches.Patch(color='none', label='$\mu_{p>3mV}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
+        handles.append(mpatches.Patch(color='none', label='$\sigma_{p>3mV}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
+        ax.legend(handles=handles)
     # plt.savefig('{}/{}chargeLinear.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     plt.close()
