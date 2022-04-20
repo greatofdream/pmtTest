@@ -10,13 +10,13 @@ psr.add_argument('-i', dest='ipt', help='input h5 file')
 psr.add_argument('-o', dest='opt', help='output png file')
 psr.add_argument('-c', dest='channel', nargs='+', default=[0,1],help='channel used in DAQ')
 args = psr.parse_args()
-info = []
-ch2pmt,ch3pmt = args.channel
+infos = []
+chpmts = args.channel
 with h5py.File(args.ipt, 'r') as ipt:
     waveformLength = ipt.attrs['waveformLength']
     #waveformLength = 1500
     for j in range(len(args.channel)):
-        info.append(ipt['ch{}'.format(args.channel[j])][:])
+        infos.append(ipt['ch{}'.format(args.channel[j])][:])
 def peakLinearPos(infos, chs, l,r,  nearMax=3, rangel=3,ranger=1000,peakPos=[]):
     fig, ax = plt.subplots(dpi=150,figsize=(8,6))
     xminorLocator = MultipleLocator(10)
@@ -39,7 +39,7 @@ def peakPos(infos, chs, l,r,  nearMax=3, rangel=3,ranger=1000,peakPos=[]):
     fig, ax = plt.subplots(dpi=150,figsize=(8,6))
     xminorLocator = MultipleLocator(10)
     yminorLocator = MultipleLocator(10)
-    h = [[]]*2
+    h = [[] for i in range(len(infos))]
     for i,(info,ch) in enumerate(zip(infos,chs)):
         h[i] = ax.hist(info['minPeak'][(info['minPeakPos']>=l)&(info['minPeakPos']<r)&(info['nearPosMax']<=nearMax)],bins=(ranger-rangel), range=[rangel,ranger], histtype='step',label='ch{}'.format(ch))
         cut = findCut(h[i][0])
@@ -65,11 +65,11 @@ def findCut(counts):
             continue
         else:
             break
-    # return i
-    return 3
+    return i
+    # return 3
 pdf = PdfPages(args.opt)
-h, fig = peakPos([info[0],info[1]],[ch2pmt,ch3pmt],0,10000,rangel=0,ranger=50,nearMax=10)
+h, fig = peakPos(infos, chpmts, 0, 10000, rangel=0, ranger=50,nearMax=10)
 pdf.savefig(fig)
-h, fig = peakLinearPos([info[0],info[1]],[ch2pmt,ch3pmt],0,10000,rangel=0,ranger=50,nearMax=10)
+h, fig = peakLinearPos(infos, chpmts,0,10000,rangel=0,ranger=50,nearMax=10)
 pdf.savefig(fig)
 pdf.close()
