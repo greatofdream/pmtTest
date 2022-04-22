@@ -174,7 +174,7 @@ for j in range(len(args.channel)):
     # baseline and std distribution
     fig, ax = plt.subplots()
     ax.set_title('baseline-std')
-    h = ax.hist2d(info[j]['baseline'][selectNearMax],info[j]['std'], bins=[100,100], cmap=cmap)
+    h = ax.hist2d(info[j]['baseline'][selectNearMax],info[j]['std'][selectNearMax], bins=[100,100], cmap=cmap)
     fig.colorbar(h[3], ax=ax)
     ax.set_xlabel('baseline/mV')
     ax.set_ylabel('std/mV')

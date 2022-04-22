@@ -67,7 +67,8 @@ class Waveana(object):
                 stdr=i
                 break
         stdEstimate = (stdr-stdl)/2.355/2
-        signalPos = extractWave<(baselineEstimate-nsigma*stdEstimate)
+        threshold = np.clip(nsigma*stdEstimate,2,5)
+        signalPos = extractWave<(baselineEstimate-threshold)
         signalPos = np.unique(np.clip(signalPos.reshape(-1,1)+np.arange(-padding,padding), 0, self.wave.shape[0]))
         mask = np.ones(extractWave.shape[0]).astype(bool)
         mask[signalPos] = False
