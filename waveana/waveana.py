@@ -67,7 +67,7 @@ class Waveana(object):
                 stdr=i
                 break
         stdEstimate = (stdr-stdl)/2.355/2
-        threshold = np.clip(nsigma*stdEstimate,2,5)
+        threshold = np.clip(nsigma*stdEstimate,1,5)
         signalPos = extractWave<(baselineEstimate-threshold)
         signalPos = np.unique(np.clip(signalPos.reshape(-1,1)+np.arange(-padding,padding), 0, self.wave.shape[0]))
         mask = np.ones(extractWave.shape[0]).astype(bool)
@@ -86,7 +86,11 @@ class Waveana(object):
             print(cutWave)
             print(self.minPeakStd,self.minPeakBaseline)
             exit(1)
-        cutWave0 = cutWave[(cutWave>=(baselineEstimate-nsigma*stdEstimate))&(cutWave<=(baselineEstimate+nsigma*stdEstimate))]
+        self.minPeakBaseline = baselineEstimate
+        self.minPeakStd = stdEstimate
+        '''
+        threshold = np.clip(nsigma*stdEstimate,3,5)
+        cutWave0 = cutWave[(cutWave>=(baselineEstimate-threshold))&(cutWave<=(baselineEstimate+threshold))]
         self.minPeakBaseline = np.average(cutWave0)
         self.minPeakStd = np.std(cutWave0)
         if np.isnan(self.minPeakStd):
@@ -94,6 +98,7 @@ class Waveana(object):
             print(cutWave0)
             print(self.minPeakStd,self.minPeakBaseline)
             exit(1)
+        '''
         return self.minPeakBaseline
     def getSmallStdWave(self, number=10):
         step = int(self.wave.shape[0]/10)
