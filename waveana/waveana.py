@@ -234,16 +234,21 @@ class Waveana(object):
         else:
             self.end5mV = self.minIndex
         return end10, end90, end50
-
+    def smooth(self, index, end, filters=np.array([1,1,1])):
+        self.s_wave = self.wave.copy().astype(np.float64)
+        for i in range(index, end):
+            self.s_wave[i] = np.average(self.wave[(i-1):(i+2)])
+        
     def integrateMinPeakWave(self, baselength=0):
         self.minIndex, self.nearMax, self.nearPositiveMean, self.nearPositiveStd = findNearMax(self.wave,self.triggerTime, self.minPeakBaseline)
         self.minPeak = self.minPeakBaseline-self.wave[self.minIndex]
         if self.minPeak<0:
             return 0, 0, 0
         self.begin10, self.begin50, self.begin90 = Qb(self.wave, self.minIndex, self.minPeakBaseline)
-        self.end10, self.end50, self.end90 = Qe(self.wave, self.minIndex, self.minPeakBaseline)
+        self.smooth(self.minIndex+1,min(self.minIndex+30,self.wave.shape[0]-1))
+        self.end10, self.end50, self.end90 = Qe(self.s_wave, self.minIndex, self.minPeakBaseline)
         self.begin5mV = bxmV(self.wave, self.minIndex, self.minPeakBaseline)
-        self.end5mV = exmV(self.wave, self.minIndex, self.minPeakBaseline)
+        self.end5mV = exmV(self.s_wave, self.minIndex, self.minPeakBaseline)
         begin = int(self.begin10)-baselength
         end = int(self.end10)+baselength
         if begin<0:
