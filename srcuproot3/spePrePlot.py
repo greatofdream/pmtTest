@@ -205,11 +205,12 @@ for j in range(len(args.channel)):
     plt.close()
     
     # risetime and downtime
+    position = (info[j]['minPeakPos']>10)&(info[j]['minPeakPos']<(waveformLength-30))
     fig, ax = plt.subplots()
-    ax.set_title('$T_R$,$T_d$,FWHM ($V_p>5$mV) distribution')
-    ax.hist(info[j]['riseTime'][(info[j]['minPeak']>5)&(selectNearMax)],histtype='step',bins=300, range=[0,30], label='risingtime')
-    ax.hist(info[j]['downTime'][(info[j]['minPeak']>5)&(selectNearMax)],histtype='step',bins=300, range=[0,30], label='downtime')
-    ax.hist(info[j]['FWHM'][(info[j]['minPeak']>5)&(selectNearMax)],histtype='step',bins=300, range=[0,30], label='FWHM')
+    ax.set_title('$T_R$,$T_d$,FWHM ($V_p>5$mV,$10<p<${}ns) distribution'.format(waveformLength-30))
+    ax.hist(info[j]['riseTime'][(info[j]['minPeak']>5)&(selectNearMax)&position],histtype='step',bins=300, range=[0,30], label='risingtime:{:.2f}ns'.format(np.mean(info[j]['riseTime'][(info[j]['minPeak']>5)&(selectNearMax)&position])))
+    ax.hist(info[j]['downTime'][(info[j]['minPeak']>5)&(selectNearMax)&position],histtype='step',bins=300, range=[0,30], label='downtime:{:.2f}ns'.format(np.mean(info[j]['downTime'][(info[j]['minPeak']>5)&(selectNearMax)&position])))
+    ax.hist(info[j]['FWHM'][(info[j]['minPeak']>5)&(selectNearMax)&position],histtype='step',bins=300, range=[0,30], label='FWHM:{:.2f}ns'.format(np.mean(info[j]['FWHM'][(info[j]['minPeak']>5)&(selectNearMax)&position])))
     ax.set_xlabel('riseTime/ns')
     ax.set_ylabel('entries')
     ax.legend()
