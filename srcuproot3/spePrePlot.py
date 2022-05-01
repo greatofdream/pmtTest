@@ -1,4 +1,3 @@
-from unittest import result
 import matplotlib.pyplot as plt
 import h5py, argparse
 import numpy as np
@@ -42,7 +41,7 @@ if args.trigger>=0:
     fig, ax = plt.subplots()
     ax.set_title('triggertime distribution')
     trigger_mu, trigger_sigma = np.average(triggerInfo['triggerTime']), np.std(triggerInfo['triggerTime'])
-    ax.hist(triggerInfo['triggerTime'], histtype='step', bins=200*int(trigger_sigma), range=[int(trigger_mu-10*trigger_sigma), int(trigger_mu+10*trigger_sigma)], label='trigger time')
+    ax.hist(triggerInfo['triggerTime'], histtype='step', bins=200*int(trigger_sigma), range=[int(trigger_mu-10*trigger_sigma), int(trigger_mu+10*trigger_sigma)], label='trigger time {}$\pm${}'.format(trigger_mu, trigger_sigma))
     ax.set_xlabel('time/ns')
     ax.set_ylabel('entries')
     ax.legend()

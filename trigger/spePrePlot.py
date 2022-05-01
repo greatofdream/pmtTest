@@ -8,12 +8,11 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.colors as colors
 psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input h5 file')
-psr.add_argument('-o', dest='opt', help='output png file')
+psr.add_argument('-o', dest='opt', help='output h5 file')
 psr.add_argument('-c', dest='channel', nargs='+', default=[0,1],help='channel used in DAQ')
 psr.add_argument('-t', dest='trigger', default=0, type=int, help='trigger channel')
 
 args = psr.parse_args()
-# plt.style.use('fivethirtyeight')
 info = []
 with h5py.File(args.ipt, 'r') as ipt:
     waveformLength = ipt.attrs['waveformLength']
@@ -32,21 +31,19 @@ newcolors = jet(np.linspace(0, 1, 32768))
 white = np.array([1, 1, 1, 0.5])
 newcolors[0, :] = white
 cmap = ListedColormap(newcolors)
-pdf = PdfPages(args.opt)
+pdf = PdfPages(args.opt + '.pdf')
 # plot the trigger info
 fig, ax = plt.subplots()
 ax.set_title('triggertime distribution')
-ax.hist(triggerInfo['triggerTime'],histtype='step', bins=500, range=[150,200], label='trigger time')
+ax.hist(triggerInfo['triggerTime'], histtype='step', bins=500, range=[150,200], label='trigger time')
 ax.set_xlabel('time/ns')
 ax.set_ylabel('entries')
 ax.legend()
 ax.set_yscale('log')
 plt.tight_layout()
-# plt.savefig('{}/{}triggertime.png'.format(args.opt,args.trigger))
 pdf.savefig(fig)
 
 ax.set_yscale('linear')
-# plt.savefig('{}/{}triggerLinear.png'.format(args.opt,args.trigger))
 pdf.savefig(fig)
 plt.close()
 
@@ -157,10 +154,8 @@ for j in range(len(args.channel)):
     ax.xaxis.set_minor_locator(xminorLocator)
     ax.legend()
     pdf.savefig(fig)
-    # plt.savefig('{}/{}minpeakposLinear.png'.format(args.opt,args.channel[j]))
     ax.set_yscale('log')
     pdf.savefig(fig)
-    # plt.savefig('{}/{}minpeakpos.png'.format(args.opt,args.channel[j]))
     
     fig, ax = plt.subplots()
     ax.set_title('peak position distribution')

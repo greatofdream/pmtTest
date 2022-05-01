@@ -9,8 +9,7 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest/
 #anaNum:
 wavecut:=600
 field:=
-all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) 
-#$(anaNum:%=ExResult/%/$(wavecut)ns/qe/preanalysisMerge.h5)
+all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/chargeSelect.h5)
 AP: $(anaNum:%=ExResult/%/$(wavecut)ns/pulse/ratio.pdf)
 preview: $(anaNum:%=ExResult/%/preview.pdf)
 
@@ -30,27 +29,29 @@ ExResult/$(1)/$(2)ns/h5/preanalysis0.h5: $$(Ex1DataNewDir)$(1)/*$(1).root
 
 ExResult/$(1)/$(2)ns/pulse/preanalysis%.h5: $$(Ex1DataNewDir)$(1)/*$(1)_%.root ExResult/$(1)/$(2)ns/h5/preanalysis%.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5 
 	mkdir -p $$(dir $$@)
-	time python3 triggerPulse.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) > $$@.log 2>&1
+	time python3 TriggerAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/pulse/preanalysis0.h5: $$(Ex1DataNewDir)$(1)/*$(1).root ExResult/$(1)/$(2)ns/h5/preanalysis0.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5 
 	mkdir -p $$(dir $$@)
-	time python3 triggerPulse.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) > $$@.log 2>&1
+	time python3 TriggerAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) > $$@.log 2>&1
 
 ExResult/$(1)/$(2)ns/qe/preanalysis%.h5: $$(Ex1DataNewDir)$(1)/*$(1)_%.root ExResult/$(1)/$(2)ns/h5/preanalysis%.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5 
 	mkdir -p $$(dir $$@)
-	time python3 triggerPulse.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) --QE > $$@.log 2>&1
+	time python3 TriggerAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) --QE > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/qe/preanalysis0.h5: $$(Ex1DataNewDir)$(1)/*$(1).root ExResult/$(1)/$(2)ns/h5/preanalysis0.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5 
 	mkdir -p $$(dir $$@)
-	time python3 triggerPulse.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) --QE > $$@.log 2>&1
+	time python3 TriggerAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) --QE > $$@.log 2>&1
 
 ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/h5/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/h5/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
 ExResult/$(1)/$(2)ns/h5/trigger.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
-	python trigger/summary.py -i $$^ -o $$@ -c $$(channels)
+	python trigger/summary.py -i $$^ -o $$@ -c $$(channels) > $$@.log 2>&1
 
 ExResult/$(1)/$(2)ns/pulse/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/pulse/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/pulse/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
 ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/qe/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/qe/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
+ExResult/$(1)/$(2)ns/chargeSelect.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5
+	python3 trigger/spePlot.py -c $$(channels) -t $$(word 2,$$^) -i $$< -o $$@ > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/pulse/ratio.pdf: ExResult/$(1)/$(2)ns/pulse/preanalysisMerge.h5
 	python3 pulseRatio.py -i $$^ -o $$@ > $$@.log
 ExResult/$(1)/$(2)ns/qe/ratio.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5

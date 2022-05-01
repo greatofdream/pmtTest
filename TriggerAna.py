@@ -101,7 +101,7 @@ if __name__=="__main__":
                     pulse[j][i] = (eid, False, promptPulse, delayPulse1, delayPulse10, promptPulseH, delayPulse1H, delayPulse10H, 0, 0)
     else:
         pulse = []
-        storedtype = [('EventID', '<i4'), ('isTrigger', bool), ('up10', '<f4'), ('down10', '<f4'), ('minPeak', '<f4'), ('minPeakPos', '<i4'), ('charge', '<f4')]
+        storedtype = [('EventID', '<i4'), ('isTrigger', bool),('riseTime','<f4'), ('downTime','<f4'),('FWHM','<f4'), ('up10', '<f4'), ('down10', '<f4'), ('up50', '<f4'), ('down50', '<f4'), ('up90', '<f4'), ('down90', '<f4'), ('minPeak', '<f4'), ('minPeakPos', '<i4'), ('charge', '<f4')]
         for i in range(len(args.channel)):
             pulse.append(np.zeros((entries,), dtype=storedtype))
         for i, (wave, eid, ch) in enumerate(zip(waveforms, eventIds, channelIds)):
@@ -119,15 +119,18 @@ if __name__=="__main__":
                 # Baseline inteval_j
                 if np.max(baseline - w[interval_j[0]:interval_j[1]])>threshold:
                     isTrigger = True
-                    rminIndex = interval_j[0] + np.argmin(w[interval_j[0]:interval_j[1]]) - int(trigger[i]['triggerTime'])
-                    # rising edge 0.1 down edge 0.1
-                    up10, _, _ = Qb(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
-                    down10, _, _ = Qe(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
-                    pulse[j][i] = (eid, isTrigger, up10, down10, baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, np.sum(baseline - w[int(up10):int(down10)]))
                 else:
                     isTrigger = False
-                    rminIndex = interval_j[0] + np.argmin(w[interval_j[0]:interval_j[1]]) - int(trigger[i]['triggerTime'])
-                    pulse[j][i] = (eid, isTrigger, -1, -1, baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, 0)
+                r_min = np.argmin(w[(interval_j[0]-3):(interval_j[1]+3)]) - 3
+                rminIndex = interval_j[0] + r_min - int(trigger[i]['triggerTime'])
+                if r_min<=0 or r_min>=(interval_j[1]-interval_j[0]):
+                    pulse[j][i] = (eid, isTrigger, 0, 0, 0, 0, 0, 0, 0, 0, 0, baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, 0)
+                else:
+                    # rising edge 0.1 down edge 0.1
+                    up10, up50, up90 = Qb(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
+                    down10, down50, down90 = Qe(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
+                    pulse[j][i] = (eid, isTrigger, up90-up10, down10-down90, down50-up50, up10-trigger[i]['triggerTime'], down10-trigger[i]['triggerTime'], up50-trigger[i]['triggerTime'], down50-trigger[i]['triggerTime'], up90-trigger[i]['triggerTime'], down90-trigger[i]['triggerTime'], baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, np.sum(baseline - w[int(up10):int(down10)]))
+                
     with h5py.File(args.opt, 'w') as opt:
         for j in range(len(args.channel)):
             opt.create_dataset('ch{}'.format(args.channel[j]), data=pulse[j], compression='gzip')
