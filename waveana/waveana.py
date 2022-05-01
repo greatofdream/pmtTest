@@ -29,7 +29,6 @@ class Waveana(object):
         self.end5mV = 0
         self.begin5mV = 0
         self.minIndex = np.argmin(self.wave)
-        self.triggerTime = 0
     def getBaseline(self, nsigma=5, padding=5, threshold=1):
         # 仅仅去除超出判定阈值前后padding区域，取平均值,使用的负脉冲判断
         std = max(np.std(self.wave), threshold)
