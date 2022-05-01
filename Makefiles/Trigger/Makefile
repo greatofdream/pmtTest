@@ -9,7 +9,8 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest/
 #anaNum:
 wavecut:=600
 field:=
-all: $(anaNum:%=ExResult/%/$(wavecut)ns/h5/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/qe/preanalysisMerge.h5)
+all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) 
+#$(anaNum:%=ExResult/%/$(wavecut)ns/qe/preanalysisMerge.h5)
 AP: $(anaNum:%=ExResult/%/$(wavecut)ns/pulse/ratio.pdf)
 preview: $(anaNum:%=ExResult/%/preview.pdf)
 
