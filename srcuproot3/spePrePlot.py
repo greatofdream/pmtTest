@@ -13,16 +13,17 @@ psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input h5 file')
 psr.add_argument('-o', dest='opt', help='output png file')
 psr.add_argument('-c', dest='channel', nargs='+', default=[0,1],help='channel used in DAQ')
+psr.add_argument('-t', dest='trigger', default=-1, type=int, help='trigger channel')
 args = psr.parse_args()
 #plt.style.use('fivethirtyeight')
 info = []
 results = np.zeros(len(args.channel), dtype=[('peakC','<f4'), ('vallyC','<f4'),('PV','<f4'),('chargeMu','<f4'),('chargeSigma','<f4')])
 with h5py.File(args.ipt, 'r') as ipt:
     waveformLength = ipt.attrs['waveformLength']
-    #waveformLength = 1500
     for j in range(len(args.channel)):
-        print(j)
         info.append(ipt['ch{}'.format(args.channel[j])][:])
+    if args.trigger>=0:
+        triggerInfo = ipt['trigger'][:]
 rangemin =-100
 rangemax = 500
 bins = rangemax-rangemin
@@ -36,6 +37,19 @@ newcolors[0, :] = white
 cmap = ListedColormap(newcolors)
 print('begin plot')
 pdf = PdfPages(args.opt+'.pdf')
+if args.trigger>=0:
+    # 绘制trigger的分布图
+    fig, ax = plt.subplots()
+    ax.set_title('triggertime distribution')
+    trigger_mu, trigger_sigma = np.average(triggerInfo['triggerTime']), np.std(triggerInfo['triggerTime'])
+    ax.hist(triggerInfo['triggerTime'], histtype='step', bins=200*int(trigger_sigma), range=[int(trigger_mu-10*trigger_sigma), int(trigger_mu+10*trigger_sigma)], label='trigger time')
+    ax.set_xlabel('time/ns')
+    ax.set_ylabel('entries')
+    ax.legend()
+    ax.set_yscale('log')
+    plt.tight_layout()
+    pdf.savefig(fig)
+# 下面循环绘制每个channel的图像
 nearMax = 10
 for j in range(len(args.channel)):
     selectNearMax = info[j]['nearPosMax']<=nearMax
@@ -104,10 +118,8 @@ for j in range(len(args.channel)):
     ax.set_xlabel('peak position/ns')
     ax.set_ylabel('entries')
     ax.legend()
-    # plt.savefig('{}/{}minpeakposLinear.png'.format(args.opt,args.channel[j]))
     # pdf.savefig(fig)
     ax.set_yscale('log')
-    # plt.savefig('{}/{}minpeakpos.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     
     fig, ax = plt.subplots()
@@ -117,10 +129,8 @@ for j in range(len(args.channel)):
     ax.set_xlabel('peak position/ns')
     ax.set_ylabel('entries')
     ax.legend()
-    # plt.savefig('{}/{}minpeakposCutLinear.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     ax.set_yscale('log')
-    # plt.savefig('{}/{}minpeakposCut.png'.format(args.opt,args.channel[j]))
     # pdf.savefig(fig)
     
     # min peak position and peak height distribution
@@ -130,7 +140,6 @@ for j in range(len(args.channel)):
     fig.colorbar(h[3], ax=ax)
     ax.set_xlabel('peakPos/ns')
     ax.set_ylabel('peakHeight/mV')
-    # plt.savefig('{}/{}peakPos-peakHeight.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
 
     # min peak charge and peak height distribution
@@ -140,7 +149,6 @@ for j in range(len(args.channel)):
     fig.colorbar(h[3], ax=ax)
     ax.set_xlabel('peakCharge/mVns')
     ax.set_ylabel('peakHeight/mV')
-    # plt.savefig('{}/{}peakCharge-peakHeight.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     '''
     fig, ax = plt.subplots()
@@ -178,7 +186,6 @@ for j in range(len(args.channel)):
     fig.colorbar(h[3], ax=ax)
     ax.set_xlabel('baseline/mV')
     ax.set_ylabel('std/mV')
-    # plt.savefig('{}/{}base-std.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
 
     # baseline
@@ -189,7 +196,6 @@ for j in range(len(args.channel)):
     ax.set_ylabel('entries')
     ax.set_yscale('log')
     ax.legend()
-    # plt.savefig('{}/{}baselineLinear.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
 
     # std
@@ -200,11 +206,10 @@ for j in range(len(args.channel)):
     ax.set_ylabel('entries')
     ax.legend()
     ax.set_yscale('log')
-    # plt.savefig('{}/{}stdLinear.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     plt.close()
     
-    # risetime and downtime
+    # risetime and downtime，里面对于范围做了限制，需要动态考虑
     position = (info[j]['minPeakPos']>10)&(info[j]['minPeakPos']<(waveformLength-30))
     fig, ax = plt.subplots()
     ax.set_title('$T_R$,$T_d$,FWHM ($V_p>5$mV,$10<p<${}ns) distribution'.format(waveformLength-30))
@@ -215,10 +220,8 @@ for j in range(len(args.channel)):
     ax.set_ylabel('entries')
     ax.legend()
     #ax.set_xlim([1,40])
-    # plt.savefig('{}/{}risetime.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     ax.set_yscale('log')
-    # plt.savefig('{}/{}risetimeLog.png'.format(args.opt,args.channel[j]))
     # pdf.savefig(fig)
     plt.close()
 

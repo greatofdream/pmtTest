@@ -9,13 +9,14 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest/
 #anaNum:
 wavecut:=600
 field:=
-all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.pdf)
-QE: $(anaNum:%=ExResult/%/400ns/qe.h5)
+all: $(anaNum:%=ExResult/%/$(wavecut)ns/h5/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/qe/preanalysisMerge.h5)
+AP: $(anaNum:%=ExResult/%/$(wavecut)ns/pulse/ratio.pdf)
+preview: $(anaNum:%=ExResult/%/preview.pdf)
 
 define analysis
 ExResult/$(1)/preview.pdf: $$(Ex1DataNewDir)$(1)/*Ext*$(1).root
 	mkdir -p $$(dir $$@)
-	time python3 preview.py -i $$^ -c $$(triggerch) $$(channels) -o $$@ > $$@.log 2>&1
+	time python3 trigger/preview.py -i $$^ -c $$(triggerch) $$(channels) -o $$@ > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/h5/checkFit%.pdf: $$(Ex1DataNewDir)$(1)/*$(1)_%.root
 	mkdir -p $$(dir $$@)
 	time python3 checkfit.py -i $$^ -l $(2) -c $$(channels) -t $$(triggerch) -o $$@ > $$@.log 2>&1
@@ -54,8 +55,8 @@ ExResult/$(1)/$(2)ns/pulse/ratio.pdf: ExResult/$(1)/$(2)ns/pulse/preanalysisMerg
 ExResult/$(1)/$(2)ns/qe/ratio.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5
 	python3 QERatio.py -i $$< -o $$@ --interval $$(word 2,$$^) -c $$(channels) > $$@.log
 
-ExResult/$(1)/$(2)ns/charge.pdf: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
-	python3 trigger/spePrePlot.py -c $$(channels) -t $$(triggerch) -i $$^ -o $$@ > $$@.log 2>&1
+ExResult/$(1)/$(2)ns/charge.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
+	python3 srcuproot3/spePrePlot.py -c $$(channels) -t $$(triggerch) -i $$^ -o $$@ > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/ratio.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
 	cp /srv/greatofdream/JinpingPMTTest/pmtTest/trigger/ExResult/580/400ns/config.json $$(dir $$@)
 	cp /srv/greatofdream/JinpingPMTTest/pmtTest/trigger/ExResult/580/400ns/config $$(dir $$@)
