@@ -2,7 +2,7 @@ import uproot, numpy as np, h5py
 import argparse
 from pandas import Series
 import matplotlib.pyplot as plt
-plt.style.use('presentation.mpldstyle')
+plt.style.use('presentation.mplstyle')
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib.backends.backend_pdf import PdfPages
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
