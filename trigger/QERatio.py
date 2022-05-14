@@ -33,7 +33,9 @@ if __name__=="__main__":
         QEinfo[i]['ratio'] = QEinfo[i]['triggernum']/QEinfo[i]['totalnum']
     with h5py.File(args.opt, 'w') as opt:
         opt.create_dataset('QEinfo', data=QEinfo, compression='gzip')
-    print(QEinfo)
+    print(QEinfo.dtype.names)
+    for i in range(len(args.channel)):
+        print(QEinfo[i])
     with PdfPages(args.opt+'.pdf') as pdf:
         fig, ax = plt.subplots()
         for i in range(len(args.channel)):

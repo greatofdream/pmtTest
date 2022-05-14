@@ -17,6 +17,7 @@
   + `TriggerPreAna.py`:考虑触发时间窗后，进行预分析，为了加速，使用了600ns的长度对波形做了切割，所以这里在调整激光的上升沿时，要保证触发的信号在600ns以内，或者调整这个大小。
   + `summary.py`： 处理出触发后的时间窗区域
   + `TriggerAna.py`: 根据触发后的时间窗区域重新分析是否有触发 
+  + `QERatio.py`:分析触发比例，输出结果在`qe/ratio.h5.log` 
   + `pulseRatio.py`:分析前后脉冲比例 `pulseRatioWOnoise.py`:去除暗噪声计数的结果
   + `QE.py`: 分析触发比例
 ## Example
