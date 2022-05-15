@@ -123,7 +123,8 @@ if __name__=="__main__":
                     isTrigger = False
                 r_min = np.argmin(w[(interval_j[0]-3):(interval_j[1]+3)]) - 3
                 rminIndex = interval_j[0] + r_min - int(trigger[i]['triggerTime'])
-                if r_min<=0 or r_min>=(interval_j[1]-interval_j[0]):
+                # 判断最小值是否在baseline下方，如果不是，说明这部分是过冲信号
+                if r_min<=0 or r_min>=(interval_j[1]-interval_j[0]) or w[rminIndex+ int(trigger[i]['triggerTime'])]>=baseline:
                     pulse[j][i] = (eid, isTrigger, 0, 0, 0, 0, 0, 0, 0, 0, 0, baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, 0)
                 else:
                     # rising edge 0.1 down edge 0.1
