@@ -54,10 +54,10 @@ for j in range(len(args.channel)):
     # charge分布
     fig, ax = plt.subplots()
     ax.set_title('charge distribution')
-    rangemin = int(np.min(info[j]['charge'])-1)
-    rangemax = int(np.max(info[j]['charge'])+1)
+    rangemin = int(np.min(info[j]['minPeakCharge'])-1)
+    rangemax = int(np.max(info[j]['minPeakCharge'])+1)
     bins = rangemax-rangemin
-    h = ax.hist(info[j]['charge'], histtype='step', bins=bins, range=[rangemin, rangemax], label='charge')
+    h = ax.hist(info[j]['minPeakCharge'], histtype='step', bins=bins, range=[rangemin, rangemax], label='charge')
     ax.set_xlabel('charge/mVns')
     ax.set_ylabel('entries')
     ax.legend()
@@ -75,7 +75,7 @@ for j in range(len(args.channel)):
         pv = np.max(h[0][70:150])
         vv = np.min(h[0][10:80])
         plt.scatter([pi,vi],[pv,vv])
-        selectinfo = info[j]['charge'][(info[j]['minPeak']>3)&(info[j]['charge']<800)]
+        selectinfo = info[j]['minPeakCharge'][(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)]
         results[j] = (pi,vi, pv/vv,np.mean(selectinfo), np.std(selectinfo))
         handles, labels = ax.get_legend_handles_labels()
         handles.append(mpatches.Patch(color='none', label='Gain:{:.2f}'.format(pi/50/1.6)))
@@ -145,11 +145,11 @@ for j in range(len(args.channel)):
     plt.close()
 
     fig,ax = plt.subplots()
-    limits_mu, limits_sigma = np.mean(info[j]['up10'][(info[j]['minPeak']>3)]),np.std(info[j]['up10'][(info[j]['minPeak']>3)])
+    limits_mu, limits_sigma = np.mean(info[j]['begin10'][(info[j]['minPeak']>3)]),np.std(info[j]['begin10'][(info[j]['minPeak']>3)])
     limits = [limits_mu-limits_sigma, limits_mu+limits_sigma]
-    result, N = fitGaus(info[j]['up10'][(info[j]['minPeak']>3)], limits)
+    result, N = fitGaus(info[j]['begin10'][(info[j]['minPeak']>3)], limits)
     print(result)
-    ax.hist(info[j]['up10'][(info[j]['minPeak']>3)],bins=int(100*limits_sigma),range=[limits_mu-5*limits_sigma, limits_mu+5*limits_sigma], histtype='step', label='$t_{0.1}-t_{trigger}$')
+    ax.hist(info[j]['begin10'][(info[j]['minPeak']>3)],bins=int(100*limits_sigma),range=[limits_mu-5*limits_sigma, limits_mu+5*limits_sigma], histtype='step', label='$t_{0.1}-t_{trigger}$')
     ax.plot(np.arange(limits_mu-5*limits_sigma, limits_mu+5*limits_sigma, 0.1),result.x[0]*N*0.1*np.exp(-(np.arange(limits_mu-5*limits_sigma, limits_mu+5*limits_sigma,0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],'--')
     ax.plot(np.arange(limits[0],limits[1],0.1), result.x[0]*N*0.1*np.exp(-(np.arange(limits[0],limits[1],0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],label='fit')
     ax.set_xlabel('TT/ns')
