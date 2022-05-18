@@ -13,7 +13,7 @@ from scipy.optimize import minimize
 '''
 def fitGaus(tts,limits):
     tts_select = tts[(tts<limits[1])&(tts>limits[0])]
-    result = minimize(likelihood,[1, np.mean(tts_select),np.std(tts_select)],args=(tts_select, tts_select.shape[0]))
+    result = minimize(likelihood,[1, np.mean(tts_select),np.std(tts_select)],args=(tts_select, tts_select.shape[0]), bounds=[(0,None),limits,(0,(limits[1]-limits[0])/2)])
     return result, tts_select.shape[0]
 def likelihood(x,*args):
     A,mu,sigma = x
@@ -145,12 +145,13 @@ for j in range(len(args.channel)):
     plt.close()
 
     fig,ax = plt.subplots()
-    limits_mu, limits_sigma = np.mean(info[j]['begin10'][(info[j]['minPeak']>3)]),np.std(info[j]['begin10'][(info[j]['minPeak']>3)])
+    limits_mu, limits_sigma = np.mean(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])]),np.std(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])])
+    limits_sigma = min(limits_sigma, 15)
     limits = [limits_mu-limits_sigma, limits_mu+limits_sigma]
-    result, N = fitGaus(info[j]['begin10'][(info[j]['minPeak']>3)], limits)
+    result, N = fitGaus(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])], limits)
     print(result)
-    ax.hist(info[j]['begin10'][(info[j]['minPeak']>3)],bins=int(100*limits_sigma),range=[limits_mu-5*limits_sigma, limits_mu+5*limits_sigma], histtype='step', label='$t_{0.1}-t_{trigger}$')
-    ax.plot(np.arange(limits_mu-5*limits_sigma, limits_mu+5*limits_sigma, 0.1),result.x[0]*N*0.1*np.exp(-(np.arange(limits_mu-5*limits_sigma, limits_mu+5*limits_sigma,0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],'--')
+    ax.hist(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])],bins=int(100*limits_sigma),range=[limits_mu-3*limits_sigma, limits_mu+3*limits_sigma], histtype='step', label='$t_{0.1}-t_{trigger}$')
+    ax.plot(np.arange(limits_mu-3*limits_sigma, limits_mu+3*limits_sigma, 0.1),result.x[0]*N*0.1*np.exp(-(np.arange(limits_mu-3*limits_sigma, limits_mu+3*limits_sigma,0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],'--')
     ax.plot(np.arange(limits[0],limits[1],0.1), result.x[0]*N*0.1*np.exp(-(np.arange(limits[0],limits[1],0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],label='fit')
     ax.set_xlabel('TT/ns')
     ax.set_ylabel('Entries')
