@@ -11,12 +11,18 @@ wavecut:=600
 field:=
 all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/chargeSelect.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/qe/ratio.h5)
 AP: $(anaNum:%=ExResult/%/$(wavecut)ns/pulse/ratio.pdf)
-preview: $(anaNum:%=ExResult/%/preview.pdf)
+preview: $(anaNum:%=ExResult/%/preview.pdf) $(anaNum:%=ExResult/%/entries.txt) 
 
 define analysis
 ExResult/$(1)/preview.pdf: $$(Ex1DataNewDir)$(1)/*Ext*$(1).root
 	mkdir -p $$(dir $$@)
 	time python3 trigger/preview.py -i $$^ -c $$(triggerch) $$(channels) -o $$@ > $$@.log 2>&1
+ExResult/$(1)/eid%.pdf: $$(Ex1DataNewDir)$(1)/*Ext*$(1).root
+	mkdir -p $$(dir $$@)
+	time python3 trigger/preview.py -i $$^ -e $$* -c $$(triggerch) $$(channels) -o $$@ --num ExResult/$(1)/entries.txt
+ExResult/$(1)/entries.txt:
+	mkdir -p $$(dir $$@)
+	time python3 entries.py -f $$(Ex1DataNewDir)$(1) -o $$@
 ExResult/$(1)/$(2)ns/h5/checkFit%.pdf: $$(Ex1DataNewDir)$(1)/*$(1)_%.root
 	mkdir -p $$(dir $$@)
 	time python3 checkfit.py -i $$^ -l $(2) -c $$(channels) -t $$(triggerch) -o $$@ > $$@.log 2>&1
