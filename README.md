@@ -29,9 +29,13 @@
   ```
   make anaNum=680 channels="2 3" triggerch=1 -f Makefiles/Trigger/Makefile -j16
   ```
-+ 预览激光触发数据
++ 预览激光触发数据前100条波形
   ```
   make preview anaNum=680 channels="2 3" triggerch=1 -f Makefiles/Trigger/Makefile
+  ```
+  或者预览单条波形
+  ```
+  make ExResult/[run号]/eid[eid号].pdf anaNum=680 channels="2 3" triggerch=1 -f Makefiles/Trigger/Makefile
   ```
 + `QE`测量依赖于两次的交换测量，需要在task中创建一个`xxx/config.json`，执行
   ```
