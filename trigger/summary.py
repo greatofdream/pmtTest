@@ -14,7 +14,7 @@ def likelihood(x, *args):
     N = times.shape[0]
     return np.sum((times-mu)**2/sigma**2/2) + N * np.log(sigma)
 def fitInterval(x0, timeselect):
-    result = minimize(likelihood, x0, args=(timeselect))
+    result = minimize(likelihood, x0, args=(timeselect), bounds=[(x0[0]-10*x0[1],x0[0]+10*x0[1]),(0,10*x0[1])])
     return result.x
 def getInterval(minpeakpos, minpeak, threshold=5):
     # TODO: 使用histogram处理
