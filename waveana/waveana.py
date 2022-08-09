@@ -238,7 +238,7 @@ class Waveana(object):
         for i in range(index, end):
             self.s_wave[i] = np.average(self.wave[(i-1):(i+2)])
         
-    def integrateMinPeakWave(self, baselength=0):
+    def integrateMinPeakWave(self, baselength=15, afterlength=40):
         self.minIndex, self.nearMax, self.nearPositiveMean, self.nearPositiveStd = findNearMax(self.wave,self.triggerTime, self.minPeakBaseline)
         self.minPeak = self.minPeakBaseline-self.wave[self.minIndex]
         if self.minPeak<0:
@@ -248,8 +248,8 @@ class Waveana(object):
         self.end10, self.end50, self.end90 = Qe(self.s_wave, self.minIndex, self.minPeakBaseline)
         self.begin5mV = bxmV(self.wave, self.minIndex, self.minPeakBaseline)
         self.end5mV = exmV(self.s_wave, self.minIndex, self.minPeakBaseline)
-        begin = int(self.begin10)-baselength
-        end = int(self.end10)+baselength
+        begin = int(self.minIndex) - baselength
+        end = int(self.minIndex) + afterlength
         if begin<0:
             begin = 0
         if end>self.wave.shape[0]:
