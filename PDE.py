@@ -4,6 +4,7 @@ from patsy import dmatrices
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.ticker import MultipleLocator
 import pandas as pd
 import h5py
 import argparse
@@ -80,11 +81,15 @@ if __name__=="__main__":
     mod = sm.OLS(y, X)
     res = mod.fit()
     print(res.summary())
+    print('esitimate sigma^2 {:.3f}'.format(res.mse_resid))
     # https://www.statsmodels.org/stable/generated/statsmodels.regression.linear_model.RegressionResults.html#statsmodels.regression.linear_model.RegressionResults
     for r in zip(pmts[1:], np.exp(res.params[-(len(pmts)-1):]), res.bse[-(len(pmts)-1):], res.bse[-(len(pmts)-1):]*np.exp(res.params[-(len(pmts)-1):])):
-        print(str(r[0]), r[1], r[2], r[3])
+        print(str(r[0], 'UTF-8'), r[1], r[2], r[3])
+    print(res.outlier_test())
     with h5py.File(args.opt, 'w') as opt:
         opt.create_dataset('QE', data=np.exp(res.params[-(len(pmts)-1):]), compression='gzip')
+        opt.create_dataset('logerr', data=res.bse[-(len(pmts)-1):], compression='gzip')
+        opt.create_dataset('err', data=res.bse[-(len(pmts)-1):]*np.exp(res.params[-(len(pmts)-1):]))
     with PdfPages(args.opt+'.pdf') as pdf:
         fig, ax = plt.subplots()
         num_run = np.unique(measuredRates['runno'].values).shape[0]
@@ -92,3 +97,14 @@ if __name__=="__main__":
         ax.set_xlabel('runno')
         ax.set_ylabel('Intensity(A.U)')
         pdf.savefig(fig)
+
+        fig, ax = plt.subplots()
+        num_splitter = np.unique(measuredRates['splitter'].values).shape[0]
+        ax.errorbar(x=range(1,num_splitter), y=np.exp(res.params[num_run:(num_run+num_splitter-1)]), yerr=np.exp(res.params[num_run:(num_run+num_splitter-1)])*res.bse[num_run:(num_run+num_splitter-1)])
+        ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+        ax.set_xticks(range(1,num_splitter), range(1,num_splitter))
+        ax.set_xlabel('splitter id')
+        ax.set_ylabel('relative ratio')
+        pdf.savefig(fig)
+    for r in zip(np.exp(res.params[num_run:(num_run+num_splitter-1)]), np.exp(res.params[num_run:(num_run+num_splitter-1)])*res.bse[num_run:(num_run+num_splitter-1)]):
+        print('{:.2f}+-{:.2f}'.format(r[0], r[1]))
