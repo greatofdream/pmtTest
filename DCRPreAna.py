@@ -1,7 +1,13 @@
+'''
+Dark Noise mode analyze
++ baseline and baseline std
++ the largest peak: height charge et al
+'''
 import uproot, numpy as np, h5py
 from pandas import Series
 import argparse
 from waveana.waveana import Waveana
+import config
 from tqdm import tqdm
 psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input root file')
@@ -16,6 +22,7 @@ with uproot.open(args.ipt) as ipt:
         eventIds = ipt["Readout/TriggerNo"].array(library='np')
         waveforms = ipt["Readout/Waveform"].array(library='np')
         channelIds = ipt["Readout/ChannelId"].array(library='np')
+# minor wave length for calculating baseline 
 baselength = 50
 
 entries = waveforms.shape[0]
@@ -23,14 +30,17 @@ channels = [int(c) for c in args.channel]
 nchannel = len(channelIds[0])
 waveformsLength = int(waveforms[0].shape[0]/nchannel)
 info = []
+# whether cut off the tail of waveform. There may be strange pulse in the tail of waveform.
 if args.waveCut==0:
     waveCut = waveformsLength
     print('wave length {}'.format(waveCut))
 else:
     waveCut = waveformsLength - args.waveCut
+# initilize the waveform analyzer and storage
 waveana = Waveana()
 for i in range(len(args.channel)):
     info.append(np.zeros((entries,),dtype=storedtype))
+# loop for each wave
 for i, (wave, eid, ch) in enumerate(zip(waveforms, eventIds, channelIds)):
     wave = wave.reshape((ch.shape[0],-1))
     chmap = Series(range(ch.shape[0]), index=ch)
@@ -38,8 +48,9 @@ for i, (wave, eid, ch) in enumerate(zip(waveforms, eventIds, channelIds)):
         waveana.setWave(wave[chmap.loc[channels[j]]][:waveCut])
         waveana.getBaselineFine(waveana.minIndex)
         waveana.integrateWave()
-        waveana.integrateMinPeakWave()
+        waveana.integrateMinPeakWave(config.baselength, config.afterlength)
         info[j][i] = (eid, waveana.allCharge, waveana.minPeakCharge, waveana.minPeak, waveana.minIndex, waveana.minPeakBaseline, waveana.minPeakStd,waveana.begin90-waveana.begin10,waveana.end10-waveana.end90,waveana.end50-waveana.begin50,waveana.begin10,waveana.begin50,waveana.begin90,waveana.end10,waveana.end50,waveana.end90,waveana.begin5mV,waveana.end5mV,waveana.nearMax,waveana.nearPositiveMean,waveana.nearPositiveStd)
+# save the result to hdf format
 with h5py.File(args.opt, 'w') as opt:
     opt.attrs['waveformLength'] = waveCut
     for j in range(len(args.channel)):

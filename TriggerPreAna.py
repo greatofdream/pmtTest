@@ -3,6 +3,7 @@ import uproot, numpy as np, h5py
 from pandas import Series
 import argparse
 from waveana.triggerana import Triggerana
+import config
 import tqdm
 if __name__=="__main__":
     psr = argparse.ArgumentParser()
@@ -56,7 +57,7 @@ if __name__=="__main__":
             waveana.setWave(wave[chmap.loc[channels[j]]][:waveCut])
             waveana.getBaselineFine(int(waveana.triggerTime)+200, 5, 250,100)
             waveana.integrateWave()
-            waveana.integrateMinPeakWave()
+            waveana.integrateMinPeakWave(config.baselength, config.afterlength)
             fittime = 0
             # if waveana.minPeak>5 and waveana.minIndex>220 and waveana.minIndex<280 and waveana.nearMax<2:
             #     fitresult = waveana.fit()
