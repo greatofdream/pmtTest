@@ -4,6 +4,10 @@ from numba import jit
 '''
 extract information from other numpy waveforms
 '''
+def Lgaussian(x0, A):
+    mu, sigma = x0
+    return np.sum(((A - mu) / sigma) ** 2) + A.shape[0] * np.log(sigma)
+
 class Waveana(object):
     def __init__(self, wave=[], eid=0):
         self.eid = eid
@@ -44,38 +48,37 @@ class Waveana(object):
         self.meanBaseline = np.average(cutWave)
         self.std = np.std(cutWave)
         return self.meanBaseline, self.std
-    def getBaselineFine(self, minIndex, nsigma=5, expandWidth=500, desiredWidth=100, padding=10):
+    def getBaselineFine(self, minIndex, nsigma=5, expandWidth=200, desiredWidth=100, padding=10):
         # extract the wave,尽可能使用波形前面的100ns/500ns部分计算基线大小,如果不够长，使用波形后面紧跟的500ns计算
-        if minIndex< desiredWidth:
-            begin = np.clip(minIndex+100, 0, self.wave.shape[0])
-            end = np.clip(begin+expandWidth, 0, self.wave.shape[0])
+        begin = np.clip(minIndex - expandWidth, 0, self.wave.shape[0])
+        end = minIndex - 10
+        if (end - begin)< desiredWidth:
+            # 为基线补充大约100ns
+            extractWave = np.append(self.wave[begin:end],self.wave[(minIndex + desiredWidth): np.clip(minIndex + expandWidth, 0, self.wave.shape[0])])
         else:
-            begin = np.clip(minIndex - expandWidth, 0, self.wave.shape[0])
-            end = minIndex - 10
-        extractWave = self.wave[begin:end]
-        self.hist = np.histogram(extractWave, bins=1000, range=[1,1001])[0]
-        baselineEstimate = np.argmax(self.hist)+1
-        stdl = np.max([0,baselineEstimate-6])
-        stdr = np.min([self.hist.shape[0],baselineEstimate+5])
-        for i in range(baselineEstimate-1, np.max([0,baselineEstimate-6]),-1):
-            if self.hist[i]<(self.hist[baselineEstimate-1]/2):
-                stdl=i
-                break
-        for i in range(baselineEstimate, np.min([self.hist.shape[0],baselineEstimate+6])):
-            if self.hist[i]<(self.hist[baselineEstimate-1]/2):
-                stdr=i
-                break
-        stdEstimate = (stdr-stdl)/2.355/2
-        threshold = np.clip(nsigma*stdEstimate,1,5)
-        signalPos = extractWave<(baselineEstimate-threshold)
-        signalPos = np.unique(np.clip(signalPos.reshape(-1,1)+np.arange(-padding,padding), 0, self.wave.shape[0]))
+            extractWave = self.wave[begin:end]
+        # extractWave 经过粗略的信号筛选,限制粗略估计的std范围在[1,3]
+        roughbaseline, roughstd = np.mean(extractWave), np.clip(np.std(extractWave), 1, 3)
+        # 使用unbinned拟合
+        x = minimize(
+            Lgaussian,
+            x0=[roughbaseline, roughstd],
+            args=extractWave[extractWave>(roughbaseline - np.min([5, nsigma*roughstd]))],
+            bounds=[
+                (roughbaseline - nsigma * roughstd, roughbaseline + nsigma * roughstd),
+                (0.001, nsigma * roughstd),
+            ],
+        )
+        # 根据估计的baseline和std移除信号
+        signalPos = np.where(extractWave<(x.x[0] - np.min([3, nsigma*x.x[1]])))[0]
+        signalPos = np.unique(np.clip(signalPos.reshape(-1,1) + np.arange(-padding,padding), 0, extractWave.shape[0]-1))
         mask = np.ones(extractWave.shape[0]).astype(bool)
         mask[signalPos] = False
         cutWave = extractWave[mask]
-        # 取出std比较小的部分，和上述算法互相对比，取最佳
-        cutWave2 = self.getSmallStdWave()
-        if np.std(cutWave2)<np.std(cutWave) or cutWave.shape[0]<=10:
-            cutWave = cutWave2
+        # 避免波形过多，导致没有取到合适的baseline，取出std比较小的部分
+        if cutWave.shape[0]<=padding:
+            print('warning: baseline too short')
+            cutWave, begin, end = self.getSmallStdWave()
         baselineEstimate = np.average(cutWave)
         stdEstimate = np.std(cutWave)
         # [begin,end] is the interval of baseline
@@ -87,17 +90,6 @@ class Waveana(object):
             exit(1)
         self.minPeakBaseline = baselineEstimate
         self.minPeakStd = stdEstimate
-        '''
-        threshold = np.clip(nsigma*stdEstimate,3,5)
-        cutWave0 = cutWave[(cutWave>=(baselineEstimate-threshold))&(cutWave<=(baselineEstimate+threshold))]
-        self.minPeakBaseline = np.average(cutWave0)
-        self.minPeakStd = np.std(cutWave0)
-        if np.isnan(self.minPeakStd):
-            print(cutWave)
-            print(cutWave0)
-            print(self.minPeakStd,self.minPeakBaseline)
-            exit(1)
-        '''
         return self.minPeakBaseline
     def getSmallStdWave(self, number=10):
         step = int(self.wave.shape[0]/10)
@@ -105,7 +97,7 @@ class Waveana(object):
         for i in range(number):
             stdArray[i] = np.std(self.wave[i*step:(i+1)*step])
         smallIndex = np.argmin(stdArray)
-        return self.wave[smallIndex*step:(smallIndex+1)*step]
+        return self.wave[smallIndex*step:(smallIndex+1)*step], smallIndex*step, (smallIndex+1)*step
     def findPeakStd(self, npeak=2, nsigma=3, chargeThreshold=15, baselength=50):
         '''
         use baseline noise std* nsigma as threshold for whether signal. nthreshold for the second signal
