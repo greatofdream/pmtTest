@@ -7,7 +7,13 @@ extract information from other numpy waveforms
 def Lgaussian(x0, A):
     mu, sigma = x0
     return np.sum(((A - mu) / sigma) ** 2) + A.shape[0] * np.log(sigma)
-
+def gausfit(x0, args, bounds):
+    return minimize(
+            Lgaussian,
+            x0=x0,
+            args=args,
+            bounds=bounds,
+        )
 class Waveana(object):
     def __init__(self, wave=[], eid=0):
         self.eid = eid
@@ -60,15 +66,12 @@ class Waveana(object):
         # extractWave 经过粗略的信号筛选,限制粗略估计的std范围在[1,3]
         roughbaseline, roughstd = np.mean(extractWave), np.clip(np.std(extractWave), 1, 3)
         # 使用unbinned拟合
-        x = minimize(
-            Lgaussian,
-            x0=[roughbaseline, roughstd],
+        x = gausfit(x0=[roughbaseline, roughstd],
             args=extractWave[extractWave>(roughbaseline - np.min([5, nsigma*roughstd]))],
             bounds=[
                 (roughbaseline - nsigma * roughstd, roughbaseline + nsigma * roughstd),
                 (0.001, nsigma * roughstd),
-            ],
-        )
+            ])
         # 根据估计的baseline和std移除信号
         signalPos = np.where(extractWave<(x.x[0] - np.min([3, nsigma*x.x[1]])))[0]
         signalPos = np.unique(np.clip(signalPos.reshape(-1,1) + np.arange(-padding,padding), 0, extractWave.shape[0]-1))
