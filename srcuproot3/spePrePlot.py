@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+plt.style.use('./journal.mplstyle')
 import h5py, argparse
 import numpy as np
 from matplotlib import cm
@@ -14,7 +15,7 @@ psr.add_argument('-o', dest='opt', help='output png file')
 psr.add_argument('-c', dest='channel', nargs='+', default=[0,1],help='channel used in DAQ')
 psr.add_argument('-t', dest='trigger', default=-1, type=int, help='trigger channel')
 args = psr.parse_args()
-#plt.style.use('fivethirtyeight')
+
 info = []
 results = np.zeros(len(args.channel), dtype=[('peakC','<f4'), ('vallyC','<f4'),('PV','<f4'),('chargeMu','<f4'),('chargeSigma','<f4')])
 with h5py.File(args.ipt, 'r') as ipt:
@@ -51,40 +52,45 @@ if args.trigger>=0:
 # 下面循环绘制每个channel的图像
 nearMax = 10
 for j in range(len(args.channel)):
-    selectNearMax = info[j]['nearPosMax']<=nearMax
-    # charge分布
-    fig, ax = plt.subplots()
-    ax.set_title('charge distribution')
     rangemin = int(np.min(info[j]['minPeakCharge'])-1)
     rangemax = int(np.max(info[j]['minPeakCharge'])+1)
     bins = rangemax-rangemin
-    # ax.hist(info[j]['allCharge'],histtype='step', bins=bins, range=[rangemin, rangemax], label='all charge integrate')
-    h = ax.hist(info[j]['minPeakCharge'][info[j]['nearPosMax']<=nearMax],histtype='step', bins=bins, range=[rangemin, rangemax], label='charge')
-    ax.set_xlabel('charge/mVns')
-    ax.set_ylabel('entries')
-    ax.legend()
+    if (rangemax - rangemin) < 100:
+        print('Warning: no signal charge more than 100')
+        continue
+    selectNearMax = info[j]['nearPosMax']<=nearMax
+    # charge分布
+    fig, ax = plt.subplots()
+    h = ax.hist(info[j]['minPeakCharge'][selectNearMax], histtype='step', bins=bins, range=[rangemin, rangemax], label='charge')
+    ax.set_xlabel('Equivalent Charge/ADCns')
+    ax.set_ylabel('Entries')
+    ax.legend(loc='best')
+    ax.xaxis.set_minor_locator(MultipleLocator(10))
     ax.set_yscale('log')
-    ax.xaxis.set_minor_locator(MultipleLocator(100))
-    # plt.savefig('{}/{}charge.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
-    ax.set_xlim([-5, 1000])
+    ## zoom in
+    ax.set_xlim([-20, 600])
     pdf.savefig(fig)
+    ## 拟合所需参数
     ax.set_yscale('linear')
-    if h[0].shape[0]>200:
-        ax.set_ylim([0, 2*np.max(h[0][70:150])])
-        pi = h[1][70:150][np.argmax(h[0][70:150])]
-        vi = h[1][15:70][np.argmin(h[0][15:70])]
-        pv = np.max(h[0][70:150])
-        vv = np.min(h[0][10:80])
-        plt.scatter([pi,vi],[pv,vv])
-        selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)]
-        results[j] = (pi,vi,pv/vv,np.mean(selectinfo), np.std(selectinfo))
-        handles, labels = ax.get_legend_handles_labels()
-        handles.append(mpatches.Patch(color='none', label='Gain:{:.2f}'.format(pi/50/1.6)))
-        handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
-        handles.append(mpatches.Patch(color='none', label='$\mu_{p>3mV}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
-        handles.append(mpatches.Patch(color='none', label='$\sigma_{p>3mV}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
-        ax.legend(handles=handles)
+    zeroOffset = np.where(h[1]>=0)[0][0]
+    ax.set_ylim([0, 2*np.max(h[0][(zeroOffset+70):(zeroOffset+150)])])
+    vi_r = np.argmin(h[0][(zeroOffset+15):(zeroOffset+70)])
+    vi = int(h[1][(zeroOffset+15):(zeroOffset+70)][vi_r])
+    pi_r = np.argmax(h[0][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)])
+    pi = h[1][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)][pi_r]
+    pv = h[0][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)][pi_r]
+    vv = h[0][(zeroOffset+15):(zeroOffset+70)][vi_r]
+    plt.scatter([pi, vi], [pv, vv])
+    print(([pi, vi], [pv, vv]))
+    selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)]
+    results[j] = (pi,vi,pv/vv,np.mean(selectinfo), np.std(selectinfo))
+    handles, labels = ax.get_legend_handles_labels()
+    handles.append(mpatches.Patch(color='none', label='Gain:{:.2f}'.format(pi/50/1.6)))
+    handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
+    handles.append(mpatches.Patch(color='none', label='$\mu_{p>3mV}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_{p>3mV}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
+    ax.legend(handles=handles)
     # plt.savefig('{}/{}chargeLinear.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     plt.close()
