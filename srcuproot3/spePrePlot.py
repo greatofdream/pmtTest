@@ -75,7 +75,7 @@ if args.trigger>=0:
     pdf.savefig(fig)
 # 下面循环绘制每个channel的图像
 nearMax = 10
-for j in range(len(args.channel))[0:1]:
+for j in range(len(args.channel)):
     rangemin = int(np.min(info[j]['minPeakCharge'])-1)
     rangemax = int(np.max(info[j]['minPeakCharge'])+1)
     bins = rangemax-rangemin
@@ -109,14 +109,19 @@ for j in range(len(args.channel))[0:1]:
     print(([pi, vi], [pv, vv]))
     # 使用上面值作为初值进行最小二乘拟合
     hi = zeroOffset + 15 + vi_r + pi_r
-    result = minimize(residual, [pv, pi, 30], args=(h[0][(hi-30):(hi+30)], (h[1][(hi-30):(hi+30)]+h[1][(hi-29):(hi+31)])/2), bounds=[(0,None), (5, None), (0, None)], method='SLSQP', options={'eps': 0.1})
+    peakspanl, peakspanr = 30, 30
+    result = minimize(residual, [pv, pi, 30], 
+        args=(h[0][(hi-peakspanl):(hi+peakspanr)], (h[1][(hi-peakspanl):(hi+peakspanr)]+h[1][(hi-peakspanl+1):(hi+peakspanr+1)])/2),
+        bounds=[(0,None), (5, None), (0, None)],
+        method='SLSQP', options={'eps': 0.1})
     print(result)
     A, mu, sigma = result.x
     # 绘制拟合结果
-    ax.plot(h[1][(hi-30):(hi+30)], A*np.exp(-(h[1][(hi-30):(hi+30)]-mu)**2/2/sigma**2), color='r', label='peak fit')
+    ax.plot(h[1][(hi-peakspanl):(hi+peakspanr)], 
+        A*np.exp(-(h[1][(hi-peakspanl):(hi+peakspanr)]-mu)**2/2/sigma**2), color='r', label='peak fit')
     pi = np.int(mu)
     pv = A
-    ax.fill_betweenx([0, pv], h[1][hi-30], h[1][hi+30], alpha=0.5, color='lightsalmon', label='peak fit interval')
+    ax.fill_betweenx([0, pv], h[1][hi-peakspanl], h[1][hi+peakspanr], alpha=0.5, color='lightsalmon', label='peak fit interval')
     ax.set_xlim([0, 600])
     ax.set_ylim([0, 2*pv])
     ax.axvline(0.25*mu, linestyle='--', label='0.25p.e.')
@@ -163,10 +168,7 @@ for j in range(len(args.channel))[0:1]:
     ax.set_ylabel('entries')
     ax.legend()
     ax.xaxis.set_minor_locator(MultipleLocator(100))
-    # plt.savefig('{}/{}minpeakLinear.png'.format(args.opt,args.channel[j]))
-    # pdf.savefig(fig)
     ax.set_yscale('log')
-    # plt.savefig('{}/{}minpeak.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     ax.xaxis.set_minor_locator(MultipleLocator(10))
     ax.set_yscale('linear')
