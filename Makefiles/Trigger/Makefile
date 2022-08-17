@@ -64,7 +64,7 @@ ExResult/$(1)/$(2)ns/qe/ratio.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 Ex
 	python3 trigger/QERatio.py -i $$< -o $$@ --interval $$(word 2,$$^) -c $$(channels) > $$@.log
 
 ExResult/$(1)/$(2)ns/charge.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
-	python3 srcuproot3/spePrePlot.py -c $$(channels) -t $$(triggerch) -i $$^ -o $$@ > $$@.log 2>&1
+	python3 BasicSummary.py -c $$(channels) -t $$(triggerch) -i $$^ -o $$@ > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/ratio.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
 	cp /srv/greatofdream/JinpingPMTTest/pmtTest/trigger/ExResult/580/400ns/config.json $$(dir $$@)
 	cp /srv/greatofdream/JinpingPMTTest/pmtTest/trigger/ExResult/580/400ns/config $$(dir $$@)

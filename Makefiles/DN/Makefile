@@ -53,7 +53,7 @@ ExResult/$(1)/$(2)ns/charge2.root: ExResult/$(1)/$(2)ns/2.csv
 
 
 ExResult/$(1)/$(2)ns/charge.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
-	python3 srcuproot3/spePrePlot.py -c $$(channels) -i $$^ -o $$@ > $$@.log 2>&1
+	python3 BasicSummary -c $$(channels) -i $$^ -o $$@ > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/darkNoise.png: ExResult/$(1)/$(2)ns/preanalysisMerge.h5
 	python3 spednPrePlot.py -c $$(channels) -i $$^ -o $$(dir $$@) > $$@.log 2>&1
 
