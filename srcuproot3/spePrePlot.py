@@ -8,7 +8,31 @@ import matplotlib.colors as colors
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import matplotlib.patches as mpatches
-
+from scipy.optimize import minimize
+def fitGaus(tts,limits):
+    tts_select = tts[(tts<limits[1])&(tts>limits[0])]
+    result = minimize(likelihood,[1, np.mean(tts_select),np.std(tts_select)],args=(tts_select, tts_select.shape[0]), bounds=[(0,None),limits,(0,(limits[1]-limits[0])/2)])
+    return result, tts_select.shape[0]
+def likelihood(x,*args):
+    A,mu,sigma = x
+    tts,N = args
+    return A*N-tts.shape[0]*np.log(A)+np.sum((tts-mu)**2)/2/sigma**2+tts.shape[0]*np.log(sigma)
+def residual(x, *args):
+    # modified least=squares method: gaussian function
+    A, mu, sigma = x
+    counts, bins = args
+    return np.sum((A*np.exp(-(bins-mu)**2/2/sigma**2)-counts)**2/counts)
+def vallyResidual(x, *args):
+    # modified least=squares method: parabolic
+    a, b, c = x
+    counts, bins = args
+    return np.sum((a/100*(bins - b)**2 + c - counts)**2/counts)
+def smooth(x, n=7):
+    pad = (n-1)//2
+    x0 = np.zeros(x.shape[0] - pad*2)
+    for i in range(pad, x.shape[0]-pad):
+        x0[i-pad] = np.average(x[(i-pad):(i+pad+1)])
+    return x0
 psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input h5 file')
 psr.add_argument('-o', dest='opt', help='output png file')
@@ -51,7 +75,7 @@ if args.trigger>=0:
     pdf.savefig(fig)
 # 下面循环绘制每个channel的图像
 nearMax = 10
-for j in range(len(args.channel)):
+for j in range(len(args.channel))[0:1]:
     rangemin = int(np.min(info[j]['minPeakCharge'])-1)
     rangemax = int(np.max(info[j]['minPeakCharge'])+1)
     bins = rangemax-rangemin
@@ -62,16 +86,17 @@ for j in range(len(args.channel)):
     # charge分布
     fig, ax = plt.subplots()
     h = ax.hist(info[j]['minPeakCharge'][selectNearMax], histtype='step', bins=bins, range=[rangemin, rangemax], label='charge')
+    ax.hist(info[j]['minPeakCharge'][selectNearMax&(info[j]['minPeak']>3)], histtype='step', bins=bins, range=[rangemin, rangemax], alpha=0.8, label='charge($V_p>3ADC$)')
     ax.set_xlabel('Equivalent Charge/ADCns')
     ax.set_ylabel('Entries')
     ax.legend(loc='best')
-    ax.xaxis.set_minor_locator(MultipleLocator(10))
     ax.set_yscale('log')
     pdf.savefig(fig)
     ## zoom in
-    ax.set_xlim([-20, 600])
+    ax.set_xlim([-100, 600])
+    ax.xaxis.set_minor_locator(MultipleLocator(10))
     pdf.savefig(fig)
-    ## 拟合所需参数
+    ## 拟合峰值处所需参数
     ax.set_yscale('linear')
     zeroOffset = np.where(h[1]>=0)[0][0]
     ax.set_ylim([0, 2*np.max(h[0][(zeroOffset+70):(zeroOffset+150)])])
@@ -81,17 +106,51 @@ for j in range(len(args.channel)):
     pi = h[1][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)][pi_r]
     pv = h[0][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)][pi_r]
     vv = h[0][(zeroOffset+15):(zeroOffset+70)][vi_r]
-    plt.scatter([pi, vi], [pv, vv])
     print(([pi, vi], [pv, vv]))
-    selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)]
+    # 使用上面值作为初值进行最小二乘拟合
+    hi = zeroOffset + 15 + vi_r + pi_r
+    result = minimize(residual, [pv, pi, 30], args=(h[0][(hi-30):(hi+30)], (h[1][(hi-30):(hi+30)]+h[1][(hi-29):(hi+31)])/2), bounds=[(0,None), (5, None), (0, None)], method='SLSQP', options={'eps': 0.1})
+    print(result)
+    A, mu, sigma = result.x
+    # 绘制拟合结果
+    ax.plot(h[1][(hi-30):(hi+30)], A*np.exp(-(h[1][(hi-30):(hi+30)]-mu)**2/2/sigma**2), color='r', label='peak fit')
+    pi = np.int(mu)
+    pv = A
+    ax.fill_betweenx([0, pv], h[1][hi-30], h[1][hi+30], alpha=0.5, color='lightsalmon', label='peak fit interval')
+    ax.set_xlim([0, 600])
+    ax.set_ylim([0, 2*pv])
+    ax.axvline(0.25*mu, linestyle='--', label='0.25p.e.')
+    ## 拟合峰谷处所需参数
+    vallyspanl, vallyspanr = 15, 30
+    li = zeroOffset + 15 + vi_r
+    # yy = smooth(h[0][(li-vallyspanl-3):(li+vallyspanr+3)])
+    yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
+    # z1 = np.polyfit((h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(hi-vallyspanl+1):(hi+vallyspanr+1)])/2, h[0][(li-vallyspanl):(li+vallyspanr)], 2)
+    # p1 = np.poly1d(z1)
+    # ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], p1(h[1][(li-vallyspanl):(li+vallyspanr)]), label='vally fit')
+    # a_v, b_v, c_v = z1
+    # vi, vv = -b_v/2/a_v, c_v-b_v**2/4/a_v
+
+    result = minimize(vallyResidual, [0.3, vi, vv+10], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2), bounds=[(0.1, None), (vi-5, vi+5), (16, 100)], method='SLSQP', options={'eps': 0.1, 'maxiter':5000})
+    print(result)
+    a_v, b_v, c_v = result.x
+    # ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v * (h[1][(li-vallyspanl):(li+vallyspanr)])**2 + b_v* (h[1][(li-vallyspanl):(li+vallyspanr)])+c_v, label='vally fit')
+    # vi, vv = -b_v/2/a_v, c_v-b_v**2/4/a_v
+    ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v/100 * (h[1][(li-vallyspanl):(li+vallyspanr)] - b_v)**2 +c_v, color='g', label='vally fit')
+    # ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], yy)
+    vi, vv = b_v, c_v
+    ax.fill_betweenx([0, vv], h[1][li-vallyspanl], h[1][li+vallyspanr], alpha=0.5, color='lightgreen', label='vally fit interval')
+    ax.scatter([pi,vi], [pv,vv], color='r')
+    ## 将参数放入legend里
+    selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
     results[j] = (pi,vi,pv/vv,np.mean(selectinfo), np.std(selectinfo))
     handles, labels = ax.get_legend_handles_labels()
-    handles.append(mpatches.Patch(color='none', label='Gain:{:.2f}'.format(pi/50/1.6)))
+    handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6)))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6)))
     handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
-    handles.append(mpatches.Patch(color='none', label='$\mu_{p>3mV}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
-    handles.append(mpatches.Patch(color='none', label='$\sigma_{p>3mV}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
+    handles.append(mpatches.Patch(color='none', label='$\mu_{select}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_{select}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
     ax.legend(handles=handles)
-    # plt.savefig('{}/{}chargeLinear.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
     plt.close()
 
