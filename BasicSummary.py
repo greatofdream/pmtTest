@@ -9,6 +9,9 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import matplotlib.patches as mpatches
 from scipy.optimize import minimize
+import config
+from waveana.util import peakResidual, vallyResidual
+ADC2mV = config.ADC2mV
 def fitGaus(tts,limits):
     tts_select = tts[(tts<limits[1])&(tts>limits[0])]
     result = minimize(likelihood,[1, np.mean(tts_select),np.std(tts_select)],args=(tts_select, tts_select.shape[0]), bounds=[(0,None),limits,(0,(limits[1]-limits[0])/2)])
@@ -17,22 +20,7 @@ def likelihood(x,*args):
     A,mu,sigma = x
     tts,N = args
     return A*N-tts.shape[0]*np.log(A)+np.sum((tts-mu)**2)/2/sigma**2+tts.shape[0]*np.log(sigma)
-def residual(x, *args):
-    # modified least=squares method: gaussian function
-    A, mu, sigma = x
-    counts, bins = args
-    return np.sum((A*np.exp(-(bins-mu)**2/2/sigma**2)-counts)**2/counts)
-def vallyResidual(x, *args):
-    # modified least=squares method: parabolic
-    a, b, c = x
-    counts, bins = args
-    return np.sum((a/100*(bins - b)**2 + c - counts)**2/counts)
-def smooth(x, n=7):
-    pad = (n-1)//2
-    x0 = np.zeros(x.shape[0] - pad*2)
-    for i in range(pad, x.shape[0]-pad):
-        x0[i-pad] = np.average(x[(i-pad):(i+pad+1)])
-    return x0
+
 psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input h5 file')
 psr.add_argument('-o', dest='opt', help='output png file')
@@ -41,7 +29,13 @@ psr.add_argument('-t', dest='trigger', default=-1, type=int, help='trigger chann
 args = psr.parse_args()
 
 info = []
-results = np.zeros(len(args.channel), dtype=[('peakC','<f4'), ('vallyC','<f4'),('PV','<f4'),('chargeMu','<f4'),('chargeSigma','<f4')])
+results = np.zeros(len(args.channel),
+    dtype=[
+        ('peakC','<f4'), ('vallyC','<f4'), ('PV','<f4'),
+        ('chargeMu','<f4'), ('chargeSigma','<f4'),
+        ('Gain', '<f4'), ('GainSigma', '<f4'),
+        ('DCR', '<f4')
+    ])
 with h5py.File(args.ipt, 'r') as ipt:
     waveformLength = ipt.attrs['waveformLength']
     for j in range(len(args.channel)):
@@ -75,6 +69,8 @@ if args.trigger>=0:
     pdf.savefig(fig)
 # 下面循环绘制每个channel的图像
 nearMax = 10
+peakspanl, peakspanr = config.peakspanl, config.peakspanr
+vallyspanl, vallyspanr = config.vallyspanl, config.vallyspanr
 for j in range(len(args.channel)):
     rangemin = int(np.min(info[j]['minPeakCharge'])-1)
     rangemax = int(np.max(info[j]['minPeakCharge'])+1)
@@ -107,16 +103,15 @@ for j in range(len(args.channel)):
     pv = h[0][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)][pi_r]
     vv = h[0][(zeroOffset+15):(zeroOffset+70)][vi_r]
     print(([pi, vi], [pv, vv]))
-    # 使用上面值作为初值进行最小二乘拟合
+    ## 使用上面值作为初值进行最小二乘拟合
     hi = zeroOffset + 15 + vi_r + pi_r
-    peakspanl, peakspanr = 30, 30
-    result = minimize(residual, [pv, pi, 30], 
+    result = minimize(peakResidual, [pv, pi, 30], 
         args=(h[0][(hi-peakspanl):(hi+peakspanr)], (h[1][(hi-peakspanl):(hi+peakspanr)]+h[1][(hi-peakspanl+1):(hi+peakspanr+1)])/2),
         bounds=[(0,None), (5, None), (0, None)],
         method='SLSQP', options={'eps': 0.1})
     print(result)
     A, mu, sigma = result.x
-    # 绘制拟合结果
+    ## 绘制拟合结果
     ax.plot(h[1][(hi-peakspanl):(hi+peakspanr)], 
         A*np.exp(-(h[1][(hi-peakspanl):(hi+peakspanr)]-mu)**2/2/sigma**2), color='r', label='peak fit')
     pi = np.int(mu)
@@ -125,33 +120,26 @@ for j in range(len(args.channel)):
     ax.set_xlim([0, 600])
     ax.set_ylim([0, 2*pv])
     ax.axvline(0.25*mu, linestyle='--', label='0.25p.e.')
-    ## 拟合峰谷处所需参数
-    vallyspanl, vallyspanr = 15, 30
+    ## 拟合峰谷处所需参数,smooth不是必须的，polyfit不能进行MLE拟合
     li = zeroOffset + 15 + vi_r
-    # yy = smooth(h[0][(li-vallyspanl-3):(li+vallyspanr+3)])
     yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
-    # z1 = np.polyfit((h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(hi-vallyspanl+1):(hi+vallyspanr+1)])/2, h[0][(li-vallyspanl):(li+vallyspanr)], 2)
-    # p1 = np.poly1d(z1)
-    # ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], p1(h[1][(li-vallyspanl):(li+vallyspanr)]), label='vally fit')
-    # a_v, b_v, c_v = z1
-    # vi, vv = -b_v/2/a_v, c_v-b_v**2/4/a_v
-
+    ## 对vally进行区间调整，放置左侧padding过长
+    while (yy[0] > 3 * yy[-1]) and vallyspanl>1:
+        vallyspanl = vallyspanl // 2
+        yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     result = minimize(vallyResidual, [0.3, vi, vv+10], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2), bounds=[(0.1, None), (vi-5, vi+5), (16, 100)], method='SLSQP', options={'eps': 0.1, 'maxiter':5000})
     print(result)
     a_v, b_v, c_v = result.x
-    # ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v * (h[1][(li-vallyspanl):(li+vallyspanr)])**2 + b_v* (h[1][(li-vallyspanl):(li+vallyspanr)])+c_v, label='vally fit')
-    # vi, vv = -b_v/2/a_v, c_v-b_v**2/4/a_v
     ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v/100 * (h[1][(li-vallyspanl):(li+vallyspanr)] - b_v)**2 +c_v, color='g', label='vally fit')
-    # ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], yy)
     vi, vv = b_v, c_v
     ax.fill_betweenx([0, vv], h[1][li-vallyspanl], h[1][li+vallyspanr], alpha=0.5, color='lightgreen', label='vally fit interval')
     ax.scatter([pi,vi], [pv,vv], color='r')
     ## 将参数放入legend里
     selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
-    results[j] = (pi,vi,pv/vv,np.mean(selectinfo), np.std(selectinfo))
+    results[j] = (pi, vi, pv / vv, np.mean(selectinfo), np.std(selectinfo), mu/50/1.6, sigma/50/1.6)
     handles, labels = ax.get_legend_handles_labels()
-    handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6)))
-    handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6)))
+    handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6*ADC2mV)))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6*ADC2mV)))
     handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
     handles.append(mpatches.Patch(color='none', label='$\mu_{select}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
     handles.append(mpatches.Patch(color='none', label='$\sigma_{select}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
@@ -159,21 +147,29 @@ for j in range(len(args.channel)):
     pdf.savefig(fig)
     plt.close()
 
-    # peak分布
+    # peak分布## 绘制筛选后的结果
     fig, ax = plt.subplots()
-    ax.set_title('peak height distribution')
-    h = ax.hist(info[j]['minPeak'][info[j]['nearPosMax']<=nearMax],histtype='step', bins=1000, range=[0,1000], label='baseline - peak')
+    h = ax.hist(info[j]['minPeak'][selectNearMax],histtype='step', bins=1000, range=[0, 1000], label='peak')
+    ax.hist(info[j]['minPeak'][selectNearMax&(info[j]['minPeakCharge']>0.25*mu)], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, label='peak($C>0.25 p.e.$)')
     print('peak height max:{};max index {}; part of peak {}'.format(np.max(h[0]), np.argmax(h[0]), h[0][:(np.argmax(h[0])+5)]))
-    ax.set_xlabel('peak height/mV')
-    ax.set_ylabel('entries')
+    ax.set_xlabel('Peak/ADC')
+    ax.set_ylabel('Entries')
     ax.legend()
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     ax.set_yscale('log')
     pdf.savefig(fig)
-    ax.xaxis.set_minor_locator(MultipleLocator(10))
+    ## 计算DCR/kHz
+    DCR = np.sum((info[j]['minPeak']>3)&(info[j]['minPeakCharge']>0.25*mu)&selectNearMax)/np.sum(selectNearMax)/waveformLength*1e6
+    results[j]['DCR'] = DCR
+    print('DCR:{:.2f}'.format(DCR))
+    ## zoom in
+    ax.axvline(3, linestyle='--', color='g', label='3ADC')
+    ax.set_xlim([0, 50])
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.legend()
+    pdf.savefig(fig)
     ax.set_yscale('linear')
-    ax.set_xlim([0,100])
-    ax.set_ylim([0,2*np.max(h[0][5:30])])
+    ax.set_ylim([0, 2*np.max(h[0][5:30])])
     pdf.savefig(fig)
 
     # min peak position分布
