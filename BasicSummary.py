@@ -114,7 +114,7 @@ for j in range(len(args.channel)):
     ## 绘制拟合结果
     ax.plot(h[1][(hi-peakspanl):(hi+peakspanr)], 
         A*np.exp(-(h[1][(hi-peakspanl):(hi+peakspanr)]-mu)**2/2/sigma**2), color='r', label='peak fit')
-    pi = np.int(mu)
+    pi = int(mu)
     pv = A
     ax.fill_betweenx([0, pv], h[1][hi-peakspanl], h[1][hi+peakspanr], alpha=0.5, color='lightsalmon', label='peak fit interval')
     ax.set_xlim([0, 600])
@@ -136,7 +136,7 @@ for j in range(len(args.channel)):
     ax.scatter([pi,vi], [pv,vv], color='r')
     ## 将参数放入legend里
     selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
-    results[j] = (pi, vi, pv / vv, np.mean(selectinfo), np.std(selectinfo), mu/50/1.6, sigma/50/1.6)
+    results[j] = (mu, vi, pv / vv, np.mean(selectinfo), np.std(selectinfo), mu/50/1.6, sigma/50/1.6, 0)# DCR 一项占位0
     handles, labels = ax.get_legend_handles_labels()
     handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6*ADC2mV)))
     handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6*ADC2mV)))
@@ -159,7 +159,8 @@ for j in range(len(args.channel)):
     ax.set_yscale('log')
     pdf.savefig(fig)
     ## 计算DCR/kHz
-    DCR = np.sum((info[j]['minPeak']>3)&(info[j]['minPeakCharge']>0.25*mu)&selectNearMax)/np.sum(selectNearMax)/waveformLength*1e6
+    totalselect = (info[j]['minPeak']>3)&(info[j]['minPeakCharge']>0.25*mu)&selectNearMax
+    DCR = np.sum(totalselect)/np.sum(selectNearMax)/waveformLength*1e6
     results[j]['DCR'] = DCR
     print('DCR:{:.2f}'.format(DCR))
     ## zoom in
@@ -271,20 +272,18 @@ for j in range(len(args.channel)):
     pdf.savefig(fig)
     plt.close()
     
-    # risetime and downtime，里面对于范围做了限制，需要动态考虑
-    position = (info[j]['minPeakPos']>10)&(info[j]['minPeakPos']<(waveformLength-30))
+    # risetime and falltime，里面对于范围做了限制，需要动态考虑
+    position = (info[j]['minPeakPos']>config.baselength)&(info[j]['minPeakPos']<(waveformLength-config.afterlength))
     fig, ax = plt.subplots()
-    ax.set_title('$T_R$,$T_d$,FWHM ($V_p>5$mV,$10<p<${}ns) distribution'.format(waveformLength-30))
-    ax.hist(info[j]['riseTime'][(info[j]['minPeak']>5)&(selectNearMax)&position],histtype='step',bins=300, range=[0,30], label='risingtime:{:.2f}ns'.format(np.mean(info[j]['riseTime'][(info[j]['minPeak']>5)&(selectNearMax)&position])))
-    ax.hist(info[j]['downTime'][(info[j]['minPeak']>5)&(selectNearMax)&position],histtype='step',bins=300, range=[0,30], label='downtime:{:.2f}ns'.format(np.mean(info[j]['downTime'][(info[j]['minPeak']>5)&(selectNearMax)&position])))
-    ax.hist(info[j]['FWHM'][(info[j]['minPeak']>5)&(selectNearMax)&position],histtype='step',bins=300, range=[0,30], label='FWHM:{:.2f}ns'.format(np.mean(info[j]['FWHM'][(info[j]['minPeak']>5)&(selectNearMax)&position])))
+    ## ax.set_title('$T_R$,$T_d$,FWHM ($V_p>5$mV,$10<p<${}ns) distribution'.format(waveformLength-30))
+    ax.hist(info[j]['riseTime'][totalselect&position], histtype='step', bins=300, range=[0,30], label=r'risingtime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['riseTime'][totalselect&position]), np.mean(info[j]['riseTime'][totalselect&position])))
+    ax.hist(info[j]['downTime'][totalselect&position], histtype='step', bins=300, range=[0,30], label=r'falltime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['downTime'][totalselect&position]), np.mean(info[j]['downTime'][totalselect&position])))
+    ax.hist(info[j]['FWHM'][totalselect&position], histtype='step', bins=300, range=[0,30], label=r'FWHM:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['FWHM'][totalselect&position]), np.mean(info[j]['FWHM'][totalselect&position])))
     ax.set_xlabel('Time/ns')
-    ax.set_ylabel('entries')
+    ax.set_ylabel('Entries')
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.legend()
-    #ax.set_xlim([1,40])
     pdf.savefig(fig)
-    ax.set_yscale('log')
-    # pdf.savefig(fig)
     plt.close()
 
     fig, ax = plt.subplots()
