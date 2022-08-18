@@ -127,7 +127,9 @@ for j in range(len(args.channel)):
     while (yy[0] > 3 * yy[-1]) and vallyspanl>1:
         vallyspanl = vallyspanl // 2
         yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
-    result = minimize(vallyResidual, [0.3, vi, vv+10], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2), bounds=[(0.1, None), (vi-5, vi+5), (16, 100)], method='SLSQP', options={'eps': 0.1, 'maxiter':5000})
+    result = minimize(vallyResidual, [0.3, vi, vv+10], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2),
+        bounds=[(0.1, None), (vi-5, vi+5), (16, A)],
+        method='SLSQP', options={'eps': 0.1, 'maxiter':5000})
     print(result)
     a_v, b_v, c_v = result.x
     ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v/100 * (h[1][(li-vallyspanl):(li+vallyspanr)] - b_v)**2 +c_v, color='g', label='vally fit')
