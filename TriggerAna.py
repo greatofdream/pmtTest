@@ -137,6 +137,7 @@ if __name__=="__main__":
                     # rising edge 0.1 down edge 0.1
                     up10, up50, up90 = Qb(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
                     down10, down50, down90 = Qe(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
+                    ## TT在此处扣除trigger的时间
                     pulse[j][i] = (eid, isTrigger, baseline, std, up90-up10, down10-down90, down50-up50, up10-trigger[i]['triggerTime'], down10-trigger[i]['triggerTime'], up50-trigger[i]['triggerTime'], down50-trigger[i]['triggerTime'], up90-trigger[i]['triggerTime'], down90-trigger[i]['triggerTime'],
                                 baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, np.sum(baseline - w[int(up10):int(down10)])
                                     , anar['begin5mV'], anar['end5mV'], anar['nearPosMax'])

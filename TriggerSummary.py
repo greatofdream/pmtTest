@@ -1,0 +1,211 @@
+'''
+该文件计算激光触发符合区域的事例对应的参量，以及TTS
+'''
+import matplotlib.pyplot as plt
+plt.style.use('./journal.mplstyle')
+import h5py, argparse
+import numpy as np
+from matplotlib import cm
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+import matplotlib.colors as colors
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+import matplotlib.patches as mpatches
+from scipy.optimize import minimize
+import config
+from waveana.util import peakResidual, vallyResidual, fitGaus
+ADC2mV = config.ADC2mV
+psr = argparse.ArgumentParser()
+psr.add_argument('-i', dest='ipt', help='input h5 file')
+psr.add_argument('-o', dest='opt', help='output png file')
+psr.add_argument('-c', dest='channel', nargs='+', default=[0,1],help='channel used in DAQ')
+psr.add_argument('-t', dest='trigger', help='trigger h5 file')
+args = psr.parse_args()
+
+info = []
+results = np.zeros(len(args.channel),
+    dtype=[
+        ('peakC','<f4'), ('vallyC','<f4'), ('PV','<f4'),
+        ('chargeMu','<f4'), ('chargeSigma','<f4'),
+        ('Gain', '<f4'), ('GainSigma', '<f4'),
+        ('TriggerRate', '<f4')
+        ])
+with h5py.File(args.ipt, 'r') as ipt:
+    waveformLength = ipt.attrs['waveformLength']
+    for j in range(len(args.channel)):
+        info.append(ipt['ch{}'.format(args.channel[j])][:])
+with h5py.File(args.trigger, 'r') as ipt:
+    rinterval = ipt['rinterval'][:]
+rangemin =-100
+rangemax = 500
+bins = rangemax-rangemin
+
+# set the figure appearance
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+jet = plt.cm.jet
+newcolors = jet(np.linspace(0, 1, 32768))
+white = np.array([1, 1, 1, 0.5])
+newcolors[0, :] = white
+cmap = ListedColormap(newcolors)
+print('begin plot')
+pdf = PdfPages(args.opt+'.pdf')
+peakspanl, peakspanr = config.peakspanl, config.peakspanr
+vallyspanl, vallyspanr = config.vallyspanl, config.vallyspanr
+# 下面循环绘制每个channel的图像
+for j in range(len(args.channel)):
+    rangemin = int(np.min(info[j]['minPeakCharge'])-1)
+    rangemax = int(np.max(info[j]['minPeakCharge'])+1)
+    bins = rangemax-rangemin
+    if bins < 100:
+        print('Warning: no signal charge more than 100')
+        continue
+    # charge分布
+    fig, ax = plt.subplots()
+    h = ax.hist(info[j]['minPeakCharge'], histtype='step', bins=bins, range=[rangemin, rangemax], label='charge')
+    ax.hist(info[j]['minPeakCharge'][(info[j]['minPeak']>3)], histtype='step', bins=bins, range=[rangemin, rangemax], alpha=0.8, label='charge($V_p>3ADC$)')
+    ax.set_xlabel('Equivalent Charge/ADCns')
+    ax.set_ylabel('Entries')
+    ax.legend(loc='best')
+    ax.set_yscale('log')
+    ax.set_xlim([-100, 600])
+    ax.xaxis.set_minor_locator(MultipleLocator(10))
+    pdf.savefig(fig)
+    ax.set_yscale('linear')
+    ## 拟合峰值处所需参数
+    zeroOffset = np.where(h[1]>=0)[0][0]
+    ax.set_ylim([0, 2*np.max(h[0][(zeroOffset+70):(zeroOffset+150)])])
+    vi_r = np.argmin(h[0][(zeroOffset+15):(zeroOffset+70)])
+    vi = int(h[1][(zeroOffset+15):(zeroOffset+70)][vi_r])
+    pi_r = np.argmax(h[0][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)])
+    pi = h[1][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)][pi_r]
+    pv = h[0][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)][pi_r]
+    vv = h[0][(zeroOffset+15):(zeroOffset+70)][vi_r]
+    print(([pi, vi], [pv, vv]))
+    # 使用上面值作为初值进行最小二乘拟合
+    hi = zeroOffset + 15 + vi_r + pi_r
+    result = minimize(peakResidual, [pv, pi, 30], 
+        args=(h[0][(hi-peakspanl):(hi+peakspanr)], (h[1][(hi-peakspanl):(hi+peakspanr)]+h[1][(hi-peakspanl+1):(hi+peakspanr+1)])/2),
+        bounds=[(0,None), (5, None), (0, None)],
+        method='SLSQP', options={'eps': 0.1})
+    print(result)
+    A, mu, sigma = result.x
+    ## 绘制拟合结果
+    ax.plot(h[1][(hi-peakspanl):(hi+peakspanr)], 
+        A*np.exp(-(h[1][(hi-peakspanl):(hi+peakspanr)]-mu)**2/2/sigma**2), color='r', label='peak fit')
+    pi = int(mu)
+    pv = A
+    ax.fill_betweenx([0, pv], h[1][hi-peakspanl], h[1][hi+peakspanr], alpha=0.5, color='lightsalmon', label='peak fit interval')
+    ax.set_xlim([0, 600])
+    ax.set_ylim([0, 2*pv])
+    ax.axvline(0.25*mu, linestyle='--', label='0.25p.e.')
+    ## 拟合峰谷处所需参数,smooth不是必须的，polyfit不能进行MLE拟合
+    li = zeroOffset + 15 + vi_r
+    yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
+    ## 对vally进行区间调整，放置左侧padding过长
+    while (yy[0] > 3 * yy[-1]) and vallyspanl>1:
+        vallyspanl = vallyspanl // 2
+        yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
+    result = minimize(vallyResidual, [0.3, vi, vv+10], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2),
+        bounds=[(0.1, None), (vi-5, vi+5), (16, A)],
+        method='SLSQP', options={'eps': 0.1, 'maxiter':5000})
+    print(result)
+    a_v, b_v, c_v = result.x
+    ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v/100 * (h[1][(li-vallyspanl):(li+vallyspanr)] - b_v)**2 +c_v, color='g', label='vally fit')
+    vi, vv = b_v, c_v
+    ax.fill_betweenx([0, vv], h[1][li-vallyspanl], h[1][li+vallyspanr], alpha=0.5, color='lightgreen', label='vally fit interval')
+    ax.scatter([pi,vi], [pv,vv], color='r')
+    ## 将参数放入legend里
+    selectinfo = info[j]['minPeakCharge'][(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
+    results[j] = (mu, vi, pv / vv,np.mean(selectinfo), np.std(selectinfo), mu/50/1.6, sigma/50/1.6, 0)
+    handles, labels = ax.get_legend_handles_labels()
+    handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6*ADC2mV)))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6*ADC2mV)))
+    handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
+    handles.append(mpatches.Patch(color='none', label='$\mu_{select}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_{select}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
+    ax.legend(handles=handles)
+    pdf.savefig(fig)
+    plt.close()
+
+    # peak分布
+    fig, ax = plt.subplots()
+    h = ax.hist(info[j]['minPeak'],histtype='step', bins=1000, range=[0,1000], label='peak')
+    ax.hist(info[j]['minPeak'][(info[j]['minPeakCharge']>0.25*mu)], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, label='peak($C>0.25 p.e.$)')
+    print('peak height max:{};max index {}; part of peak {}'.format(np.max(h[0]), np.argmax(h[0]), h[0][:(np.argmax(h[0])+5)]))
+    ax.set_xlabel('Peak/ADC')
+    ax.set_ylabel('Entries')
+    ax.legend()
+    ax.xaxis.set_minor_locator(MultipleLocator(100))
+    ax.set_yscale('log')
+    pdf.savefig(fig)
+    ## zoom in
+    ax.axvline(3, linestyle='--', color='g', label='3ADC')
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.set_yscale('linear')
+    ax.set_xlim([0, 50])
+    ax.set_ylim([0, 2*np.max(h[0][5:30])])
+    ax.legend()
+    pdf.savefig(fig)
+    ## 计算TriggerRate
+    totalselect = (info[j]['minPeak']>3)&(info[j]['minPeakCharge']>0.25*mu)
+    TriggerRate = np.sum(totalselect)/info[j].shape[0]
+    results[j]['TriggerRate'] = TriggerRate
+    print('TriggerRate:{:.2f}'.format(TriggerRate))
+
+    # min peak position分布
+    fig, ax = plt.subplots()
+    ax.set_title('peak position distribution')
+    h = ax.hist(info[j]['minPeakPos'],histtype='step', bins=100, label='$t_{peak}-t_{trigger}$')
+    print('h shape:{};max index {}'.format(h[0].shape,np.argmax(h[0])))
+    ax.set_xlabel('$t_{peak}-t_{trigger}$/ns')
+    ax.set_ylabel('entries')
+    ax.legend()
+    # pdf.savefig(fig)
+    ax.set_yscale('log')
+    pdf.savefig(fig)
+    
+    fig, ax = plt.subplots()
+    ax.set_title('peak($V_p>3$mV) position distribution')
+    h = ax.hist(info[j]['minPeakPos'][(info[j]['minPeak']>3)], histtype='step', bins=100, label='$t_{peak}-t_{trigger}$')
+    print('h shape:{};max index {}'.format(h[0].shape,np.argmax(h[0])))
+    ax.set_xlabel('$t_{peak}-t_{trigger}$/ns')
+    ax.set_ylabel('entries')
+    ax.legend()
+    pdf.savefig(fig)
+    ax.set_yscale('log')
+    
+    # risetime and downtime，里面对于范围做了限制，需要动态考虑
+    fig, ax = plt.subplots()
+    # ax.set_title('$T_R$,$T_d$,FWHM ($V_p>3$mV) distribution')
+    ax.hist(info[j]['riseTime'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'risingtime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['riseTime'][totalselect]), np.mean(info[j]['riseTime'][totalselect])))
+    ax.hist(info[j]['downTime'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'falltime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['downTime'][totalselect]), np.mean(info[j]['downTime'][totalselect])))
+    ax.hist(info[j]['FWHM'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'FWHM:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['FWHM'][totalselect]), np.mean(info[j]['FWHM'][totalselect])))
+    ax.set_xlabel('Time/ns')
+    ax.set_ylabel('Entries')
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.legend()
+    pdf.savefig(fig)
+    plt.close()
+
+    fig,ax = plt.subplots()
+    limits_mu, limits_sigma = np.mean(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])]),np.std(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])])
+    limits_sigma = min(limits_sigma, 15)
+    limits = [limits_mu-limits_sigma, limits_mu+limits_sigma]
+    result, N = fitGaus(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])], limits)
+    print(result)
+    ax.hist(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])],bins=int(100*limits_sigma),range=[limits_mu-3*limits_sigma, limits_mu+3*limits_sigma], histtype='step', label='$t_{0.1}-t_{trigger}$')
+    ax.plot(np.arange(limits_mu-3*limits_sigma, limits_mu+3*limits_sigma, 0.1),result.x[0]*N*0.1*np.exp(-(np.arange(limits_mu-3*limits_sigma, limits_mu+3*limits_sigma,0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],'--')
+    ax.plot(np.arange(limits[0],limits[1],0.1), result.x[0]*N*0.1*np.exp(-(np.arange(limits[0],limits[1],0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],label='fit')
+    ax.set_xlabel('TT/ns')
+    ax.set_ylabel('Entries')
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.legend()
+    handles, labels = ax.get_legend_handles_labels()
+    handles.append(mpatches.Patch(color='none', label='$\sigma$={:.3f}'.format(result.x[2])))
+    ax.legend(handles=handles)
+    print('tts:{:.3f}'.format(result.x[2]*2.355))
+    pdf.savefig(fig)
+    plt.close()
+pdf.close()
+with h5py.File(args.opt, 'w') as opt:
+    opt.create_dataset('res',data=results, compression='gzip')

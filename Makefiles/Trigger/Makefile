@@ -57,7 +57,7 @@ ExResult/$(1)/$(2)ns/pulse/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/pulse/prean
 ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/qe/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/qe/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
 ExResult/$(1)/$(2)ns/chargeSelect.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5
-	python3 trigger/spePlot.py -c $$(channels) -t $$(word 2,$$^) -i $$< -o $$@ > $$@.log 2>&1
+	python3 TriggerSummary.py -c $$(channels) -t $$(word 2,$$^) -i $$< -o $$@ > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/pulse/ratio.pdf: ExResult/$(1)/$(2)ns/pulse/preanalysisMerge.h5
 	python3 trigger/pulseRatio.py -i $$^ -o $$@ > $$@.log
 ExResult/$(1)/$(2)ns/qe/ratio.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5
