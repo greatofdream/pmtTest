@@ -1,3 +1,6 @@
+'''
+绘制baseline计算示意图
+'''
 # 添加模块路径
 import sys
 sys.path.append('..')
@@ -76,7 +79,7 @@ if __name__=="__main__":
                 connectionstyle="arc3"),) 
         ax.annotate("-$t_s$~-10", (x1 + 10, y1 - 15))
         ### 绘制阈值
-        ax.axhline(threshold, linestyle='dotted', color='violet', label='baseline threshold')
+        ax.axhline(threshold, linestyle='dotted', color='violet', label='amplitude filter')
         x1, x2 = waveana.minIndex + 100, np.min([waveana.minIndex + 200, wavelength])
         y1, y2 = waveana.minPeakBaseline - 5, waveana.minPeakBaseline-5
         ax.annotate("", xy=(x1, y1), xycoords='data', xytext=(x2, y2),
