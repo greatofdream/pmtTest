@@ -1,5 +1,9 @@
 #!/usr/bin/python3
+'''
+绘制触发的峰的分布
+'''
 import matplotlib.pyplot as plt
+plt.style.use('./journal.mplstyle')
 import h5py, argparse
 from scipy.optimize import minimize
 import numpy as np
@@ -43,18 +47,20 @@ if __name__=="__main__":
     relative_interval = np.zeros((len(args.channel),), dtype=[('start', np.float64), ('end', np.float64), ('mean', np.float64), ('sigma', np.float64)])
     pdf = PdfPages(args.opt+'.pdf')
     for j in range(len(args.channel)):
+        ## 拟合gauss
         interval[j], N = getInterval(info[j]['minPeakPos'], info[j]['minPeak'])
         relative_interval[j], N = getInterval(info[j]['minPeakPos'] - trigger['triggerTime'], info[j]['minPeak'])
         print(interval[j], relative_interval[j])
         fig, ax = plt.subplots()
-        ax.hist((info[j]['minPeakPos'] - trigger['triggerTime'])[info[j]['minPeak']>5], bins=100, range=(relative_interval[j]['mean']-10*relative_interval[j]['sigma'],relative_interval[j]['mean']+10*relative_interval[j]['sigma']), histtype='step', label='TT {:.2f}$\pm${:.2f}'.format(*relative_interval[j][['mean','sigma']]))
+        l_range, r_range = int(relative_interval[j]['mean']-10*relative_interval[j]['sigma']), int(relative_interval[j]['mean']+10*relative_interval[j]['sigma'])
+        binwidth = 1
+        h = ax.hist((info[j]['minPeakPos'] - trigger['triggerTime'])[info[j]['minPeak']>5], bins=int((r_range - l_range)/binwidth), range=(l_range, r_range), histtype='step', label='TT {:.2f}$\pm${:.2f}'.format(*relative_interval[j][['mean','sigma']]))
         xs = np.arange(relative_interval[j]['mean']-10*relative_interval[j]['sigma'],relative_interval[j]['mean']+10*relative_interval[j]['sigma'], relative_interval[j]['sigma']/5)
-        ax.plot(xs, N*relative_interval[j]['sigma']/5*np.exp(-(xs-relative_interval[j]['mean'])**2/2/relative_interval[j]['sigma']**2)/np.sqrt(2*np.pi)/relative_interval[j]['sigma'], label='fit result')
-        ax.axvline(relative_interval[j]['start'], color='r')
-        ax.axvline(relative_interval[j]['end'], color='r')
-        ax.set_xlabel('TT/ns')
-        ax.set_ylabel('entries')
-        ax.legend()
+        ax.plot(xs, N*binwidth*np.exp(-(xs-relative_interval[j]['mean'])**2/2/relative_interval[j]['sigma']**2)/np.sqrt(2*np.pi)/relative_interval[j]['sigma'], label='Fit')
+        ax.fill_between([relative_interval[j]['start'], relative_interval[j]['end']], [0, 0], [np.max(h[0]), np.max(h[0])], color='c', alpha=0.5, label='Candidate area')
+        ax.set_xlabel('$t_p-t_{\mathrm{trig}}$/ns')
+        ax.set_ylabel('Entries')
+        ax.legend(loc='best')
         pdf.savefig(fig)
     pdf.close()
     with h5py.File(args.opt, 'w') as opt:
