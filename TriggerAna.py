@@ -66,7 +66,7 @@ if __name__=="__main__":
             info.append(ipt['ch{}'.format(args.channel[j])][:])
         trigger = ipt['trigger'][:]
     if not args.QE:
-        # inital the result
+        # 计算前后脉冲:initial the result
         pulse = []
         storedtype = [('EventID', '<i4'), ('isTrigger', bool), ('promptPulse','<f4'), ('DelayPulse1','<f4'), ('DelayPulse10','<f4'), ('promptPulseH','<f4'), ('DelayPulse1H','<f4'), ('DelayPulse10H','<f4'), ('up10', '<f4'), ('down10', '<f4')]
         for i in range(len(args.channel)):
@@ -100,8 +100,11 @@ if __name__=="__main__":
                 else:
                     pulse[j][i] = (eid, False, promptPulse, delayPulse1, delayPulse10, promptPulseH, delayPulse1H, delayPulse10H, 0, 0)
     else:
+        # 计算
         pulse = []
-        storedtype = [('EventID', '<i4'), ('isTrigger', bool), ('baseline','<f4'), ('std','<f4'), ('riseTime','<f4'), ('downTime','<f4'),('FWHM','<f4'), ('begin10', '<f4'), ('down10', '<f4'), ('begin50', '<f4'), ('down50', '<f4'), ('begin90', '<f4'), ('down90', '<f4'), ('minPeak', '<f4'), ('minPeakPos', '<i4'), ('minPeakCharge', '<f4'), ('begin5mV','<f4'), ('end5mV','<f4'), ('nearPosMax','<f4')]
+        storedtype = [('EventID', '<i4'), ('isTrigger', bool), ('baseline','<f4'), ('std','<f4'), ('riseTime','<f4'), ('downTime','<f4'),('FWHM','<f4'),
+            ('begin10', '<f4'), ('down10', '<f4'), ('begin50', '<f4'), ('down50', '<f4'), ('begin90', '<f4'), ('down90', '<f4'),
+            ('minPeak', '<f4'), ('minPeakPos', '<i4'), ('minPeakCharge', '<f4'), ('begin5mV','<f4'), ('end5mV','<f4'), ('nearPosMax','<f4')]
         for i in range(len(args.channel)):
             pulse.append(np.zeros((entries,), dtype=storedtype))
         for i, (wave, eid, ch) in enumerate(zip(waveforms, eventIds, channelIds)):
@@ -126,12 +129,16 @@ if __name__=="__main__":
                 # 判断最小值是否在baseline下方，如果不是，说明这部分是过冲信号
                 if r_min<=0 or r_min>=(interval_j[1]-interval_j[0]) or w[rminIndex+ int(trigger[i]['triggerTime'])]>=baseline:
                     isTrigger = False
-                    pulse[j][i] = (eid, isTrigger, baseline, std, 0, 0, 0, 0, 0, 0, 0, 0, 0, baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, 0, anar['begin5mV'], anar['end5mV'], anar['nearPosMax'])
+                    pulse[j][i] = (eid, isTrigger, baseline, std, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0,
+                        baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, np.sum(baseline - w[interval_j[0]:interval_j[1]]),
+                        anar['begin5mV'], anar['end5mV'], anar['nearPosMax'])
                 else:
                     # rising edge 0.1 down edge 0.1
                     up10, up50, up90 = Qb(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
                     down10, down50, down90 = Qe(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
-                    pulse[j][i] = (eid, isTrigger, baseline, std, up90-up10, down10-down90, down50-up50, up10-trigger[i]['triggerTime'], down10-trigger[i]['triggerTime'], up50-trigger[i]['triggerTime'], down50-trigger[i]['triggerTime'], up90-trigger[i]['triggerTime'], down90-trigger[i]['triggerTime'], baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, np.sum(baseline - w[int(up10):int(down10)])
+                    pulse[j][i] = (eid, isTrigger, baseline, std, up90-up10, down10-down90, down50-up50, up10-trigger[i]['triggerTime'], down10-trigger[i]['triggerTime'], up50-trigger[i]['triggerTime'], down50-trigger[i]['triggerTime'], up90-trigger[i]['triggerTime'], down90-trigger[i]['triggerTime'],
+                                baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, np.sum(baseline - w[int(up10):int(down10)])
                                     , anar['begin5mV'], anar['end5mV'], anar['nearPosMax'])
                 
     with h5py.File(args.opt, 'w') as opt:

@@ -19,9 +19,9 @@ args = psr.parse_args()
 
 storedtype = [('EventID', '<i4'), ('allCharge','<f4'),('minPeakCharge','<f4'),('minPeak','<f4'),('minPeakPos','<i4'),('baseline','<f4'),('std','<f4'),('riseTime','<f4'),('downTime','<f4'),('FWHM','<f4'),('begin10','<f4'),('begin50','<f4'),('begin90','<f4'),('end10','<f4'),('end50','<f4'),('end90','<f4'),('begin5mV','<f4'),('end5mV','<f4'),('nearPosMax','<f4'),('nearPosMean', '<f4'),('nearPosStd','<f4')]# ,('peakCharge','<f4'),('peak','<f4')
 with uproot.open(args.ipt) as ipt:
-        eventIds = ipt["Readout/TriggerNo"].array(library='np')
-        waveforms = ipt["Readout/Waveform"].array(library='np')
-        channelIds = ipt["Readout/ChannelId"].array(library='np')
+    eventIds = ipt["Readout/TriggerNo"].array(library='np')
+    waveforms = ipt["Readout/Waveform"].array(library='np')
+    channelIds = ipt["Readout/ChannelId"].array(library='np')
 # minor wave length for calculating baseline 
 baselength = 50
 

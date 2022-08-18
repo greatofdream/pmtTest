@@ -8,7 +8,7 @@ import h5py, argparse
 from scipy.optimize import minimize
 import numpy as np
 from matplotlib import cm
-import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from matplotlib.backends.backend_pdf import PdfPages
 NSIGMA = 5
 # 分析触发时间的大致窗口，选择触发前后3sigma范围作为interval存储
@@ -60,6 +60,7 @@ if __name__=="__main__":
         ax.fill_between([relative_interval[j]['start'], relative_interval[j]['end']], [0, 0], [np.max(h[0]), np.max(h[0])], color='c', alpha=0.5, label='Candidate area')
         ax.set_xlabel('$t_p-t_{\mathrm{trig}}$/ns')
         ax.set_ylabel('Entries')
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
         ax.legend(loc='best')
         pdf.savefig(fig)
     pdf.close()

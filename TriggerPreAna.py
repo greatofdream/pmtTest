@@ -55,7 +55,7 @@ if __name__=="__main__":
 
         for j in range(len(args.channel)):
             waveana.setWave(wave[chmap.loc[channels[j]]][:waveCut])
-            waveana.getBaselineFine(int(waveana.triggerTime)+200, 5, 250,100)
+            waveana.getBaselineFine(np.min([waveana.minIndex, waveCut]))
             waveana.integrateWave()
             waveana.integrateMinPeakWave(config.baselength, config.afterlength)
             fittime = 0
