@@ -28,7 +28,7 @@ results = np.zeros(len(args.channel),
         ('peakC','<f4'), ('vallyC','<f4'), ('PV','<f4'),
         ('chargeMu','<f4'), ('chargeSigma','<f4'),
         ('Gain', '<f4'), ('GainSigma', '<f4'),
-        ('TriggerRate', '<f4')
+        ('TriggerRate', '<f4'), ('TTS', '<f4')
         ])
 with h5py.File(args.ipt, 'r') as ipt:
     waveformLength = ipt.attrs['waveformLength']
@@ -116,7 +116,7 @@ for j in range(len(args.channel)):
     ax.scatter([pi,vi], [pv,vv], color='r')
     ## 将参数放入legend里
     selectinfo = info[j]['minPeakCharge'][(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
-    results[j] = (mu, vi, pv / vv,np.mean(selectinfo), np.std(selectinfo), mu/50/1.6, sigma/50/1.6, 0)
+    results[j] = (mu, vi, pv / vv,np.mean(selectinfo), np.std(selectinfo), mu/50/1.6*ADC2mV, sigma/50/1.6*ADC2mV, 0, 0)
     handles, labels = ax.get_legend_handles_labels()
     handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6*ADC2mV)))
     handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6*ADC2mV)))
@@ -176,7 +176,7 @@ for j in range(len(args.channel)):
     
     # risetime and downtime，里面对于范围做了限制，需要动态考虑
     fig, ax = plt.subplots()
-    # ax.set_title('$T_R$,$T_d$,FWHM ($V_p>3$mV) distribution')
+    ## ax.set_title('$T_R$,$T_d$,FWHM ($V_p>3$mV) distribution')
     ax.hist(info[j]['riseTime'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'risingtime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['riseTime'][totalselect]), np.mean(info[j]['riseTime'][totalselect])))
     ax.hist(info[j]['downTime'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'falltime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['downTime'][totalselect]), np.mean(info[j]['downTime'][totalselect])))
     ax.hist(info[j]['FWHM'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'FWHM:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['FWHM'][totalselect]), np.mean(info[j]['FWHM'][totalselect])))
@@ -187,25 +187,46 @@ for j in range(len(args.channel)):
     pdf.savefig(fig)
     plt.close()
 
-    fig,ax = plt.subplots()
-    limits_mu, limits_sigma = np.mean(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])]),np.std(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])])
+    # TTS 分布与拟合
+    fig, ax = plt.subplots()
+    print(np.sum(totalselect&(~info[j]['isTrigger'])))
+    ## 限制拟合区间，其中要求sigma不能超过15，从而限制最后的拟合区间最大为2*15
+    limits_mu, limits_sigma = np.mean(info[j]['begin10'][(totalselect)]), np.std(info[j]['begin10'][totalselect])
     limits_sigma = min(limits_sigma, 15)
-    limits = [limits_mu-limits_sigma, limits_mu+limits_sigma]
-    result, N = fitGaus(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])], limits)
+    limits = [limits_mu - limits_sigma, limits_mu + limits_sigma]
+    result, N = fitGaus(info[j]['begin10'][totalselect], limits)
+    tts_A, tts_mu, tts_sigma = result.x
     print(result)
-    ax.hist(info[j]['begin10'][(info[j]['minPeak']>3)&(info[j]['isTrigger'])],bins=int(100*limits_sigma),range=[limits_mu-3*limits_sigma, limits_mu+3*limits_sigma], histtype='step', label='$t_{0.1}-t_{trigger}$')
-    ax.plot(np.arange(limits_mu-3*limits_sigma, limits_mu+3*limits_sigma, 0.1),result.x[0]*N*0.1*np.exp(-(np.arange(limits_mu-3*limits_sigma, limits_mu+3*limits_sigma,0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],'--')
-    ax.plot(np.arange(limits[0],limits[1],0.1), result.x[0]*N*0.1*np.exp(-(np.arange(limits[0],limits[1],0.1)-result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2],label='fit')
+    l_range, r_range = int(tts_mu - 5*tts_sigma), int(tts_mu + 5*tts_sigma)+1
+    # l_range, r_range = int(limits_mu - 1*limits_sigma), int(limits_mu + 1*limits_sigma)
+    binwidth = 0.1
+    ax.hist(info[j]['begin10'][totalselect], bins=int((r_range - l_range)/binwidth), range=[l_range, r_range], histtype='step', label='$t^r_{10}-t_{\mathrm{trig}}$')
+    ax.plot(np.arange(l_range, r_range, 0.1), result.x[0] * N * binwidth * np.exp(-(np.arange(l_range, r_range, 0.1) - result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2], '--')
+    ax.plot(np.arange(limits[0], limits[1], 0.1), result.x[0] * N * binwidth * np.exp(-(np.arange(limits[0], limits[1], 0.1) - result.x[1])**2/2/result.x[2]**2)/np.sqrt(2*np.pi)/result.x[2], label='fit')
     ax.set_xlabel('TT/ns')
     ax.set_ylabel('Entries')
+    ax.set_xlim([l_range, r_range])
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.legend()
+    TTS = result.x[2]*np.sqrt(2*np.log(2))*2
+    results[j]['TTS'] = TTS
     handles, labels = ax.get_legend_handles_labels()
-    handles.append(mpatches.Patch(color='none', label='$\sigma$={:.3f}'.format(result.x[2])))
+    handles.append(mpatches.Patch(color='none', label='$\sigma$={:.3f}ns'.format(result.x[2])))
+    handles.append(mpatches.Patch(color='none', label='TTS={:.3f}ns'.format(TTS)))
     ax.legend(handles=handles)
-    print('tts:{:.3f}'.format(result.x[2]*2.355))
+    print('tts:{:.3f}'.format(TTS))
     pdf.savefig(fig)
     plt.close()
+    # TTS-charge 2d分布
+    fig, ax = plt.subplots()
+    
+    h = ax.hist2d(info[j]['begin10'][totalselect], info[j]['minPeakCharge'][totalselect], range=[[l_range, r_range], [0, 600]], bins=[(r_range-l_range)*10, 600], cmap=cmap)
+    fig.colorbar(h[3], ax=ax)
+    ax.set_ylabel('Equivalent Charge/ADCns')
+    ax.set_xlabel('TT/ns')
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.yaxis.set_minor_locator(MultipleLocator(10))
+    pdf.savefig(fig)
 pdf.close()
 with h5py.File(args.opt, 'w') as opt:
     opt.create_dataset('res',data=results, compression='gzip')

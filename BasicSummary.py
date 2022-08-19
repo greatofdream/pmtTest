@@ -130,7 +130,7 @@ for j in range(len(args.channel)):
     ax.scatter([pi,vi], [pv,vv], color='r')
     ## 将参数放入legend里
     selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
-    results[j] = (mu, vi, pv / vv, np.mean(selectinfo), np.std(selectinfo), mu/50/1.6, sigma/50/1.6, 0)# DCR 一项占位0
+    results[j] = (mu, vi, pv / vv, np.mean(selectinfo), np.std(selectinfo), mu/50/1.6*ADC2mV, sigma/50/1.6*ADC2mV, 0)# DCR 一项占位0
     handles, labels = ax.get_legend_handles_labels()
     handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6*ADC2mV)))
     handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6*ADC2mV)))
