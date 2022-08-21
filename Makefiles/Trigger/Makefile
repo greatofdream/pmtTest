@@ -9,7 +9,7 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest/
 #anaNum:
 wavecut:=600
 field:=
-all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/chargeSelect.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/qe/ratio.h5)
+all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/chargeSelect.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/qe/ratio.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/ser.h5)
 AP: $(anaNum:%=ExResult/%/$(wavecut)ns/pulse/ratio.pdf)
 preview: $(anaNum:%=ExResult/%/preview.pdf) $(anaNum:%=ExResult/%/entries.txt) 
 
@@ -58,6 +58,9 @@ ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/qe/preanalysis
 	python3 mergeH5.py -i $$^ -o $$@
 ExResult/$(1)/$(2)ns/chargeSelect.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5
 	python3 TriggerSummary.py -c $$(channels) -t $$(word 2,$$^) -i $$< -o $$@ > $$@.log 2>&1
+ExResult/$(1)/$(2)ns/ser.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/chargeSelect.h5
+	python3 ser.py --ana $$< --summary $$(word 2,$$^) -c $$(channels) -t $$(triggerch) -o $$@ --wave $$(shell ls -v $$(Ex1DataNewDir)$(1)/*$(1)*.root) > $$@.log 2>&1
+
 ExResult/$(1)/$(2)ns/pulse/ratio.pdf: ExResult/$(1)/$(2)ns/pulse/preanalysisMerge.h5
 	python3 trigger/pulseRatio.py -i $$^ -o $$@ > $$@.log
 ExResult/$(1)/$(2)ns/qe/ratio.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5
