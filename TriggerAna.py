@@ -2,6 +2,7 @@
 import uproot, numpy as np, h5py
 from pandas import Series
 from waveana.waveana import Qb, Qe
+from waveana.triggerana import Triggerana
 import argparse
 import matplotlib.pyplot as plt
 
@@ -101,6 +102,7 @@ if __name__=="__main__":
                     pulse[j][i] = (eid, False, promptPulse, delayPulse1, delayPulse10, promptPulseH, delayPulse1H, delayPulse10H, 0, 0)
     else:
         # 计算
+        waveana = Triggerana()
         pulse = []
         storedtype = [('EventID', '<i4'), ('isTrigger', bool), ('baseline','<f4'), ('std','<f4'), ('riseTime','<f4'), ('downTime','<f4'),('FWHM','<f4'),
             ('begin10', '<f4'), ('down10', '<f4'), ('begin50', '<f4'), ('down50', '<f4'), ('begin90', '<f4'), ('down90', '<f4'),
@@ -112,20 +114,26 @@ if __name__=="__main__":
             chmap = Series(range(ch.shape[0]), index=ch)
             for j in range(len(args.channel)):
                 w = wave[chmap.loc[channels[j]]]
+                # 检查之前预分析的baseline结果是否对应
                 anar = info[j][i]
-                baseline = anar['baseline']
-                std = anar['std']
+                interval_j = [int(ti+trigger[i]['triggerTime']) for ti in rinterval[j][['start', 'end']]]
+                r_min = np.argmin(w[(interval_j[0]-3):(interval_j[1]+3)]) - 3
+                rminIndex = interval_j[0] + r_min - int(trigger[i]['triggerTime'])
+                if anar['begin10']>(interval_j[0]-3) and anar['begin10']<(interval_j[1]+3):
+                    baseline = anar['baseline']
+                    std = anar['std']
+                else:
+                    waveana.setWave(wave[chmap.loc[channels[j]]])
+                    waveana.getBaselineFine(rminIndex)
+                    baseline, std = waveana.minPeakBaseline, waveana.minPeakStd
                 threshold = args.nsigma*std
                 if threshold<3:
                     threshold = 3
-                interval_j = [int(ti+trigger[i]['triggerTime']) for ti in rinterval[j][['start', 'end']]]
                 # Baseline inteval_j
                 if np.max(baseline - w[interval_j[0]:interval_j[1]])>threshold:
                     isTrigger = True
                 else:
                     isTrigger = False
-                r_min = np.argmin(w[(interval_j[0]-3):(interval_j[1]+3)]) - 3
-                rminIndex = interval_j[0] + r_min - int(trigger[i]['triggerTime'])
                 # 判断最小值是否在baseline下方，如果不是，说明这部分是过冲信号
                 if r_min<=0 or r_min>=(interval_j[1]-interval_j[0]) or w[rminIndex+ int(trigger[i]['triggerTime'])]>=baseline:
                     isTrigger = False
