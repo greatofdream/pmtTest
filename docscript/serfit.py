@@ -7,7 +7,7 @@ sys.path.append('..')
 import h5py, numpy as np, uproot
 np.seterr(divide='raise')
 from pandas import Series
-from waveana.util import fitSER, SER
+from waveana.util import fitSER, SER, peakNum
 import config
 import argparse
 import matplotlib.pyplot as plt
@@ -23,6 +23,7 @@ psr.add_argument('--wave', help='wave of data')
 psr.add_argument('-c', dest='channel', nargs='+', default=[0,1],help='channel used in DAQ')
 psr.add_argument('-o', dest='opt', help='output figure file')
 psr.add_argument('--cid', type=int, help='channel id')
+psr.add_argument('--eid', type=int, nargs='+', help='event id')
 psr.add_argument('--summary', dest='summary', help='summary result')
 args = psr.parse_args()
 cid = args.cid
@@ -45,19 +46,26 @@ with h5py.File(args.summary, 'r') as sum_ipt:
 # select the trigger wave
 chmap = Series(range(len(ch)), index=ch)
 j = chmap.loc[cid]
-indexTF = (info['minPeakCharge']>thresholds[j][0])&(info['minPeakCharge']<thresholds[j][1])&(info['FWHM']>5)&(info['minPeak']>3)
-index = np.where(indexTF)[0]
-print(index.shape, info.shape)
+if args.eid:
+    eidmap = Series(range(len(eventIds)), index=eventIds)
+    index = eidmap.loc[args.eid]
+else:
+    indexTF = (info['minPeakCharge']>thresholds[j][0])&(info['minPeakCharge']<thresholds[j][1])&(info['FWHM']>5)&(info['minPeak']>3)
+    index = np.where(indexTF)[0]
+    print(index.shape, info.shape)
+    print(index[:3])
 chmap = Series(range(nchannel), index=channelIds[0])
 with PdfPages(args.opt) as pdf:
     # 绘制原始波形切分范围
     for i in index[:100]:
         trig = int(info[i]['begin10'] + trigger[i]['triggerTime'])
+        print(info[i]['minPeak'], info[i]['minPeakCharge'])
         baseline = info[i]['baseline']
         begin = trig - spestart
         end = begin + spelength
         wave = waveforms[i].reshape((nchannel,-1))
         selectwave = baseline - wave[chmap.loc[cid]][begin:end]
+        print(peakNum(selectwave, info[i]['std']))
         ## fit the SER
         xs = np.arange(begin, end)
         result = fitSER(xs, selectwave)

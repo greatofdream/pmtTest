@@ -2,11 +2,12 @@
 获取并拟合ser, 平均ser在10%处对齐
 '''
 import h5py, argparse, numpy as np, uproot
-from waveana.util import fitSER, SER
+from waveana.util import fitSER, SER, peakNum
 from pandas import Series
 import matplotlib.pyplot as plt
 plt.style.use('./journal.mplstyle')
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+from matplotlib.ticker import MultipleLocator
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
 import config
@@ -19,22 +20,22 @@ psr.add_argument('--wave', dest='wave', help='input root wave files')
 psr.add_argument('--ana', dest="ana", help='reference for peak')
 psr.add_argument('--summary', dest='summary', help='summary result')
 psr.add_argument('--merge', default=False, action='store_true')
+psr.add_argument('--check', default=False, action='store_true')
 psr.add_argument('--serfiles', nargs='+', help='ser files to merge')
 args = psr.parse_args()
-fitdtype = [('eid', '<i2'), ('mu', '<f4'), ('sigma', '<f4'), ('tau', '<f4'), ('A', '<f4'), ('fun', '<f4'), ('suc', '?')]
+fitdtype = [('eid', '<i4'), ('mu', '<f4'), ('sigma', '<f4'), ('tau', '<f4'), ('A', '<f4'), ('fun', '<f4'), ('suc', '?'), ('maxerr', '<f4'), ('std', '<f4'), ('peakNum', '<i2')]
 spelength, spestart, speend = config.spelength, config.spestart, config.speend
 ch = [int(i) for i in args.channel]
+thresholds = []
+info=[]
+with h5py.File(args.ana, 'r') as ana_ipt, h5py.File(args.summary, 'r') as sum_ipt:
+    for j in range(len(args.channel)):
+        info.append(ana_ipt['ch{}'.format(args.channel[j])][:])
+        thresholds.append(
+            (sum_ipt['res'][j]['peakC'] * (1 - sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']), sum_ipt['res'][j]['peakC'] * (1 + sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']))
+            )
+    trigger = ana_ipt['trigger'][:]
 if not args.merge:
-    info=[]
-    thresholds = []
-    with h5py.File(args.ana, 'r') as ana_ipt, h5py.File(args.summary, 'r') as sum_ipt:
-        for j in range(len(args.channel)):
-            info.append(ana_ipt['ch{}'.format(args.channel[j])][:])
-            thresholds.append(
-                (sum_ipt['res'][j]['peakC'] * (1 - sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']), sum_ipt['res'][j]['peakC'] * (1 + sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']))
-                )
-        trigger = ana_ipt['trigger'][:]
-    # print(thresholds)
     t_b = time.time()
     with uproot.open(args.wave) as ipt:
         eventIds = ipt["Readout/TriggerNo"].array(library='np')
@@ -52,8 +53,7 @@ if not args.merge:
         # 筛选出对应的波形
         indexTF = (info[j]['minPeakCharge']>thresholds[j][0])&(info[j]['minPeakCharge']<thresholds[j][1])&(info[j]['FWHM']>5)&(info[j]['minPeak']>3)
         index = np.where(indexTF)[0]
-        nums[j] = np.sum(indexTF)
-        fitResult.append(np.zeros((nums[j]), dtype=fitdtype))
+        fitResult.append(np.zeros((np.sum(indexTF)), dtype=fitdtype))
         # print('select number is {}'.format(nums[j]))
         if(index.shape[0]>0):
             for idx, i in enumerate(index):
@@ -63,13 +63,22 @@ if not args.merge:
                 end = begin + spelength
                 wave = waveforms[i].reshape((nchannel,-1))
                 ## 此处转为正向
-                storeWave[j] += baseline - wave[chmap.loc[ch[j]]][begin:end]
+                peakn = peakNum(baseline - wave[chmap.loc[ch[j]]][begin:end], info[j][i]['std'])
                 ## fit the SER
                 xs = np.arange(begin, end)
                 result = fitSER(xs, baseline - wave[chmap.loc[ch[j]]][begin:end])
+                eys = SER(result.x, xs)
                 if not result.success:
                     print('eid-cid {}-{} failed:{}'.format(i, ch[j], result.message))
-                fitResult[j][idx] = (i, *result.x, result.fun, result.success)
+                fitResult[j][idx] = (
+                    eventIds[i], *result.x, result.fun, result.success,
+                    np.max(np.abs(baseline - wave[chmap.loc[ch[j]]][begin:end] - eys)),
+                    info[j][i]['std'], peakn
+                    )
+                # 排除识别的单峰和拟合偏差大的波形
+                if peakn==1 and fitResult[j][idx]['maxerr']<5*info[j][i]['std']:
+                    storeWave[j] += baseline - wave[chmap.loc[ch[j]]][begin:end]
+                    nums[j] += 1
     with h5py.File(args.opt,'w') as opt:
         opt.create_dataset('spe', data=storeWave, compression='gzip')
         opt.create_dataset('nums', data=nums, compression='gzip')
@@ -78,22 +87,25 @@ if not args.merge:
 else:
     storeWave = np.zeros((len(args.channel), spelength))
     nums = np.zeros(len(args.channel), dtype=int)
+    totalnums = np.zeros(len(args.channel), dtype=int)
     fitResult = []
     # 合并ser及拟合参数
     for f in args.serfiles:
         with h5py.File(f, 'r') as ipt:
             storeWave += ipt['spe'][:]
             nums += ipt['nums'][:]
+            for j in range(len(args.channel)):
+                totalnums[j] += ipt['ch{}'.format(ch[j])][:].shape[0]
     print(nums)
     for j in range(len(args.channel)):
-        fitResult.append(np.zeros(nums[j], dtype=fitdtype))
+        fitResult.append(np.zeros(totalnums[j], dtype=fitdtype))
     cursor = np.zeros(len(args.channel), dtype=int)
     for f in args.serfiles:
         with h5py.File(f, 'r') as ipt:
-            num = ipt['nums'][:]
             for j in range(len(args.channel)):
-                fitResult[j][cursor[j]:(cursor[j]+num[j])] = ipt['ch{}'.format(ch[j])][:]
-            cursor += num
+                num = ipt['ch{}'.format(ch[j])][:].shape[0]
+                fitResult[j][cursor[j]:(cursor[j]+num)] = ipt['ch{}'.format(ch[j])][:]
+                cursor[j] += num
     with h5py.File(args.opt,'w') as opt:
         opt.create_dataset('spe', data=storeWave/nums[:, None], compression='gzip')
         opt.create_dataset('nums', data=nums, compression='gzip')
@@ -129,3 +141,28 @@ else:
             ax.set_ylabel(r'$\tau$/ns')
             pdf.savefig(fig)
             plt.close()
+
+            fig, ax = plt.subplots()
+            select = (fitResult[j]['maxerr']<5*fitResult[j]['std']) & (fitResult[j]['peakNum']==1)
+            print('{}/{}'.format(np.sum(select), fitResult[j].shape[0]))
+            h = ax.hist2d(fitResult[j]['sigma'][select], fitResult[j]['tau'][select], bins=[100,100], cmap=cmap)
+            fig.colorbar(h[3], ax=ax)
+            ax.set_xlabel('$\sigma$/ADCns')
+            ax.set_ylabel(r'$\tau$/ns')
+            pdf.savefig(fig)
+            plt.close()
+
+            # peak分布
+            fig, ax = plt.subplots()
+            h = ax.hist(info[j]['minPeak'],histtype='step', bins=1000, range=[0,1000], label='peak')
+            ax.hist(info[j]['minPeak'][(info[j]['minPeakCharge']>thresholds[j][0])&(info[j]['minPeakCharge']<thresholds[j][1])], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, label='peak($C\in [C_1-\sigma_{C_1},C_1+\sigma_{C_1}]$)')
+            ax.set_xlabel('Peak/ADC')
+            ax.set_ylabel('Entries')
+            ## zoom in
+            ax.axvline(3, linestyle='--', color='g', label='3ADC')
+            ax.xaxis.set_minor_locator(MultipleLocator(1))
+            ax.set_yscale('linear')
+            ax.set_xlim([0, 50])
+            ax.set_ylim([0, 2*np.max(h[0][5:30])])
+            ax.legend()
+            pdf.savefig(fig)
