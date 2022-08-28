@@ -70,6 +70,7 @@ if __name__=="__main__":
         axins.plot(range(int(trigger[eid]['triggerTime']) + 100, waveCut), chwave[(int(trigger[eid]['triggerTime']) + 100):waveCut])
         axins.axhline(info[eid]['baseline'], linestyle='--')
         axins.axvline(info[eid]['begin10'], linestyle='--', color='r', label='$t^r_{10}$')
+        print(info[eid]['begin10'])
         axins.axvline(info[eid]['minPeakPos'], linestyle='--', color='y', label='$t_{p}$')
         axins.set_xlim([int(trigger[eid]['triggerTime']) + 100, waveCut])
         axins.xaxis.set_minor_locator(MultipleLocator(10))

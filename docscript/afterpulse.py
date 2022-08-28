@@ -28,13 +28,11 @@ if __name__=="__main__":
     psr.add_argument('--ana', help='analyze result')
     psr.add_argument('-o', dest='opt', help='output figure file')
     psr.add_argument('--run', type=int, help='run no')
-    psr.add_argument('--eid', type=int, help='event id')
     psr.add_argument('--cid', type=int, help='channel id')
     psr.add_argument('-t', dest='trigger', type=int, help='trigger channel')
     psr.add_argument('--ser', help='ser file')
     args = psr.parse_args()
     runno = args.run
-    eid = args.eid
     cid = args.cid
     triggerch = args.trigger
     waveCut = 600
