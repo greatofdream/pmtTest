@@ -20,7 +20,6 @@ psr.add_argument('--wave', dest='wave', help='input root wave files')
 psr.add_argument('--ana', dest="ana", help='reference for peak')
 psr.add_argument('--summary', dest='summary', help='summary result')
 psr.add_argument('--merge', default=False, action='store_true')
-psr.add_argument('--check', default=False, action='store_true')
 psr.add_argument('--serfiles', nargs='+', help='ser files to merge')
 args = psr.parse_args()
 fitdtype = [('eid', '<i4'), ('mu', '<f4'), ('sigma', '<f4'), ('tau', '<f4'), ('A', '<f4'), ('fun', '<f4'), ('suc', '?'), ('maxerr', '<f4'), ('std', '<f4'), ('peakNum', '<i2')]
@@ -35,6 +34,7 @@ with h5py.File(args.ana, 'r') as ana_ipt, h5py.File(args.summary, 'r') as sum_ip
             (sum_ipt['res'][j]['peakC'] * (1 - sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']), sum_ipt['res'][j]['peakC'] * (1 + sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']))
             )
     trigger = ana_ipt['trigger'][:]
+    peakCs = sum_ipt['res'][:]
 if not args.merge:
     t_b = time.time()
     with uproot.open(args.wave) as ipt:
@@ -106,11 +106,6 @@ else:
                 num = ipt['ch{}'.format(ch[j])][:].shape[0]
                 fitResult[j][cursor[j]:(cursor[j]+num)] = ipt['ch{}'.format(ch[j])][:]
                 cursor[j] += num
-    with h5py.File(args.opt,'w') as opt:
-        opt.create_dataset('spe', data=storeWave/nums[:, None], compression='gzip')
-        opt.create_dataset('nums', data=nums, compression='gzip')
-        for j in range(len(args.channel)):
-            opt.create_dataset('ch{}'.format(ch[j]), data=fitResult[j], compression='gzip')
     # 绘制图像
     jet = plt.cm.jet
     newcolors = jet(np.linspace(0, 1, 32768))
@@ -166,3 +161,11 @@ else:
             ax.set_ylim([0, 2*np.max(h[0][5:30])])
             ax.legend()
             pdf.savefig(fig)
+    
+    with h5py.File(args.opt,'w') as opt:
+        opt.create_dataset('spe', data=storeWave/nums[:, None], compression='gzip')
+        opt.create_dataset('nums', data=nums, compression='gzip')
+        for j in range(len(args.channel)):
+            opt.create_dataset('ch{}'.format(ch[j]), data=fitResult[j], compression='gzip')
+        opt.create_dataset('fitspe', data=result.x, compression='gzip')
+        opt.create_dataset('mu', data=peakCs, compression='gzip')
