@@ -10,7 +10,7 @@ Ex1DataNewDir:=/mnt/neutrino/pmtTest
 wavecut:=600
 field:=
 all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/h5/trigger.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/chargeSelect.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/qe/ratio.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/serMerge.h5)
-AP: $(anaNum:%=ExResult/%/$(wavecut)ns/pulse/ratio.pdf)
+all: $(anaNum:%=ExResult/%/$(wavecut)ns/pulseRatio.h5)
 preview: $(anaNum:%=ExResult/%/preview.pdf) $(anaNum:%=ExResult/%/entries.txt) 
 
 define analysis
@@ -33,13 +33,6 @@ ExResult/$(1)/$(2)ns/h5/preanalysis0.h5: $$(Ex1DataNewDir)/$(1)/*$(1).root
 	mkdir -p $$(dir $$@)
 	time python3 TriggerPreAna.py -i $$^  -l $(2) -c $$(channels) -t $$(triggerch)  -o $$@ > $$@.log 2>&1
 
-ExResult/$(1)/$(2)ns/pulse/preanalysis%.h5: $$(Ex1DataNewDir)/$(1)/*$(1)_%.root ExResult/$(1)/$(2)ns/h5/preanalysis%.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5 
-	mkdir -p $$(dir $$@)
-	time python3 TriggerAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) > $$@.log 2>&1
-ExResult/$(1)/$(2)ns/pulse/preanalysis0.h5: $$(Ex1DataNewDir)/$(1)/*$(1).root ExResult/$(1)/$(2)ns/h5/preanalysis0.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5 
-	mkdir -p $$(dir $$@)
-	time python3 TriggerAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) > $$@.log 2>&1
-
 ExResult/$(1)/$(2)ns/qe/preanalysis%.h5: $$(Ex1DataNewDir)/$(1)/*$(1)_%.root ExResult/$(1)/$(2)ns/h5/preanalysis%.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5 
 	mkdir -p $$(dir $$@)
 	time python3 TriggerAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --interval $$(word 3,$$^) --QE > $$@.log 2>&1
@@ -52,8 +45,7 @@ ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/h5/preanalysis
 ExResult/$(1)/$(2)ns/h5/trigger.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
 	python trigInterval.py -i $$^ -o $$@ -c $$(channels) > $$@.log 2>&1
 
-ExResult/$(1)/$(2)ns/pulse/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/pulse/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/pulse/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)/$(1)/*$(1)_*.root))))
-	python3 mergeH5.py -i $$^ -o $$@
+
 ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/qe/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/qe/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)/$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
 ExResult/$(1)/$(2)ns/chargeSelect.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5
@@ -67,6 +59,15 @@ ExResult/$(1)/$(2)ns/ser/ser0.h5: ExResult/$(1)/$(2)ns/qe/preanalysis0.h5 ExResu
 	python3 ser.py --ana $$< --summary $$(word 2,$$^) -c $$(channels) -t $$(triggerch) -o $$@ --wave $$(word 3,$$^)
 ExResult/$(1)/$(2)ns/serMerge.h5: ExResult/$(1)/$(2)ns/ser/ser0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/ser/ser%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)/$(1)/*$(1)_*.root))))
 	python3 ser.py --merge --ana ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 --summary ExResult/$(1)/$(2)ns/chargeSelect.h5 --serfiles $$^ -o $$@ -c $$(channels) -t $$(triggerch)
+# pre after pulse
+ExResult/$(1)/$(2)ns/pulse/preanalysis%.h5: $$(Ex1DataNewDir)/$(1)/*$(1)_%.root ExResult/$(1)/$(2)ns/qe/preanalysis%.h5 ExResult/$(1)/$(2)ns/chargeSelect.h5
+	mkdir -p $$(dir $$@)
+	python3 TriggerPulseAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --summary $$(word 3,$$^) > $$@.log 2>&1
+ExResult/$(1)/$(2)ns/pulse/preanalysis0.h5: $$(Ex1DataNewDir)/$(1)/*$(1).root ExResult/$(1)/$(2)ns/qe/preanalysis0.h5 ExResult/$(1)/$(2)ns/chargeSelect.h5
+	mkdir -p $$(dir $$@)
+	python3 TriggerPulseAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --summary $$(word 3,$$^) > $$@.log 2>&1
+ExResult/$(1)/$(2)ns/pulseRatio.h5: ExResult/$(1)/$(2)ns/pulse/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/pulse/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)/$(1)/*$(1)_*.root))))
+	python3 TriggerPulseSummary.py -i $$^ -o $$@ -c $$(channels)
 
 ExResult/$(1)/$(2)ns/pulse/ratio.pdf: ExResult/$(1)/$(2)ns/pulse/preanalysisMerge.h5
 	python3 trigger/pulseRatio.py -i $$^ -o $$@ > $$@.log
