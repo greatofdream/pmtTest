@@ -192,7 +192,7 @@ for j in range(len(args.channel)):
     print(np.sum(totalselect&(~info[j]['isTrigger'])))
     ## 限制拟合区间，其中要求sigma不能超过15，从而限制最后的拟合区间最大为2*15
     limits_mu, limits_sigma = np.mean(info[j]['begin10'][(totalselect)]), np.std(info[j]['begin10'][totalselect])
-    limits_sigma = min(limits_sigma, 15)
+    limits_sigma = min(limits_sigma, 3)
     limits = [limits_mu - limits_sigma, limits_mu + limits_sigma]
     result, N = fitGaus(info[j]['begin10'][totalselect], limits)
     tts_A, tts_mu, tts_sigma = result.x
