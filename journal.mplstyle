@@ -1,0 +1,37 @@
+# 部分size大小参考LHCb style调整
+
+axes.labelsize : 20
+axes.linewidth: 2
+
+figure.figsize: 8, 6
+figure.dpi: 150
+
+font.size: 14
+#font.weight: 400
+
+legend.frameon:       false
+legend.handletextpad: 0.3
+legend.numpoints:     1
+legend.labelspacing:  0.2
+legend.fontsize:      15
+
+lines.linewidth : 2
+lines.markersize : 8
+
+savefig.bbox:       tight
+savefig.pad_inches: 0.1
+xtick.major.size:  14
+xtick.minor.size:  7
+xtick.major.width: 1.5
+xtick.minor.width: 1.5
+xtick.major.pad:   10
+xtick.minor.pad:   10
+xtick.labelsize:   15 # 坐标轴数值字体大小
+
+ytick.major.size:  14
+ytick.minor.size:  7
+ytick.major.width: 1.5
+ytick.minor.width: 1.5
+ytick.major.pad:   10
+ytick.minor.pad:   10
+ytick.labelsize:   15
