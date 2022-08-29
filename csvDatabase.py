@@ -5,7 +5,7 @@
 python3 CSVDatabase.py --origincsv runinfo/697.csv --runcsv runinfo/RUNINFO.csv --testcsv runinfo/TESTINFO.csv
 '''
 from multidict import istr
-import pandas as pd
+import pandas as pd, numpy as np
 import argparse
 import datetime
 class CSVReader(object):
@@ -61,11 +61,13 @@ if __name__=="__main__":
     psr.add_argument('--origincsv', help='origin csv file')
     psr.add_argument('--runcsv', help='run csv file')
     psr.add_argument('--testcsv', help='test csv file')
-    psr.add_argument('--run', type=int, help='run no')
+    psr.add_argument('--run', type=int, default=-1, help='run no')
     psr.add_argument('--para', default='istrigger')
     args = psr.parse_args()
-
-    origininfo = OriginINFO(args.origincsv)
+    if (not (args.para=='pmts' or args.para=='pmtruns')) and args.run==-1:
+        print('run parameter is not set and para is {}'.format(args.para))
+        exit(0)
+    # origininfo = OriginINFO(args.origincsv)
     runinfo = RUNINFO(args.runcsv)
     testinfo = TESTINFO(args.testcsv)
     if args.para=='istrigger':
@@ -74,5 +76,9 @@ if __name__=="__main__":
         print(testinfo.getChannel(args.run))
     elif args.para=='ch':
         print(' '.join(map(str,testinfo.getChannel(args.run, istrigger=False))))
+    elif args.para=='pmts':
+        print(' '.join(np.unique(testinfo.csv['PMT'].values)))
+    elif args.para=='pmtruns':
+        pass
     else:
         print('error')
