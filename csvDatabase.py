@@ -63,6 +63,8 @@ if __name__=="__main__":
     psr.add_argument('--testcsv', help='test csv file')
     psr.add_argument('--run', type=int, default=-1, help='run no')
     psr.add_argument('--para', default='istrigger')
+    psr.add_argument('-i', dest='ipt', help='ID of PMT')
+    psr.add_argument('-o', dest='opt', help='name of output csv')
     args = psr.parse_args()
     if (not (args.para=='pmts' or args.para=='pmtruns')) and args.run==-1:
         print('run parameter is not set and para is {}'.format(args.para))
@@ -79,6 +81,6 @@ if __name__=="__main__":
     elif args.para=='pmts':
         print(' '.join(np.unique(testinfo.csv['PMT'].values)))
     elif args.para=='pmtruns':
-        pass
+        testinfo.csv[testinfo.csv['PMT']==args.ipt].to_csv(args.opt, index=False)
     else:
         print('error')
