@@ -28,17 +28,21 @@ reader = h5Merger(args.ipt)
 info = reader.read()
 totalNums = np.sum(info[-1].reshape((-1,len(args.channel))), axis=0).astype(int)
 print(totalNums)
-result = np.zeros(len(args.channel), dtype=[('TriggerNum', '<i4'), ('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4')])
+result = np.zeros(len(args.channel), dtype=[('Channel', '<i2'), ('TriggerNum', '<i4'), ('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4')])
 for j in range(len(args.channel)):
     delay1c = info[j]['EventID'][(info[j]['t']>delay1B) & (info[j]['t']<delay1E)]
     delay10c = info[j]['EventID'][(info[j]['t']>delay10B) & (info[j]['t']<delay10E)]
     c1 = np.unique(delay1c)
     c10 = np.unique(delay10c)
-    result[j] = (totalNums[j], 0, len(c1)/totalNums[j], len(c10)/totalNums[j])
+    promptc = info[j]['EventID'][(info[j]['t']>-promptB) & (info[j]['t']<-promptE)]
+    c_p = np.unique(promptc)
+    result[j] = (args.channel[j], totalNums[j], len(c_p)/totalNums[j], len(c1)/totalNums[j], len(c10)/totalNums[j])
 # store the pulse ratio
 
 with h5py.File(args.opt, 'w') as opt:
     opt.create_dataset('ratio', data=result, compression='gzip')
+    for j in range(len(args.channel)):
+        opt.create_dataset('ch{}'.format(args.channel[j]), data=info[j], compression='gzip')
 # set the figure appearance
 props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
 jet = plt.cm.jet
@@ -57,7 +61,24 @@ with PdfPages(args.opt + '.pdf') as pdf:
         pdf.savefig(fig)
 
         fig, ax = plt.subplots(figsize=(12,6))
-        h = ax.hist(info[j]['t'], bins=int((delay10E - delay1B)/50), range=[delay1B, delay10E])
+        h = ax.hist(info[j]['t'], bins=int(delay10E/50), range=[0, delay10E], histtype='step')
+        h = ax.hist(info[j]['t'], bins=int((delay10E - delay1B)/50), range=[delay1B, delay10E], histtype='step')
+        ax.set_xlabel('Relative t/ns')
+        ax.set_ylabel('Entries')
+        ax.set_xlim([0, delay10E])
+        ax.xaxis.set_minor_locator(MultipleLocator(100))
+        pdf.savefig(fig)
+
+        fig, ax = plt.subplots()
+        h = ax.hist2d(info[j]['t'], info[j]['Q'], bins=[int((promptB - promptE)/10), 50], range=[[-promptB, -promptE], [0, 1000]], cmap=cmap)
+        fig.colorbar(h[3], ax=ax)
+        ax.set_xlabel('Relative t/ns')
+        ax.set_ylabel('Equivalent Charge/ADCns')
+        ax.xaxis.set_minor_locator(MultipleLocator(100))
+        pdf.savefig(fig)
+
+        fig, ax = plt.subplots()
+        h = ax.hist(info[j]['t'], bins=int((promptB - promptE)/10), range=[-promptB, -promptE], histtype='step')
         ax.set_xlabel('Relative t/ns')
         ax.set_ylabel('Entries')
         ax.xaxis.set_minor_locator(MultipleLocator(100))
