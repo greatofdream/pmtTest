@@ -86,13 +86,14 @@ if __name__=="__main__":
     for r in zip(pmts[1:], np.exp(res.params[-(len(pmts)-1):]), res.bse[-(len(pmts)-1):], res.bse[-(len(pmts)-1):]*np.exp(res.params[-(len(pmts)-1):])):
         print(str(r[0], 'UTF-8'), r[1], r[2], r[3])
     print(res.outlier_test())
+    num_run = np.unique(measuredRates['runno'].values).shape[0]
     with h5py.File(args.opt, 'w') as opt:
         opt.create_dataset('QE', data=np.exp(res.params[-(len(pmts)-1):]), compression='gzip')
         opt.create_dataset('logerr', data=res.bse[-(len(pmts)-1):], compression='gzip')
         opt.create_dataset('err', data=res.bse[-(len(pmts)-1):]*np.exp(res.params[-(len(pmts)-1):]))
+        opt.create_dataset('I', data=np.exp(res.params[:num_run]), compression='gzip')
     with PdfPages(args.opt+'.pdf') as pdf:
         fig, ax = plt.subplots()
-        num_run = np.unique(measuredRates['runno'].values).shape[0]
         ax.errorbar(x=range(num_run), y=np.exp(res.params[:num_run]), yerr=np.exp(res.params[:num_run])*res.bse[:num_run])
         ax.set_xlabel('runno')
         ax.set_ylabel('Intensity(A.U)')
