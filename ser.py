@@ -132,7 +132,7 @@ else:
             fig, ax = plt.subplots()
             h = ax.hist2d(fitResult[j]['sigma'], fitResult[j]['tau'], bins=[100,100], cmap=cmap)
             fig.colorbar(h[3], ax=ax)
-            ax.set_xlabel('$\sigma$/ADCns')
+            ax.set_xlabel('$\sigma$/ns')
             ax.set_ylabel(r'$\tau$/ns')
             pdf.savefig(fig)
             plt.close()
