@@ -57,19 +57,27 @@ if __name__=="__main__":
             if not anar['isTrigger'] or anar['minPeakCharge']< 0.25 * peakCs[j] or anar['FWHM']<5:
                 continue
             baseline, std = anar['baseline'], anar['std']
-            triggerPulseT = int(anar['begin10'])
+            triggerPulseT = int(trigger[i]['triggerTime'] + anar['begin10'])
             threshold = np.max([args.nsigma * std, 3])
-            start = triggerPulseT + delay1B
-            if np.max(baseline - w[start:]) < threshold:
-                continue
-            ## 检查前脉冲
+            # 避免在delay1B的位置出现奇怪的异常峰，将搜寻范围扩大至delayB-speend
+            start = triggerPulseT + delay1B - speend
             ## 检查后脉冲
-            intervals = getIntervals(np.arange(start, waveformLength), baseline - w[start:], threshold, spestart, speend)
-            for interval in intervals:
-                t, Q = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
-                # store the relative time ot begin10
-                pulse[nums[j],j] = (eid, t - triggerPulseT, Q)
-                nums[j] += 1
+            if np.max(baseline - w[start:]) > threshold:
+                intervals = getIntervals(np.arange(start, waveformLength), baseline - w[start:], threshold, spestart, speend)
+                for interval in intervals:
+                    t, Q = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
+                    # store the relative time ot begin10
+                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q)
+                    nums[j] += 1
+            ## 检查前脉冲
+            end = triggerPulseT - spestart
+            if np.max(baseline - w[:end]) > threshold:
+                intervals = getIntervals(np.arange(end), baseline - w[:end], threshold, spestart, speend)
+                for interval in intervals:
+                    t, Q = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
+                    # store the relative time ot begin10
+                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q)
+                    nums[j] += 1
     totalNums = np.zeros(len(args.channel))
     for j in range(len(args.channel)):
         totalNums[j] = np.sum(info[j]['isTrigger'] & (info[j]['minPeakCharge']> 0.25 * peakCs[j]) & (info[j]['FWHM']>5))
