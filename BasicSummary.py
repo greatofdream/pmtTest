@@ -27,7 +27,9 @@ results = np.zeros(len(args.channel),
         ('peakC','<f4'), ('vallyC','<f4'), ('PV','<f4'),
         ('chargeMu','<f4'), ('chargeSigma','<f4'),
         ('Gain', '<f4'), ('GainSigma', '<f4'),
-        ('DCR', '<f4'), ('TotalNum', '<i4')
+        ('DCR', '<f4'), ('TotalNum', '<i4'),
+        ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
+        ('RiseSigma', '<f4'), ('FallSigma', '<f4'), ('THSigma', '<f4'), ('FWHMSigma', '<f4')
     ])
 with h5py.File(args.ipt, 'r') as ipt:
     waveformLength = ipt.attrs['waveformLength']
@@ -121,7 +123,7 @@ for j in range(len(args.channel)):
         vallyspanl = vallyspanl // 2
         yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     result = minimize(vallyResidual, [0.3, vi, vv+10], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2),
-        bounds=[(0.1, None), (vi-5, vi+5), (16, A)],
+        bounds=[(0.1, None), (vi-5, vi+5), (0, A)],
         method='SLSQP', options={'eps': 0.1, 'maxiter':5000})
     print(result)
     a_v, b_v, c_v = result.x
@@ -131,7 +133,8 @@ for j in range(len(args.channel)):
     ax.scatter([pi,vi], [pv,vv], color='r')
     ## 将参数放入legend里
     selectinfo = info[j]['minPeakCharge'][(info[j]['nearPosMax']<=nearMax)&(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
-    results[j] = (args.channel[j], mu, vi, pv / vv, np.mean(selectinfo), np.std(selectinfo), mu/50/1.6*ADC2mV, sigma/50/1.6*ADC2mV, 0, len(info[j]))# DCR 一项占位0
+    results[j] = (args.channel[j], mu, vi, pv / vv, np.mean(selectinfo), np.std(selectinfo), mu/50/1.6*ADC2mV, sigma/50/1.6*ADC2mV, 0, len(info[j]),
+        0, 0, 0, 0, 0, 0, 0, 0)# DCR 一项占位0
     handles, labels = ax.get_legend_handles_labels()
     handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6*ADC2mV)))
     handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6*ADC2mV)))
@@ -270,7 +273,6 @@ for j in range(len(args.channel)):
     # risetime and falltime，里面对于范围做了限制，需要动态考虑
     position = (info[j]['minPeakPos']>config.baselength)&(info[j]['minPeakPos']<(waveformLength-config.afterlength))
     fig, ax = plt.subplots()
-    ## ax.set_title('$T_R$,$T_d$,FWHM ($V_p>5$mV,$10<p<${}ns) distribution'.format(waveformLength-30))
     ax.hist(info[j]['riseTime'][totalselect&position], histtype='step', bins=300, range=[0,30], label=r'risingtime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['riseTime'][totalselect&position]), np.mean(info[j]['riseTime'][totalselect&position])))
     ax.hist(info[j]['downTime'][totalselect&position], histtype='step', bins=300, range=[0,30], label=r'falltime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['downTime'][totalselect&position]), np.mean(info[j]['downTime'][totalselect&position])))
     ax.hist(info[j]['FWHM'][totalselect&position], histtype='step', bins=300, range=[0,30], label=r'FWHM:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['FWHM'][totalselect&position]), np.mean(info[j]['FWHM'][totalselect&position])))
@@ -280,6 +282,12 @@ for j in range(len(args.channel)):
     ax.legend()
     pdf.savefig(fig)
     plt.close()
+    results[['Rise', 'RiseSigma', 'Fall', 'FallSigma', 'FWHM', 'FWHMSigma', 'TH', 'THSigma']][j] = (
+        np.mean(info[j]['riseTime'][totalselect]), np.std(info[j]['riseTime'][totalselect]),
+        np.mean(info[j]['downTime'][totalselect]), np.std(info[j]['downTime'][totalselect]), 
+        np.mean(info[j]['FWHM'][totalselect]), np.std(info[j]['FWHM'][totalselect]), 
+        np.mean((info[j]['end10']-info[j]['begin10'])[totalselect]), np.std((info[j]['end10']-info[j]['begin10'])[totalselect])
+        )
 
     fig, ax = plt.subplots()
     ax.set_title('$T_R$,$T_d$,FWHM ($5<V_p<40$mV) distribution')
@@ -289,13 +297,10 @@ for j in range(len(args.channel)):
     ax.set_xlabel('Time/ns')
     ax.set_ylabel('entries')
     ax.legend()
-    #ax.set_xlim([1,40])
-    # plt.savefig('{}/{}risetimeUlimit.png'.format(args.opt,args.channel[j]))
     pdf.savefig(fig)
-    ax.set_yscale('log')
-    # plt.savefig('{}/{}risetimeUlimitLog.png'.format(args.opt,args.channel[j]))
-    # pdf.savefig(fig)
     plt.close()
+    
+
     '''
     # 半高宽分布
     fig, ax = plt.subplots()
