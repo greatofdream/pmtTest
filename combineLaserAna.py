@@ -47,7 +47,7 @@ except:
     darkExpect = False
 # 统计分析结果路径和对应ch号
 configcsv = pd.read_csv(args.config)
-runs = configcsv[configcsv['TRIGGER']>=0].to_records()
+runs = configcsv[configcsv['MODE']==1].to_records()
 badruns = np.loadtxt(args.badrun)
 selectruns = []
 for run in runs:
@@ -60,9 +60,9 @@ results = pd.concat([loadh5(args.dir.format(run['RUNNO']) + '/chargeSelect.h5', 
 mergeresults = results[['peakC', 'vallyC', 'Gain', 'GainSigma', 'TTS']].mean()
 
 # 计算去除dark后的触发率
+mergeresults['TriggerRate'] = np.sum(results['TriggerRate'] * results['TotalNum'])/np.sum(results['TotalNum'])
 if darkExpect:
     results['TriggerRateWODCR'] = (results['TriggerRate'] - darkresult['DCR'] * results['window'] * 1e-6)/(1 - darkresult['DCR'] * results['window'] * 1e-6) 
-    mergeresults['TriggerRate'] = np.sum(results['TriggerRate'] * results['TotalNum'])/np.sum(results['TotalNum'])
     mergeresults['TriggerRateWODCR'] = np.sum(results['TriggerRateWODCR'] * results['TotalNum'])/np.sum(results['TotalNum'])
 # 统计多批数据的afterpulse
 pulseResults = pd.concat([loadPulse(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL']) for run in selectruns])
@@ -72,20 +72,25 @@ if darkExpect:
     pulseratioResults['promptWODCR'] = (pulseratioResults['prompt'] - darkresult['DCR'] * promptwindow * 1e-6)/(1 - darkresult['DCR'] * promptwindow * 1e-6)
     pulseratioResults['delay1WODCR'] = (pulseratioResults['delay1'] - darkresult['DCR'] * delay1window * 1e-6)/(1 - darkresult['DCR'] * delay1window * 1e-6)
     pulseratioResults['delay10WODCR'] = (pulseratioResults['delay10'] - darkresult['DCR'] * delay10window * 1e-6)/(1 - darkresult['DCR'] * delay10window * 1e-6)
-    mergePulseResults = np.zeros((1,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4')])
-    totalTriggerNum = np.sum(pulseratioResults['TriggerNum'])
-    mergePulseResults = (
-        np.sum(pulseratioResults['prompt'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-        np.sum(pulseratioResults['delay1'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-        np.sum(pulseratioResults['delay10'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-        np.sum(pulseratioResults['promptWODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-        np.sum(pulseratioResults['delay1WODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-        np.sum(pulseratioResults['delay10WODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum)
-    # 统计结果并合并存储
-    with h5py.File(args.opt, 'w') as opt:
-        opt.create_dataset('concat', data=results, compression='gzip')
-        opt.create_dataset('merge', data=mergeresults, compression='gzip')
-        opt.create_dataset('mergepulse', data=mergePulseResults, compression='gzip')
+if not darkExpect or (np.sum(pulseratioResults['promptWODCR']* pulseratioResults['TriggerNum'])<0):
+    # use pre pulse ratio to estimate the DCR
+    pulseratioResults['promptWODCR'] = 0
+    pulseratioResults['delay1WODCR'] = (pulseratioResults['delay1'] - pulseratioResults['prompt'] * delay1window / promptwindow)
+    pulseratioResults['delay10WODCR'] = (pulseratioResults['delay10'] -pulseratioResults['prompt'] * delay10window / promptwindow)
+mergePulseResults = np.zeros((1,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4')])
+totalTriggerNum = np.sum(pulseratioResults['TriggerNum'])
+mergePulseResults = (
+    np.sum(pulseratioResults['prompt'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
+    np.sum(pulseratioResults['delay1'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
+    np.sum(pulseratioResults['delay10'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
+    np.sum(pulseratioResults['promptWODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
+    np.sum(pulseratioResults['delay1WODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
+    np.sum(pulseratioResults['delay10WODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum)
+# 统计结果并合并存储
+with h5py.File(args.opt, 'w') as opt:
+    opt.create_dataset('concat', data=results, compression='gzip')
+    opt.create_dataset('merge', data=mergeresults, compression='gzip')
+    opt.create_dataset('mergepulse', data=mergePulseResults, compression='gzip')
 # 绘制变化曲线
 jet = plt.cm.jet
 newcolors = jet(np.linspace(0, 1, 32768))
@@ -104,6 +109,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
     ax.legend()
     pdf.savefig(fig)
     plt.close()
+
     # Afterpulse 变化
     binwidth = 50
     fig, ax = plt.subplots(figsize=(15,6))
@@ -117,7 +123,16 @@ with PdfPages(args.opt + '.pdf') as pdf:
     fig, ax = plt.subplots(figsize=(15,6))
     h = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[0, delay10E], histtype='step', label='After-pulse')
     h = ax.hist(pulseResults['t'], bins=int((promptB - promptE)/binwidth), range=[-promptB, -promptE], histtype='step', label='Pre-pulse')
-    # h = ax.hist(pulseResults['t'], bins=int((delay10E - delay1B)/binwidth), range=[delay1B, delay10E], histtype='step')
+    ax.set_xlabel('Relative t/ns')
+    ax.set_ylabel('Entries')
+    ax.set_xlim([-promptB, delay10E])
+    ax.xaxis.set_minor_locator(MultipleLocator(100))
+    ax.legend()
+    pdf.savefig(fig)
+
+    fig, ax = plt.subplots(figsize=(15,6))
+    h = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[0, delay10E], histtype='step', label='After-pulse')
+    h = ax.hist(pulseResults['t'], bins=int((promptB - promptE)/binwidth), range=[-promptB, -promptE], histtype='step', label='Pre-pulse')
     if darkExpect:
         ax.axhline(totalTriggerNum * darkresult['DCR'] * binwidth * 1e-6, label='Expected Dark Noise')
     ax.set_xlabel('Relative t/ns')

@@ -6,6 +6,7 @@ import argparse
 import h5py, pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import config
 plt.style.use('./journal.mplstyle')
 from matplotlib.backends.backend_pdf import PdfPages
 def loadh5(f, channel, run):
@@ -23,7 +24,7 @@ args = psr.parse_args()
 
 # 统计分析结果路径和对应ch号
 configcsv = pd.read_csv(args.config)
-runs = configcsv[configcsv['TRIGGER']==-1].to_records()
+runs = configcsv[configcsv['MODE']==0].to_records()
 badruns = np.loadtxt(args.badrun)
 selectruns = []
 for run in runs:

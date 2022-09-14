@@ -81,6 +81,6 @@ if __name__=="__main__":
     elif args.para=='pmts':
         print(' '.join(np.unique(testinfo.csv['PMT'].values)))
     elif args.para=='pmtruns':
-        testinfo.csv[testinfo.csv['PMT']==args.ipt].to_csv(args.opt, index=False)
+        pd.merge(testinfo.csv[testinfo.csv['PMT']==args.ipt], runinfo.csv[['RUNNO', 'MODE']], on='RUNNO').to_csv(args.opt, index=False)
     else:
         print('error')
