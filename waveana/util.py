@@ -87,15 +87,18 @@ def getIntervals(xs, ys, thresholds, pre_ser_length, after_ser_length, padding=2
             candidate[max(i-pre_ser_length, 0):min(i+after_ser_length, end)] = True
             i = i+after_ser_length
         i += 1
-    # 最后一位强制为False，避免区间不闭合
+    # 第一位和最后一位强制为False，避免区间不闭合
     candidate[-1] = False
+    candidate[0] = False
     candidate = candidate.astype(int)
     # 分割波形
     indexs = np.where(np.abs(candidate[1:] - candidate[:-1])==1)[0].reshape((-1,2))
-    assert(len(indexs)>0)
+    # 处理接近3mV的未识别的波形
+    if len(indexs) == 0:
+        indexs = np.array([max(np.argmax(ys) - pre_ser_length, 0), min(np.argmax(ys) + after_ser_length, end-1)]).reshape((-1,2))
     return xs[indexs]
-def getTQ(ys, ser):
-    ts = np.argmax(ys)
+def getTQ(xs, ys, ser):
+    ts = xs[np.argmax(ys)]
     qs = np.sum(ys)
     return ts, qs
 def likelihoodAt(para, *args):
