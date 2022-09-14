@@ -32,10 +32,12 @@ result = np.zeros(len(args.channel), dtype=[('Channel', '<i2'), ('TriggerNum', '
 for j in range(len(args.channel)):
     delay1c = info[j]['EventID'][(info[j]['t']>delay1B) & (info[j]['t']<delay1E)]
     delay10c = info[j]['EventID'][(info[j]['t']>delay10B) & (info[j]['t']<delay10E)]
-    c1 = np.unique(delay1c)
-    c10 = np.unique(delay10c)
+    # c1 = np.unique(delay1c)
+    # c10 = np.unique(delay10c)
+    c1, c10 = delay1c, delay10c
     promptc = info[j]['EventID'][(info[j]['t']>-promptB) & (info[j]['t']<-promptE)]
-    c_p = np.unique(promptc)
+    # c_p = np.unique(promptc)
+    c_p = promptc
     result[j] = (args.channel[j], totalNums[j], len(c_p)/totalNums[j], len(c1)/totalNums[j], len(c10)/totalNums[j])
 # store the pulse ratio
 
