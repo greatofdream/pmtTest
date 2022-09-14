@@ -117,6 +117,7 @@ if __name__=="__main__":
                 # 检查之前预分析的baseline结果是否对应
                 anar = info[j][i]
                 interval_j = [int(ti+trigger[i]['triggerTime']) for ti in rinterval[j][['start', 'end']]]
+                ## 左右延长范围3ns
                 r_min = np.argmin(w[(interval_j[0]-3):(interval_j[1]+3)]) - 3
                 rminIndex = interval_j[0] + r_min - int(trigger[i]['triggerTime'])
                 if anar['begin10']>(interval_j[0]-3) and anar['begin10']<(interval_j[1]+3):
@@ -134,8 +135,8 @@ if __name__=="__main__":
                     isTrigger = True
                 else:
                     isTrigger = False
-                # 判断最小值是否在baseline下方，如果不是，说明这部分是过冲信号
-                if r_min<=0 or r_min>=(interval_j[1]-interval_j[0]) or w[rminIndex+ int(trigger[i]['triggerTime'])]>=baseline:
+                # 判断最小值是否在区间内，或baseline下方，如果不是，说明这部分是过冲信号
+                if r_min<=0 or r_min>=(interval_j[1]-interval_j[0]) or w[rminIndex + int(trigger[i]['triggerTime'])]>=baseline:
                     isTrigger = False
                     pulse[j][i] = (eid, isTrigger, baseline, std, 0, 0, 0,
                         0, 0, 0, 0, 0, 0,
