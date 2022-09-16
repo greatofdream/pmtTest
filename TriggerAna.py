@@ -4,6 +4,7 @@ from pandas import Series
 from waveana.waveana import Qb, Qe
 from waveana.triggerana import Triggerana
 import argparse
+import config
 import matplotlib.pyplot as plt
 
 promptB = 250
@@ -117,15 +118,17 @@ if __name__=="__main__":
                 # 检查之前预分析的baseline结果是否对应
                 anar = info[j][i]
                 interval_j = [int(ti+trigger[i]['triggerTime']) for ti in rinterval[j][['start', 'end']]]
-                ## 左右延长范围3ns
+                ## 左右延长范围3ns, r_min相对于选择时间窗，rminIndex相对于激光上升沿
                 r_min = np.argmin(w[(interval_j[0]-3):(interval_j[1]+3)]) - 3
                 rminIndex = interval_j[0] + r_min - int(trigger[i]['triggerTime'])
+                waveana.setWave(wave[chmap.loc[channels[j]]])
                 if anar['begin10']>(interval_j[0]-3) and anar['begin10']<(interval_j[1]+3):
+                    # 使用之前分析结果加速
                     baseline = anar['baseline']
                     std = anar['std']
+                    waveana.minPeakBaseline = baseline
                 else:
-                    waveana.setWave(wave[chmap.loc[channels[j]]])
-                    waveana.getBaselineFine(rminIndex)
+                    waveana.getBaselineFine(rminIndex + int(trigger[i]['triggerTime']))
                     baseline, std = waveana.minPeakBaseline, waveana.minPeakStd
                 threshold = args.nsigma*std
                 if threshold<3:
@@ -144,11 +147,12 @@ if __name__=="__main__":
                         anar['begin5mV'], anar['end5mV'], anar['nearPosMax'])
                 else:
                     # rising edge 0.1 down edge 0.1
-                    up10, up50, up90 = Qb(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
-                    down10, down50, down90 = Qe(w-baseline, rminIndex + int(trigger[i]['triggerTime']), 0)
-                    ## TT在此处扣除trigger的时间
+                    waveana.integrateMinPeakWave(rminIndex + int(trigger[i]['triggerTime']), config.baselength, config.afterlength)
+                    up10, up50, up90 = waveana.begin10, waveana.begin50, waveana.begin90
+                    down10, down50, down90 = waveana.end10, waveana.end50, waveana.end90
+                    ## TT在此处扣除trigger的时间;**此处修正积分区间**
                     pulse[j][i] = (eid, isTrigger, baseline, std, up90-up10, down10-down90, down50-up50, up10-trigger[i]['triggerTime'], down10-trigger[i]['triggerTime'], up50-trigger[i]['triggerTime'], down50-trigger[i]['triggerTime'], up90-trigger[i]['triggerTime'], down90-trigger[i]['triggerTime'],
-                                baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, np.sum(baseline - w[int(up10):int(down10)])
+                                baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, waveana.minPeakCharge
                                     , anar['begin5mV'], anar['end5mV'], anar['nearPosMax'])
                 
     with h5py.File(args.opt, 'w') as opt:
