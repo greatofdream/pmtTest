@@ -1,5 +1,6 @@
 import numpy as np
 from .waveana import Waveana, interpolate
+from .waveana import Qb, Qe
 '''
 use trigger channel to extract information from other numpy waveforms
 '''
@@ -30,3 +31,19 @@ class Triggerana(Waveana):
         baseline = self.minPeakBaseline
         self.allCharge = np.sum(baseline-self.wave[int(self.triggerTime):])
         return self.allCharge
+    def integrateMinPeakWave(self, minIndex, baselength=15, afterlength=40):
+        self.minIndex = minIndex
+        self.minPeak = self.minPeakBaseline-self.wave[self.minIndex]
+        if self.minPeak<0:
+            return 0, 0, 0
+        self.begin10, self.begin50, self.begin90 = Qb(self.wave, self.minIndex, self.minPeakBaseline)
+        self.smooth(self.minIndex+1, min(self.minIndex+30,self.wave.shape[0]-1))
+        self.end10, self.end50, self.end90 = Qe(self.s_wave, self.minIndex, self.minPeakBaseline)
+        begin = int(self.minIndex) - baselength
+        end = int(self.minIndex) + afterlength
+        if begin<0:
+            begin = 0
+        if end>self.wave.shape[0]:
+            end = self.wave.shape[0]
+        self.minPeakCharge = np.sum(self.minPeakBaseline - self.wave[begin:end])
+        return self.minPeakCharge, self.begin90-self.begin10, self.end10-self.end90
