@@ -30,15 +30,37 @@ def smooth(x, n=7):
     for i in range(pad, x.shape[0]-pad):
         x0[i-pad] = np.average(x[(i-pad):(i+pad+1)])
     return np.concatenate([x[:pad], x0, x[-pad:]])
-def likelihood(x,*args):
-    A,mu,sigma = x
-    tts,N = args
-    return A*N-tts.shape[0]*np.log(A)+np.sum((tts-mu)**2)/2/sigma**2+tts.shape[0]*np.log(sigma)
+def likelihood(x, *args):
+    mu, sigma = x
+    tts, N = args
+    return np.sum((tts-mu)**2)/2/sigma**2 + N * np.log(sigma)
+def likelihoodB(x, *args):
+    # pdf: A * Gaussian + (1-A) * Background
+    A, mu, sigma = x
+    tts, T = args
+    return -np.sum(np.log(np.exp(-(tts - mu)**2 / 2 / sigma**2) * A / np.sqrt(2*np.pi) / sigma + (1 - A) / T))
 
-def fitGaus(tts,limits):
+def fitGaus(tts, limits):
     tts_select = tts[(tts<limits[1])&(tts>limits[0])]
-    result = minimize(likelihood,[1, np.mean(tts_select),np.std(tts_select)],args=(tts_select, tts_select.shape[0]), bounds=[(0,None),limits,(0,(limits[1]-limits[0])/2)])
+    results = [minimize(likelihood, [np.mean(tts_select), tts_sigma], args=(tts_select, tts_select.shape[0]),
+        bounds=[limits, (0,(limits[1]-limits[0])/2)])
+        for tts_sigma in np.arange(0.2, 3, 0.1)
+        ]
+    result = min(results, key=lambda x:x.fun)
     return result, tts_select.shape[0]
+def fitGausB(tts, limits, timeLength, b_u):
+    results = [minimize(
+        likelihoodB,
+        [0.999, np.mean(tts), tts_sigma],
+        args=(tts, timeLength),
+        bounds=[
+            (1-b_u, 1), limits, (0.1, (limits[1]-limits[0])/2)
+            ],
+        method='SLSQP',
+        options={'eps':0.0001}
+            ) for tts_sigma in np.arange(0.2, 3, 0.1)]
+    result = min(results, key=lambda x:x.fun)
+    return result
 # SER function fit
 def SER(x, xs):
     mu, sigma, tau, A= x
