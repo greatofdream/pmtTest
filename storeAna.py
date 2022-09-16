@@ -7,6 +7,7 @@ import h5py
 import config
 import subprocess
 from csvDatabase import OriginINFO
+# RUNNO,BOXID,CHANNEL,PMT,HV,QE,Gain,PV,Res,PDE,DCR,TTS,Pre,After1,After2,Linear,Rise,Fall,TH,Overshoot,EventNum,TriggerNum,DCR_trigger
 def Logger(process):
     while process.poll() is None:
         line = process.stdout.readline()
@@ -22,7 +23,7 @@ args = psr.parse_args()
 metainfo = OriginINFO(config.databaseDir + '/{}.csv'.format(args.run))
 # metainfo = OriginINFO('./tmp' + '/{}.csv'.format(args.run))
 
-pmts, splitter, channels, triggerch = metainfo.csv['PMT'].values, metainfo.csv['BOXID'].values, metainfo.csv['CHANNEL'].values, metainfo.csv['TRIGGER'].values[0]
+pmts, splitters, channels, triggerch = metainfo.csv['PMT'].values, metainfo.csv['BOXID'].values, metainfo.csv['CHANNEL'].values, metainfo.csv['TRIGGER'].values[0]
 MODE = metainfo.csv['MODE'].values[0]
 with h5py.File(args.ipt, 'r') as ipt:
     if not args.pulse:
@@ -35,14 +36,14 @@ tmpcsv = storecsv.set_index('RUNCH')
 if MODE:
     # TRIGGER MODE
     if not args.pulse:
-        for r, pmt in zip(res, pmts):
+        for r, pmt, splitter in zip(res, pmts, splitters):
             tmpcsv.loc[args.run *10 + r['Channel']] = (
-                args.run, r['Channel'], pmt, 0, 0, r['Gain'], r['PV'], r['GainSigma']/r['Gain'],
+                args.run, splitter, r['Channel'], pmt, 0, 0, r['Gain'], r['PV'], r['GainSigma']/r['Gain'],
                 0, 0, r['TTS'],
                 0, 0, 0,
                 0,
                 r['Rise'], r['Fall'], r['TH'],
-                0, r['TotalNum'], 0
+                0, r['TotalNum'], 0, r['DCR']
                 )
     else:
         # The trigger store need before pulse store
@@ -53,15 +54,18 @@ if MODE:
             tmpcsv.loc[args.run *10 + r['Channel'], 'TriggerNum'] = r['TriggerNum']
 else:
     # NOISE MODE
-    for r, pmt in zip(res, pmts):
+    for r, pmt, splitter in zip(res, pmts, splitters):
         tmpcsv.loc[args.run *10 + r['Channel']] = (
-            args.run, r['Channel'], pmt, 0, 0, r['Gain'], r['PV'], r['GainSigma']/r['Gain'],
+            args.run, splitter, r['Channel'], pmt, 0, 0, r['Gain'], r['PV'], r['GainSigma']/r['Gain'],
             0, r['DCR'], 0,
             0, 0, 0,
             0,
             r['Rise'], r['Fall'], r['TH'],
-            0, 0, 0
+            0, 0, 0, 0
             )
+tmpcsv['RUNNO'] = tmpcsv['RUNNO'].astype('int64')
+tmpcsv['CHANNEL'] = tmpcsv['CHANNEL'].astype('int64')
+tmpcsv['BOXID'] = tmpcsv['BOXID'].astype('int64')
 # RUNNO,CHANNEL,PMT,QE,Gain,PV,Res,PDE,DCR,TTS,Pre,After1,After2,Linear,Rise,Fall,TH,Overshoot
 tmpcsv.sort_index().to_csv(args.opt, index=False)
 # update config for each PMT
