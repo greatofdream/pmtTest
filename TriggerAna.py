@@ -117,7 +117,8 @@ if __name__=="__main__":
                 w = wave[chmap.loc[channels[j]]]
                 # 检查之前预分析的baseline结果是否对应
                 anar = info[j][i]
-                interval_j = [int(ti+trigger[i]['triggerTime']) for ti in rinterval[j][['start', 'end']]]
+                # 时间区间前后沿往前和后推risetime长度（近似为积分前沿），保证begintime均匀性，后面统计时按照精确的区间
+                interval_j = [int(rinterval[j]['start']+trigger[i]['triggerTime']-config.spestart), int(rinterval[j]['end']+trigger[i]['triggerTime']+config.spestart)]
                 ## 左右延长范围3ns, r_min相对于选择时间窗，rminIndex相对于激光上升沿
                 r_min = np.argmin(w[(interval_j[0]-3):(interval_j[1]+3)]) - 3
                 rminIndex = interval_j[0] + r_min - int(trigger[i]['triggerTime'])
@@ -147,7 +148,7 @@ if __name__=="__main__":
                         anar['begin5mV'], anar['end5mV'], anar['nearPosMax'])
                 else:
                     # rising edge 0.1 down edge 0.1
-                    waveana.integrateMinPeakWave(rminIndex + int(trigger[i]['triggerTime']), config.baselength, config.afterlength)
+                    waveana.integrateMinPeak(rminIndex + int(trigger[i]['triggerTime']), config.baselength, config.afterlength)
                     up10, up50, up90 = waveana.begin10, waveana.begin50, waveana.begin90
                     down10, down50, down90 = waveana.end10, waveana.end50, waveana.end90
                     ## TT在此处扣除trigger的时间;**此处修正积分区间**
