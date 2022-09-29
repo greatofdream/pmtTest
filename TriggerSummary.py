@@ -30,7 +30,7 @@ results = np.zeros(len(args.channel),
         ('chargeMu','<f4'), ('chargeSigma','<f4'),
         ('Gain', '<f4'), ('GainSigma', '<f4'),
         ('TriggerRate', '<f4'), ('TotalNum', '<i4'), ('window', '<f4'),
-        ('TTS', '<f4'), ('DCR', '<f4'), ('TTSinterval', '<f4'),
+        ('TTS', '<f4'), ('DCR', '<f4'), ('TTSinterval', '<f4'), ('TTS_bin', '<f4'),
         ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
         ('RiseSigma', '<f4'), ('FallSigma', '<f4'), ('THSigma', '<f4'), ('FWHMSigma', '<f4')
         ])
@@ -121,7 +121,7 @@ for j in range(len(args.channel)):
     ## 将参数放入legend里
     selectinfo = info[j]['minPeakCharge'][(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
     results[j] = (args.channel[j], mu, vi, pv / vv,np.mean(selectinfo), np.std(selectinfo), mu/50/1.6*ADC2mV, sigma/50/1.6*ADC2mV, 0, len(info[j]), rinterval[j][1] - rinterval[j][0],
-        0, 0, 0,
+        0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0)
     handles, labels = ax.get_legend_handles_labels()
     handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6*ADC2mV)))
@@ -198,8 +198,8 @@ for j in range(len(args.channel)):
         np.mean(info[j]['FWHM'][totalselect]), np.std(info[j]['FWHM'][totalselect]), 
         np.mean((info[j]['down10']-info[j]['begin10'])[totalselect]), np.std((info[j]['down10']-info[j]['begin10'])[totalselect])
         )
-    
-    # TTS 分布与拟合
+
+    # TTS 分布与unbinned拟合
     fig, ax = plt.subplots()
     print(np.sum(totalselect&(~info[j]['isTrigger'])))
     ## 限制拟合区间，其中要求sigma不能超过15，从而限制最后的拟合区间最大为2*15
@@ -211,7 +211,7 @@ for j in range(len(args.channel)):
     tts = info[j]['begin10'][totalselect]
     tts_select = tts[(tts<limits[1]) & (tts>limits[0])]
     N = len(tts_select)
-    b_u = 30*2*limits_sigma*results[j]['TotalNum']/1e6/N
+    b_u = min(30*2*limits_sigma*results[j]['TotalNum']/1e6/N, 0.5)
     print(limits, b_u)
     result = fitGausB(
         tts_select, 
@@ -226,12 +226,27 @@ for j in range(len(args.channel)):
     print('estimate DCR {}'.format(estimateDCR))
     l_range, r_range = int(tts_mu - 5*tts_sigma), int(tts_mu + 5*tts_sigma)+1
     # l_range, r_range = int(limits_mu - 1*limits_sigma), int(limits_mu + 1*limits_sigma)
-    binwidth = 0.5
-    ax.hist(info[j]['begin10'][totalselect], bins=int((r_range - l_range)/binwidth), range=[l_range, r_range], histtype='step', label='$t^r_{10}-t_{\mathrm{trig}}$')
+    binwidth = 0.2
+    h = ax.hist(info[j]['begin10'][totalselect], bins=int((r_range - l_range)/binwidth), range=[l_range, r_range], histtype='step', label='$t^r_{10}-t_{\mathrm{trig}}$')
     probf = (tts_A * np.exp(-(np.arange(l_range, r_range, 0.1) - tts_mu)**2/2/tts_sigma**2)/np.sqrt(2*np.pi)/tts_sigma + (1-tts_A)/ 2 / limits_sigma)
     ax.plot(np.arange(l_range, r_range, 0.1), N * binwidth * probf, '--')
     probf = (tts_A * np.exp(-(np.arange(limits[0], limits[1], 0.1) - tts_mu)**2/2/tts_sigma**2)/np.sqrt(2*np.pi)/tts_sigma + (1-tts_A)/ 2 / limits_sigma)
     ax.plot(np.arange(limits[0], limits[1], 0.1), N * binwidth * probf, label='fit')
+    # TTS 分布与bin拟合
+    tts_edges = (h[1][1:] + h[1][:-1]) / 2
+    tts_counts = h[0]
+    tts_pi = np.argmax(tts_counts)
+    t_n = 15
+    ttsResults = [minimize(peakResidual, [tts_counts[tts_pi], tts_edges[tts_pi]+0.5, tts_sigma_init], 
+        args=(tts_counts[(tts_pi-t_n):(tts_pi+t_n+1)], tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]),
+        bounds=[(tts_counts[tts_pi]/10, None), (tts_edges[tts_pi]-2, tts_edges[tts_pi]+2), (0.1, 5)],
+        method='SLSQP',
+        options={'eps': 0.1})
+        for tts_sigma_init in np.arange(0.2,1.5,0.05)]
+    ttsResult = min(ttsResults, key=lambda x:x.fun)
+    tts_A_bin, tts_mu_bin, tts_sigma_bin = ttsResult.x
+    results['TTS_bin'] = tts_sigma_bin * np.sqrt(2 * np.log(2)) * 2
+    ax.plot(tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)], tts_A_bin * np.exp(-(tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]-tts_mu_bin)**2/2/tts_sigma_bin**2), label='binned fit $\sigma$:{:.3f}ns'.format(tts_sigma_bin))
     ax.set_xlabel('TT/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim([l_range, r_range])
@@ -248,6 +263,30 @@ for j in range(len(args.channel)):
     ax.set_yscale('log')
     pdf.savefig(fig)
     plt.close()
+
+    
+
+    searchRange_l, searchRange_r = np.floor(np.min(info[j]['begin10'][totalselect])), np.ceil(np.max(info[j]['begin10'][totalselect]))
+    fig, ax = plt.subplots()
+    ax.hist(info[j]['begin10'][totalselect], bins=np.arange(searchRange_l, searchRange_r, 0.5), histtype='step', label='$t^r_{10}-t_{\mathrm{trig}}$')
+    ax.hist(info[j]['minPeakPos'][totalselect], bins=np.arange(searchRange_l, searchRange_r, 0.5), histtype='step', label='$t^p-t_{\mathrm{trig}}$')
+    ax.axhline(0.5 * 10 * results[j]['TotalNum'] / 1e6, label='10kHz expectation')
+    ax.axvline(rinterval[j][1])
+    ax.axvline(rinterval[j][0])
+    ax.set_xlabel('t/ns')
+    ax.set_ylabel('Entries')
+    ax.legend()
+    ax.set_yscale('log')
+    pdf.savefig(fig)
+    plt.close()
+
+    fig, ax = plt.subplots()
+    h = ax.hist2d(info[j]['minPeakPos'][totalselect], info[j]['riseTime'][totalselect], bins=[50,100], cmap=cmap)
+    ax.set_ylabel('Rise time/ns')
+    ax.set_xlabel('peak position/ns')
+    fig.colorbar(h[3], ax=ax)
+    pdf.savefig(fig)
+    plt.close()
     # TTS-charge 2d分布
     fig, ax = plt.subplots()
     h = ax.hist2d(info[j]['begin10'][totalselect], info[j]['minPeakCharge'][totalselect], range=[[l_range, r_range], [0, 600]], bins=[(r_range-l_range)*10, 600], cmap=cmap)
@@ -257,6 +296,27 @@ for j in range(len(args.channel)):
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.yaxis.set_minor_locator(MultipleLocator(10))
     pdf.savefig(fig)
+
+    fig, ax = plt.subplots()
+    h = ax.hist2d(info[j]['begin10'][totalselect&((info[j]['begin10']<(tts_mu-2*tts_sigma))|(info[j]['begin10']>(tts_mu+2*tts_sigma)))], info[j]['minPeakCharge'][totalselect&((info[j]['begin10']<(tts_mu-2*tts_sigma))|(info[j]['begin10']>(tts_mu+2*tts_sigma)))],
+        range=[[searchRange_l, searchRange_r], [0, 600]], bins=[int(searchRange_r - searchRange_l)*2, 600], cmap=cmap)
+    fig.colorbar(h[3], ax=ax)
+    ax.set_ylabel('Equivalent Charge/ADCns')
+    ax.set_xlabel('TT/ns')
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.yaxis.set_minor_locator(MultipleLocator(10))
+    pdf.savefig(fig)
+
+    fig, ax = plt.subplots()
+    h = ax.hist2d(info[j]['begin10'][totalselect&((info[j]['begin10']<(tts_mu-2*tts_sigma))|(info[j]['begin10']>(tts_mu+2*tts_sigma)))], info[j]['FWHM'][totalselect&((info[j]['begin10']<(tts_mu-2*tts_sigma))|(info[j]['begin10']>(tts_mu+2*tts_sigma)))],
+        range=[[searchRange_l, searchRange_r], [0, 20]], bins=[int(searchRange_r - searchRange_l)*2, 200], cmap=cmap)
+    fig.colorbar(h[3], ax=ax)
+    ax.set_ylabel('FWHM/ns')
+    ax.set_xlabel('TT/ns')
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.yaxis.set_minor_locator(MultipleLocator(10))
+    pdf.savefig(fig)
+
 pdf.close()
 with h5py.File(args.opt, 'w') as opt:
     opt.create_dataset('res',data=results, compression='gzip')
