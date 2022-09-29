@@ -144,6 +144,10 @@ if __name__=="__main__":
         else:
             predictRates = res.predict()
             measuredRates['PredictRate'] = predictRates
+            # Pearson Chisquare:
+            # print(np.sum(
+            #     (measuredRates['TriggerNum']-measuredRates['PredictRate']*measuredRates['TotalNum'])**2/(measuredRates['PredictRate']*measuredRates['TotalNum']*(1-measuredRates['PredictRate']))
+            #     ))
             refPredictor = pd.DataFrame({
                 'runno': np.repeat([args.runs[0]], num_splitter),
                 'splitter': np.arange(num_splitter),
@@ -178,5 +182,16 @@ if __name__=="__main__":
         ax.set_ylabel('Relative rate')
         ax.legend()
         pdf.savefig(fig)
+
+        fig, ax = plt.subplots()
+        ax.scatter(xlabels, predictRates*measuredRates['TotalNum'], label='predict')
+        ax.errorbar(xlabels, measuredRates['TriggerNum'].values, yerr=np.sqrt(predictRates*measuredRates['TotalNum']*(1-predictRates)), fmt='.', color='orange', label='observe')
+        ax.set_xticklabels(xlabels, rotation=45)
+        ax.set_xlabel('pmt-splitter-run')
+        ax.set_ylabel('Entries')
+        ax.legend()
+        pdf.savefig(fig)
+
+
     for r in zip(np.exp(res.params[num_run:(num_run+num_splitter-1)]), np.exp(res.params[num_run:(num_run+num_splitter-1)])*res.bse[num_run:(num_run+num_splitter-1)]):
         print('{:.2f}+-{:.2f}'.format(r[0], r[1]))
