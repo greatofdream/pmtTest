@@ -88,11 +88,17 @@ if __name__=="__main__":
     PDE_t = np.exp(res.params[-(len(pmts)-1):])
     sigma_PDE_t = res.bse[-(len(pmts)-1):]*np.exp(res.params[-(len(pmts)-1):])
     I_t = np.exp(res.params[:num_run])
+    num_splitter = np.unique(measuredRates['splitter'].values).shape[0]
+    splitterRatio = np.vstack([
+        np.exp(res.params[num_run:(num_run+num_splitter-1)]),
+        np.exp(res.params[num_run:(num_run+num_splitter-1)])*res.bse[num_run:(num_run+num_splitter-1)]
+        ])
     with h5py.File(args.opt, 'w') as opt:
         opt.create_dataset('QE', data=PDE_t, compression='gzip')
         opt.create_dataset('logerr', data=res.bse[-(len(pmts)-1):], compression='gzip')
         opt.create_dataset('err', data=sigma_PDE_t, compression='gzip')
         opt.create_dataset('I', data=I_t, compression='gzip')
+        opt.create_dataset('splitter', data=splitterRatio, compression='gzip')
     with PdfPages(args.opt+'.pdf') as pdf:
         fig, ax = plt.subplots()
         ax.errorbar(x=range(num_run), y=np.exp(res.params[:num_run]), yerr=np.exp(res.params[:num_run])*res.bse[:num_run])
@@ -101,7 +107,6 @@ if __name__=="__main__":
         pdf.savefig(fig)
 
         fig, ax = plt.subplots()
-        num_splitter = np.unique(measuredRates['splitter'].values).shape[0]
         ax.errorbar(x=range(1,num_splitter), y=np.exp(res.params[num_run:(num_run+num_splitter-1)]), yerr=np.exp(res.params[num_run:(num_run+num_splitter-1)])*res.bse[num_run:(num_run+num_splitter-1)])
         ax.yaxis.set_minor_locator(MultipleLocator(0.05))
         ax.set_xticks(range(1,num_splitter), range(1,num_splitter))
@@ -193,5 +198,5 @@ if __name__=="__main__":
         pdf.savefig(fig)
 
 
-    for r in zip(np.exp(res.params[num_run:(num_run+num_splitter-1)]), np.exp(res.params[num_run:(num_run+num_splitter-1)])*res.bse[num_run:(num_run+num_splitter-1)]):
+    for r in zip(splitterRatio[0], splitterRatio[1]):
         print('{:.2f}+-{:.2f}'.format(r[0], r[1]))
