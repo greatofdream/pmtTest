@@ -13,8 +13,10 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import matplotlib.patches as mpatches
 from scipy.optimize import minimize
 import config
-from waveana.util import peakResidual, vallyResidual, fitGausB, fitGaus
+from waveana.util import peakResidual, vallyResidual, fitGausB, centralMoment, RootFit
+import ROOT
 ADC2mV = config.ADC2mV
+rootfit = RootFit()
 psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input h5 file')
 psr.add_argument('-o', dest='opt', help='output png file')
@@ -26,14 +28,25 @@ info = []
 results = np.zeros(len(args.channel),
     dtype=[
         ('Channel', '<i2'),
-        ('peakC','<f4'), ('vallyC','<f4'), ('PV','<f4'),
-        ('chargeMu','<f4'), ('chargeSigma','<f4'),
+        ('peakC','<f4'), ('vallyC','<f4'), ('peakV','<f4'), ('vallyV','<f4'), ('PV','<f4'),
+        ('chargeMu','<f4'), ('chargeSigma2','<f4'),
         ('Gain', '<f4'), ('GainSigma', '<f4'),
-        ('TriggerRate', '<f4'), ('TotalNum', '<i4'), ('window', '<f4'),
+        ('TriggerRate', '<f4'), ('TotalNum', '<i4'), ('TriggerNum', '<i4'), ('window', '<f4'),
         ('TTS', '<f4'), ('DCR', '<f4'), ('TTSinterval', '<f4'), ('TTS_bin', '<f4'),
         ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
-        ('RiseSigma', '<f4'), ('FallSigma', '<f4'), ('THSigma', '<f4'), ('FWHMSigma', '<f4')
+        ('RiseSigma2', '<f4'), ('FallSigma2', '<f4'), ('THSigma2', '<f4'), ('FWHMSigma2', '<f4')
         ])
+paraSigma2 = np.zeros(len(args.channel),
+    dtype=[
+        ('Channel', '<i2'),
+        ('peakC','<f4'), ('vallyC','<f4'), ('peakV','<f4'), ('vallyV','<f4'), ('peakS','<f4'), ('vallyS','<f4'), ('PV','<f4'),
+        ('chargeMu','<f4'), ('chargeSigma2','<f4'),
+        ('Gain', '<f4'), ('GainSigma', '<f4'),
+        ('TriggerRate', '<f4'), ('TotalNum', '<i4'), ('TriggerNum', '<i4'), ('window', '<f4'),
+        ('TTS', '<f4'), ('DCR', '<f4'), ('TTSinterval', '<f4'), ('TTS_bin', '<f4'),
+        ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
+        ('RiseSigma2', '<f4'), ('FallSigma2', '<f4'), ('THSigma2', '<f4'), ('FWHMSigma2', '<f4')
+    ])
 with h5py.File(args.ipt, 'r') as ipt:
     waveformLength = ipt.attrs['waveformLength']
     for j in range(len(args.channel)):
@@ -92,7 +105,21 @@ for j in range(len(args.channel)):
         bounds=[(0,None), (5, None), (0.1, None)],
         method='SLSQP', options={'eps': 0.1})
     print(result)
-    A, mu, sigma = result.x
+    ## 使用拟合值为初值，降低步长再次拟合
+    pv, pi = result.x[0], result.x[1]
+    hi = zeroOffset + int(pi)
+    result = minimize(peakResidual, result.x, 
+        args=(h[0][(hi-peakspanl):(hi+peakspanr)], (h[1][(hi-peakspanl):(hi+peakspanr)]+h[1][(hi-peakspanl+1):(hi+peakspanr+1)])/2),
+        bounds=[(0,None), (5, None), (0, None)],
+        method='SLSQP', options={'eps': 1e-5})
+    print(result)
+    ## ROOT fit
+    rootfit.setFunc(ROOT.TF1("", "[0]*exp(-0.5*((x-[1])/[2])^2)", h[1][hi - peakspanl], h[1][hi + peakspanr]), result.x)
+    rootfit.setHist(h[1], h[0])
+    paraRoot, errorRoot = rootfit.Fit()
+    print((paraRoot[0], paraRoot[1], paraRoot[2]), (errorRoot[0], errorRoot[1], errorRoot[2]))
+    A, mu, sigma = paraRoot[0], paraRoot[1], paraRoot[2]
+    paraSigma2[['Channel', 'peakC', 'peakV', 'peakS']][j] = (args.channel[j], errorRoot[1]**2, errorRoot[0]**2, errorRoot[2]**2)
     ## 绘制拟合结果
     ax.plot(h[1][(hi-peakspanl):(hi+peakspanr)], 
         A*np.exp(-(h[1][(hi-peakspanl):(hi+peakspanr)]-mu)**2/2/sigma**2), color='r', label='peak fit')
@@ -106,29 +133,45 @@ for j in range(len(args.channel)):
     li = zeroOffset + 15 + vi_r
     yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     ## 对vally进行区间调整，放置左侧padding过长
-    while (yy[0] > 3 * yy[-1]) and vallyspanl>1:
+    while (yy[0] > 3 * yy[-1]) and vallyspanl > 2:
         vallyspanl = vallyspanl // 2
         yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     result = minimize(vallyResidual, [0.3, vi, vv + 5], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2),
         bounds=[(0.1, None), (vi-5, vi+5), (3, A)],
         method='SLSQP', options={'eps': 0.1, 'maxiter':5000})
     print(result)
-    a_v, b_v, c_v = result.x
+    ## ROOT fit
+    rootfit.setFunc(ROOT.TF1("", "[0]*(x-[1])^2+[2]", h[1][li-vallyspanl], h[1][li+vallyspanr]), result.x)
+    rootfit.setHist(h[1], h[0])
+    paraRoot, errorRoot = rootfit.Fit()
+    print((paraRoot[0], paraRoot[1], paraRoot[2]), (errorRoot[0], errorRoot[1], errorRoot[2]))
+    a_v, b_v, c_v = paraRoot[0]*100, paraRoot[1], paraRoot[2]
+    paraSigma2[['vallyC', 'vallyV', 'vallyS']][j] = (errorRoot[1]**2, errorRoot[2]**2, errorRoot[0]**2)
     ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v/100 * (h[1][(li-vallyspanl):(li+vallyspanr)] - b_v)**2 +c_v, color='g', label='vally fit')
     vi, vv = b_v, c_v
     ax.fill_betweenx([0, vv], h[1][li-vallyspanl], h[1][li+vallyspanr], alpha=0.5, color='lightgreen', label='vally fit interval')
-    ax.scatter([pi,vi], [pv,vv], color='r')
+    ax.scatter([pi, vi], [pv, vv], color='r')
     ## 将参数放入legend里
-    selectinfo = info[j]['minPeakCharge'][(info[j]['minPeak']>3)&(info[j]['minPeakCharge']<800)&(info[j]['minPeakCharge']>0.25*mu)]
-    results[j] = (args.channel[j], mu, vi, pv / vv,np.mean(selectinfo), np.std(selectinfo), mu/50/1.6*ADC2mV, sigma/50/1.6*ADC2mV, 0, len(info[j]), rinterval[j][1] - rinterval[j][0],
+    totalselect = (info[j]['minPeak']>3)&(info[j]['minPeakCharge']>0.25*mu)&(info[j]['minPeakCharge']<1000)&info[j]['isTrigger']
+    selectinfo = info[j]['minPeakCharge'][totalselect]
+    results[j] = (args.channel[j], mu, vi, pv, vv, pv / vv,np.mean(selectinfo), np.var(selectinfo, ddof=1), mu/50/1.6*ADC2mV, sigma/50/1.6*ADC2mV,
+        0, len(info[j]), np.sum(totalselect), rinterval[j][1] - rinterval[j][0],
         0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0)
+    paraSigma2[['PV', 'Gain', 'GainSigma', 'chargeMu', 'chargeSigma2', 'TriggerNum']][j] = (
+        results[j]['PV']**2 * (paraSigma2[j]['peakV']/results[j]['peakV']**2 + paraSigma2[j]['vallyV']/results[j]['vallyV']**2),
+        paraSigma2[j]['peakC']/(50*1.6/ADC2mV)**2,
+        paraSigma2[j]['peakS']/(50*1.6/ADC2mV)**2,
+        results[j]['chargeSigma2']/results[j]['TriggerNum'],
+        (centralMoment(selectinfo, results[j]['chargeMu'], 4) - ((results[j]['TriggerNum']-3)/(results[j]['TriggerNum']-1)*results[j]['chargeSigma2']**2))/results[j]['TriggerNum'],
+        results[j]['TriggerNum']
+    )
     handles, labels = ax.get_legend_handles_labels()
-    handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}'.format(mu/50/1.6*ADC2mV)))
-    handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}'.format(sigma/50/1.6*ADC2mV)))
-    handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}'.format(pv/vv)))
-    handles.append(mpatches.Patch(color='none', label='$\mu_{select}$:'+'{:.2f}'.format(results[j]['chargeMu'])))
-    handles.append(mpatches.Patch(color='none', label='$\sigma_{select}$'+':{:.2f}'.format(results[j]['chargeSigma'])))
+    handles.append(mpatches.Patch(color='none', label='G/1E7:{:.2f}$\pm${:.2f}'.format(results[j]['Gain'], np.sqrt(paraSigma2[j]['Gain']))))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_G$/1E7:{:.2f}$\pm${:.2f}'.format(results[j]['GainSigma'], np.sqrt(paraSigma2[j]['GainSigma']))))
+    handles.append(mpatches.Patch(color='none', label='P/V:{:.2f}$\pm${:.2f}'.format(results[j]['PV'], np.sqrt(paraSigma2[j]['PV']))))
+    handles.append(mpatches.Patch(color='none', label='$\mu_{select}$:'+'{:.2f}$\pm${:.2f}'.format(results[j]['chargeMu'], np.sqrt(paraSigma2[j]['chargeMu']))))
+    handles.append(mpatches.Patch(color='none', label='$\sigma_{select}$'+':{:.2f}$\pm${:.2f}'.format(np.sqrt(results[j]['chargeSigma2']), np.sqrt(paraSigma2[j]['chargeSigma2'])/2/np.sqrt(results[j]['chargeSigma2']))))
     ax.legend(handles=handles)
     pdf.savefig(fig)
     plt.close()
@@ -136,7 +179,7 @@ for j in range(len(args.channel)):
     # peak分布
     fig, ax = plt.subplots()
     h = ax.hist(info[j]['minPeak'],histtype='step', bins=1000, range=[0,1000], label='peak')
-    ax.hist(info[j]['minPeak'][(info[j]['minPeakCharge']>0.25*mu)], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, label='peak($C>0.25 p.e.$)')
+    ax.hist(info[j]['minPeak'][(info[j]['minPeakCharge']>0.25*mu)], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, label='peak($C_{\mathrm{equ}}>0.25 p.e.$)')
     print('peak height max:{};max index {}; part of peak {}'.format(np.max(h[0]), np.argmax(h[0]), h[0][:(np.argmax(h[0])+5)]))
     ax.set_xlabel('Peak/ADC')
     ax.set_ylabel('Entries')
@@ -153,9 +196,9 @@ for j in range(len(args.channel)):
     ax.legend()
     pdf.savefig(fig)
     ## 计算TriggerRate
-    totalselect = (info[j]['minPeak']>3)&(info[j]['minPeakCharge']>0.25*mu)&info[j]['isTrigger']
-    TriggerRate = np.sum(totalselect)/info[j].shape[0]
+    TriggerRate = results[j]['TriggerNum']/info[j].shape[0]
     results[j]['TriggerRate'] = TriggerRate
+    paraSigma2[j]['TriggerRate'] = results[j]['TriggerNum']/info[j].shape[0]**2
     print('TriggerRate:{:.3f}'.format(TriggerRate))
 
     # min peak position分布
@@ -181,23 +224,33 @@ for j in range(len(args.channel)):
     ax.set_yscale('log')
     
     # risetime and downtime，里面对于范围做了限制，需要动态考虑
+    results[['Rise', 'RiseSigma2', 'Fall', 'FallSigma2', 'FWHM', 'FWHMSigma2', 'TH', 'THSigma2']][j] = (
+        np.mean(info[j]['riseTime'][totalselect]), np.var(info[j]['riseTime'][totalselect], ddof=1),
+        np.mean(info[j]['downTime'][totalselect]), np.var(info[j]['downTime'][totalselect], ddof=1), 
+        np.mean(info[j]['FWHM'][totalselect]), np.var(info[j]['FWHM'][totalselect], ddof=1), 
+        np.mean((info[j]['down10']-info[j]['begin10'])[totalselect]), np.var((info[j]['down10']-info[j]['begin10'])[totalselect], ddof=1)
+        )
+    paraSigma2[['Rise', 'RiseSigma2', 'Fall', 'FallSigma2', 'FWHM', 'FWHMSigma2', 'TH', 'THSigma2']][j] = (
+        results[j]['RiseSigma2']/results[j]['TriggerNum'],
+        (centralMoment(info[j]['riseTime'][totalselect], results[j]['Rise'], 4) - ((results[j]['TriggerNum']-3)/(results[j]['TriggerNum']-2)*results[j]['RiseSigma2']**2))/results[j]['TriggerNum'],
+        results[j]['FallSigma2']/results[j]['TriggerNum'],
+        (centralMoment(info[j]['downTime'][totalselect], results[j]['Fall'], 4) - ((results[j]['TriggerNum']-3)/(results[j]['TriggerNum']-2)*results[j]['FallSigma2']**2))/results[j]['TriggerNum'],
+        results[j]['FWHMSigma2']/results[j]['TriggerNum'],
+        (centralMoment(info[j]['FWHM'][totalselect], results[j]['FWHM'], 4) - ((results[j]['TriggerNum']-3)/(results[j]['TriggerNum']-2)*results[j]['FWHMSigma2']**2))/results[j]['TriggerNum'],
+        results[j]['THSigma2']/results[j]['TriggerNum'],
+        (centralMoment((info[j]['down10']-info[j]['begin10'])[totalselect], results[j]['TH'], 4) - ((results[j]['TriggerNum']-3)/(results[j]['TriggerNum']-2)*results[j]['THSigma2']**2))/results[j]['TriggerNum'],
+    )
     fig, ax = plt.subplots()
-    ## ax.set_title('$T_R$,$T_d$,FWHM ($V_p>3$mV) distribution')
-    ax.hist(info[j]['riseTime'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'risingtime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['riseTime'][totalselect]), np.mean(info[j]['riseTime'][totalselect])))
-    ax.hist(info[j]['downTime'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'falltime:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['downTime'][totalselect]), np.mean(info[j]['downTime'][totalselect])))
-    ax.hist(info[j]['FWHM'][(totalselect)], histtype='step', bins=300, range=[0,30], label=r'FWHM:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.std(info[j]['FWHM'][totalselect]), np.mean(info[j]['FWHM'][totalselect])))
+    ax.hist(info[j]['riseTime'][(totalselect)], histtype='step', bins=60, range=[0,30], label=r'Rise time:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.sqrt(results[j]['RiseSigma2']), results[j]['Rise']))
+    ax.hist(info[j]['downTime'][(totalselect)], histtype='step', bins=60, range=[0,30], label=r'Fall time:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.sqrt(results[j]['FallSigma2']), results[j]['Fall']))
+    ax.hist(info[j]['FWHM'][(totalselect)], histtype='step', bins=60, range=[0,30], label=r'FWHM:$\frac{\sigma}{\mu}$'+'={:.2f}/{:.2f}ns'.format(np.sqrt(results[j]['FWHMSigma2']), results[j]['FWHM']))
     ax.set_xlabel('Time/ns')
     ax.set_ylabel('Entries')
+    ax.set_xlim([0, 30])
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.legend()
     pdf.savefig(fig)
     plt.close()
-    results[['Rise', 'RiseSigma', 'Fall', 'FallSigma', 'FWHM', 'FWHMSigma', 'TH', 'THSigma']][j] = (
-        np.mean(info[j]['riseTime'][totalselect]), np.std(info[j]['riseTime'][totalselect]),
-        np.mean(info[j]['downTime'][totalselect]), np.std(info[j]['downTime'][totalselect]), 
-        np.mean(info[j]['FWHM'][totalselect]), np.std(info[j]['FWHM'][totalselect]), 
-        np.mean((info[j]['down10']-info[j]['begin10'])[totalselect]), np.std((info[j]['down10']-info[j]['begin10'])[totalselect])
-        )
 
     # TTS 分布与unbinned拟合
     fig, ax = plt.subplots()
@@ -235,8 +288,9 @@ for j in range(len(args.channel)):
     # TTS 分布与bin拟合
     tts_edges = (h[1][1:] + h[1][:-1]) / 2
     tts_counts = h[0]
-    tts_pi = np.argmax(tts_counts)
-    t_n = 15
+    tts_pi = np.where(tts_mu<=tts_edges)[0][0]
+    ## 拟合区间缩至2ns
+    t_n = 10
     ttsResults = [minimize(peakResidual, [tts_counts[tts_pi], tts_edges[tts_pi]+0.5, tts_sigma_init], 
         args=(tts_counts[(tts_pi-t_n):(tts_pi+t_n+1)], tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]),
         bounds=[(tts_counts[tts_pi]/10, None), (tts_edges[tts_pi]-2, tts_edges[tts_pi]+2), (0.1, 5)],
@@ -244,9 +298,15 @@ for j in range(len(args.channel)):
         options={'eps': 0.1})
         for tts_sigma_init in np.arange(0.2,1.5,0.05)]
     ttsResult = min(ttsResults, key=lambda x:x.fun)
-    tts_A_bin, tts_mu_bin, tts_sigma_bin = ttsResult.x
-    results['TTS_bin'] = tts_sigma_bin * np.sqrt(2 * np.log(2)) * 2
-    ax.plot(tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)], tts_A_bin * np.exp(-(tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]-tts_mu_bin)**2/2/tts_sigma_bin**2), label='binned fit $\sigma$:{:.3f}ns'.format(tts_sigma_bin))
+    # ROOT Fit
+    rootfit.setFunc(ROOT.TF1("", "[0]*exp(-0.5*((x-[1])/[2])^2)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n+1]), ttsResult.x)
+    rootfit.setHist(h[1], h[0])
+    paraRoot, errorRoot = rootfit.Fit()
+    tts_A_bin, tts_mu_bin, tts_sigma_bin = paraRoot[0], paraRoot[1], paraRoot[2]
+    results['TTS_bin'][j] = tts_sigma_bin * np.sqrt(2 * np.log(2)) * 2
+    paraSigma2['TTS_bin'][j] = errorRoot[2]**2
+
+    ax.plot(tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]+binwidth/2, tts_A_bin * np.exp(-(tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]-tts_mu_bin)**2/2/tts_sigma_bin**2), label='binned fit $\sigma$:{:.3f}$\pm{:.3f}$ns '.format(tts_sigma_bin, errorRoot[2]))
     ax.set_xlabel('TT/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim([l_range, r_range])
@@ -262,9 +322,7 @@ for j in range(len(args.channel)):
     pdf.savefig(fig)
     ax.set_yscale('log')
     pdf.savefig(fig)
-    plt.close()
-
-    
+    plt.close()    
 
     searchRange_l, searchRange_r = np.floor(np.min(info[j]['begin10'][totalselect])), np.ceil(np.max(info[j]['begin10'][totalselect]))
     fig, ax = plt.subplots()
@@ -289,7 +347,7 @@ for j in range(len(args.channel)):
     plt.close()
     # TTS-charge 2d分布
     fig, ax = plt.subplots()
-    h = ax.hist2d(info[j]['begin10'][totalselect], info[j]['minPeakCharge'][totalselect], range=[[l_range, r_range], [0, 600]], bins=[(r_range-l_range)*10, 600], cmap=cmap)
+    h = ax.hist2d(info[j]['begin10'][totalselect], info[j]['minPeakCharge'][totalselect], range=[[l_range, r_range], [0, 600]], bins=[(r_range-l_range)*int(1/binwidth), 600], cmap=cmap)
     fig.colorbar(h[3], ax=ax)
     ax.set_ylabel('Equivalent Charge/ADCns')
     ax.set_xlabel('TT/ns')
@@ -320,3 +378,4 @@ for j in range(len(args.channel)):
 pdf.close()
 with h5py.File(args.opt, 'w') as opt:
     opt.create_dataset('res',data=results, compression='gzip')
+    opt.create_dataset('resSigma2', data=paraSigma2, compression='gzip')
