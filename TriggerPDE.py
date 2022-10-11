@@ -85,8 +85,10 @@ if __name__=="__main__":
     pmtinfo = PMTINFO(config.databaseDir + '/PMTINFO.csv')
     PDE_r = pmtinfo.getPMTInfo(testpmts)['PDE_r']
     print('reference:{}'.format(PDE_r))
-    PDE_t = np.exp(res.params[-(len(pmts)-1):])
-    sigma_PDE_t = res.bse[-(len(pmts)-1):]*np.exp(res.params[-(len(pmts)-1):])
+    PDE_t = np.vstack([
+        np.exp(res.params[-(len(pmts)-1):]),
+        res.bse[-(len(pmts)-1):]*np.exp(res.params[-(len(pmts)-1):])
+    ])
     I_t = np.exp(res.params[:num_run])
     num_splitter = np.unique(measuredRates['splitter'].values).shape[0]
     splitterRatio = np.vstack([
@@ -96,7 +98,6 @@ if __name__=="__main__":
     with h5py.File(args.opt, 'w') as opt:
         opt.create_dataset('QE', data=PDE_t, compression='gzip')
         opt.create_dataset('logerr', data=res.bse[-(len(pmts)-1):], compression='gzip')
-        opt.create_dataset('err', data=sigma_PDE_t, compression='gzip')
         opt.create_dataset('I', data=I_t, compression='gzip')
         opt.create_dataset('splitter', data=splitterRatio, compression='gzip')
     with PdfPages(args.opt+'.pdf') as pdf:
@@ -115,9 +116,9 @@ if __name__=="__main__":
         pdf.savefig(fig)
 
         fig, ax = plt.subplots()
-        yerr = PDE_t/PDE_t[0]*np.sqrt((sigma_PDE_t/PDE_t)**2+(sigma_PDE_t[0]/PDE_t[0])**2)
+        yerr = PDE_t[0]/PDE_t[0][0]*np.sqrt((PDE_t[1]/PDE_t[0])**2+(PDE_t[1]/PDE_t[0][0])**2)
         yerr[0] = 0
-        ax.errorbar(testpmts, PDE_t/PDE_t[0], yerr=yerr, label='Test')
+        ax.errorbar(testpmts, PDE_t[0]/PDE_t[0][0], yerr=yerr, label='Test')
         ax.scatter(testpmts, PDE_r/PDE_r[0], color='g', label='Vendor')
         ax.set_ylabel('relative PDE')
         ax.legend()
