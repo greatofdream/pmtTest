@@ -66,10 +66,11 @@ newcolors[0, :] = white
 cmap = ListedColormap(newcolors)
 print('begin plot')
 pdf = PdfPages(args.opt+'.pdf')
-peakspanl, peakspanr = config.peakspanl, config.peakspanr
-vallyspanl, vallyspanr = config.vallyspanl, config.vallyspanr
+
 # 下面循环绘制每个channel的图像
 for j in range(len(args.channel)):
+    peakspanl, peakspanr = config.peakspanl, config.peakspanr
+    vallyspanl, vallyspanr = config.vallyspanl, config.vallyspanr
     rangemin = int(np.min(info[j]['minPeakCharge'])-1)
     rangemax = int(np.max(info[j]['minPeakCharge'])+1)
     bins = rangemax-rangemin
@@ -133,7 +134,7 @@ for j in range(len(args.channel)):
     li = zeroOffset + 15 + vi_r
     yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     ## 对vally进行区间调整，放置左侧padding过长
-    while (yy[0] > 3 * yy[-1]) and vallyspanl > 2:
+    while (yy[0] > 3 * np.max(yy[-10:])) and vallyspanl > 2:
         vallyspanl = vallyspanl // 2
         yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     result = minimize(vallyResidual, [0.3, vi, vv + 5], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2),
@@ -142,6 +143,8 @@ for j in range(len(args.channel)):
     print(result)
     ## ROOT fit
     rootfit.setFunc(ROOT.TF1("", "[0]*(x-[1])^2+[2]", h[1][li-vallyspanl], h[1][li+vallyspanr]), result.x)
+    rootfit.func.SetParLimits(0, 0, 100000)
+    rootfit.func.SetParLimits(2, 0, A)
     rootfit.setHist(h[1], h[0])
     paraRoot, errorRoot = rootfit.Fit()
     print((paraRoot[0], paraRoot[1], paraRoot[2]), (errorRoot[0], errorRoot[1], errorRoot[2]))

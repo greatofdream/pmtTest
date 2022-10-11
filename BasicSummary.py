@@ -82,9 +82,10 @@ if args.trigger>=0:
     plt.close()
 # 下面循环绘制每个channel的图像
 nearMax = 10
-peakspanl, peakspanr = config.peakspanl, config.peakspanr
-vallyspanl, vallyspanr = config.vallyspanl, config.vallyspanr
+
 for j in range(len(args.channel)):
+    peakspanl, peakspanr = config.peakspanl, config.peakspanr
+    vallyspanl, vallyspanr = config.vallyspanl, config.vallyspanr
     rangemin = int(np.min(info[j]['minPeakCharge'])-1)
     rangemax = int(np.max(info[j]['minPeakCharge'])+1)
     bins = rangemax-rangemin
@@ -156,8 +157,9 @@ for j in range(len(args.channel)):
     ## 拟合峰谷处所需参数,smooth不是必须的;polyfit包不能进行MLE拟合,所以放弃polyfit包，手动实现MLE
     li = zeroOffset + 15 + vi_r
     yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
+    print(yy)
     ## 对vally进行区间调整，防止左侧padding过长
-    while (yy[0] > 3 * yy[-1]) and vallyspanl>2:
+    while (yy[0] > 3 * np.max(yy[-10:])) and vallyspanl>2:
         vallyspanl = vallyspanl // 2
         yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     print(vallyspanl)
@@ -176,6 +178,8 @@ for j in range(len(args.channel)):
     # print(resultSigma2)
     ## ROOT fit
     rootfit.setFunc(ROOT.TF1("", "[0]*(x-[1])^2+[2]", h[1][li-vallyspanl], h[1][li+vallyspanr]), result.x)
+    rootfit.func.SetParLimits(0, 0, 100000)
+    rootfit.func.SetParLimits(2, 0, A)
     rootfit.setHist(h[1], h[0])
     paraRoot, errorRoot = rootfit.Fit()
     print((paraRoot[0], paraRoot[1], paraRoot[2]), (errorRoot[0], errorRoot[1], errorRoot[2]))
