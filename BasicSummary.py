@@ -15,21 +15,10 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import matplotlib.patches as mpatches
 from scipy.optimize import minimize
 import config
-from waveana.util import peakResidual, vallyResidual, Hessian, centralMoment
+from waveana.util import peakResidual, vallyResidual, Hessian, centralMoment, RootFit
 import ROOT
 from array import array
 ADC2mV = config.ADC2mV
-class RootFit():
-    def setFunc(self, func, x0):
-        self.func = func
-        self.func.SetParameters(x0)
-    def setHist(self, bins, counts):
-        self.hists = ROOT.TH1D("", "", len(bins)-1, bins)
-        for i in range(len(bins) - 1):
-            self.hists.SetBinContent(i, counts[i])
-    def Fit( self ):
-        self.hists.Fit(self.func, 'R')
-        return self.func.GetParameters(), self.func.GetParErrors()
 rootfit = RootFit()
 psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input h5 file')
