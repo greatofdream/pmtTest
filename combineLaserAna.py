@@ -11,6 +11,7 @@ from matplotlib.ticker import MultipleLocator
 from matplotlib.colors import ListedColormap
 from scipy.optimize import minimize
 import config
+ADC2mV = config.ADC2mV
 promptB, promptE = config.promptB, config.promptE
 delay1B, delay1E = config.delay1B, config.delay1E
 delay10B, delay10E = config.delay10B, config.delay10E
@@ -19,9 +20,12 @@ spelength, spestart, speend = config.spelength, config.spestart, config.speend
 def loadh5(f, channel, run):
     with h5py.File(f, 'r') as ipt:
         res = ipt['res'][:]
+        resSigma2 = ipt['resSigma2'][:]
     result = pd.DataFrame(res[res['Channel']==channel])
+    resultSigma2 = pd.DataFrame(resSigma2[resSigma2['Channel']==channel])
     result['Run'] = run
-    return result
+    resultSigma2['Run'] = run
+    return result, resultSigma2
 def loadPulse(f, channel):
     with h5py.File(f, 'r') as ipt:
         res = ipt['ch{}'.format(channel)][:]
@@ -29,9 +33,12 @@ def loadPulse(f, channel):
 def loadRatio(f, channel, run):
     with h5py.File(f, 'r') as ipt:
         res = ipt['ratio'][:]
+        resSigma2 = ipt['resSigma2'][:]
     result = pd.DataFrame(res[res['Channel']==channel])
+    resultSigma2 = pd.DataFrame(resSigma2[resSigma2['Channel']==channel])
     result['Run'] = run
-    return result
+    resultSigma2['Run'] = run
+    return result, resultSigma2
 def loadSER(f, channel, run):
     with h5py.File(f, 'r') as ipt:
         res = ipt['res'][:]
@@ -55,7 +62,7 @@ args = psr.parse_args()
 # 读取darkrun 合并结果
 try:
     with h5py.File(args.dark, 'r') as ipt:
-        darkresult = ipt['merge'][:][0]
+        darkresult = ipt['merge'][:]
     darkExpect = True
 except:
     darkExpect = False
@@ -76,80 +83,139 @@ for run in runs:
 if len(selectruns)==0:
     print('Error: No runs contains laser stage run')
     exit(0)
-results = pd.concat([loadh5(args.dir.format(run['RUNNO']) + '/chargeSelect.h5', run['CHANNEL'], run['RUNNO']) for run in selectruns])
+infos = [loadh5(args.dir.format(run['RUNNO']) + '/chargeSelect.h5', run['CHANNEL'], run['RUNNO']) for run in selectruns]
+results = pd.concat([i[0] for i in infos])
+resultsSigma2 = pd.concat([i[1] for i in infos])
 print(results[['Run', 'Channel', 'TTS','TTS_bin']])
 if darkExpect:
-    results['TriggerRateWODCR'] = (results['TriggerRate'] - darkresult['DCR'] * results['window'] * 1e-6)/(1 - darkresult['DCR'] * results['window'] * 1e-6) 
+    # 注意这里在去除DCR时使用了平均DCR，而不是每次laser stage对应的dark stage结果
+    results['TriggerRateWODCR'] = (results['TriggerRate'] - darkresult[0]['DCR'] * results['window'] * 1e-6)/(1 - darkresult[0]['DCR'] * results['window'] * 1e-6)
+    resultsSigma2['TriggerRateWODCR'] = results['TriggerRateWODCR']**2 * ((resultsSigma2['TriggerRate'] + darkresult[1]['DCR'] * (results['window'] * 1e-6)**2)/(results['TriggerRate'] - darkresult[0]['DCR'] * results['window'] * 1e-6)**2 + (darkresult[1]['DCR'] * (results['window'] * 1e-6)**2)/(1-darkresult[0]['DCR'] * results['window'] * 1e-6)**2)
 else:
     # omit the influence of DCR for trigger pulse
     results['TriggerRateWODCR'] = results['TriggerRate']
-mergeresults = results[['peakC', 'vallyC', 'Gain', 'GainSigma', 'PV', 'Rise', 'Fall', 'TH', 'FWHM', 'RiseSigma', 'FallSigma', 'THSigma', 'FWHMSigma', 'TTS']]
+    resultsSigma2['TriggerRateWODCR'] = resultsSigma2['TriggerRate']
 mergeresultsA = np.zeros((2,), dtype=[
-    ('peaC', '<f4'), ('vallyC', '<f4'), ('Gain', '<f4'), ('GainSigma', '<f4'), ('PV', '<f4'),
-    ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'), ('RiseSigma', '<f4'), ('FallSigma', '<f4'), ('THSigma', '<f4'), ('FWHMSigma', '<f4'),
-    ('TTS', '<f4'), ('TTS_bin', '<f4'), ('Res', '<f4'), ('TriggerRate', '<f4'), ('TriggerRateWODCR', '<f4'), ('chargeMu', '<f4'), ('chargeSigma', '<f4'), ('chargeRes', '<f4'), ('PDE', '<f4')
+    ('peakC', '<f4'), ('vallyC', '<f4'), ('Gain', '<f4'), ('GainSigma', '<f4'), ('PV', '<f4'),
+    ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
+    ('TTS', '<f4'), ('TTS_bin', '<f4'), ('Res', '<f4'), ('chargeRes', '<f4'),
+    ('TriggerRate', '<f4'), ('TriggerRateWODCR', '<f4'), ('chargeMu', '<f4'), ('chargeSigma', '<f4'), ('PDE', '<f4')
 ])
 # PDE测量从TestSummary.csv中获取
 pdes = pd.read_csv(config.TestSummaryPath).set_index('PMT').loc[PMTName, 'PDE'].values
+pdes_sigma = pd.read_csv(config.TestSummaryPath).set_index('PMT').loc[PMTName, 'PDESigma'].values
 if np.sum(~(np.isnan(pdes)|(pdes==0)))>0:
-    pde = np.mean(pdes[~(np.isnan(pdes)|(pdes==0))])
+    pdes_sigma = pdes_sigma[~(np.isnan(pdes)|(pdes==0))]
+    pdes = pdes[~(np.isnan(pdes)|(pdes==0))]
+    pde = np.sum(pdes/pdes_sigma**2)/np.sum(1/pdes_sigma**2)
+    pde_sigma2 = 1/np.sum(1/pdes_sigma**2)
 else:
     pde = np.nan
+    pde_sigma2 = np.nan
 # 计算去除dark后的触发率,采用合并测量的方式
-## 这里peakC,vallyC等拟合参数合并测量时没有考虑每次测量的方差
-triggerNum = results['TotalNum'] * results['TriggerRate']
-rise_weights = results['RiseSigma']**2/triggerNum
-fall_weights = results['FallSigma']**2/triggerNum
-th_weights = results['THSigma']**2/triggerNum
-fwhm_weights = results['FWHMSigma']**2/triggerNum
+## 这里peakC,vallyC等拟合参数合并测量时考虑每次测量的方差
+triggerNum = results['TriggerNum']
+ress = results['GainSigma'] / results['Gain']
+res_weights = ress**2 * (resultsSigma2['GainSigma']/results['GainSigma']**2 + resultsSigma2['Gain']/results['Gain']**2)
+chargeress = np.sqrt(results['chargeSigma2']) / results['chargeMu']
+chargeress_weights = chargeress**2 * (results['chargeSigma2']/results['chargeSigma2']**2/4 + results['chargeMu']/results['chargeMu']**2)
+
 mergeresultsA[0] = (
-    np.mean(results['peakC']), np.mean(results['vallyC']), np.mean(results['Gain']), np.mean(results['GainSigma']), np.mean(results['PV']),
-    np.sum(results['Rise']/rise_weights)/np.sum(1/rise_weights), np.sum(results['Fall']/fall_weights)/np.sum(1/fall_weights), np.sum(results['TH']/th_weights)/np.sum(1/th_weights), np.sum(results['FWHM']/fwhm_weights)/np.sum(1/fwhm_weights),
-    np.mean(results['RiseSigma']), np.mean(results['FallSigma']), np.mean(results['THSigma']), np.mean(results['FWHMSigma']),
-    np.mean(results['TTS']), np.mean(results['TTS_bin']),
-    np.mean(results['GainSigma']/results['Gain']),
-    np.sum(results['TriggerRate'] * results['TotalNum'])/np.sum(results['TotalNum']),
-    np.sum(results['TriggerRateWODCR'] * results['TotalNum'])/np.sum(results['TotalNum']),
-    np.mean(results['chargeMu']), np.mean(results['chargeSigma']), np.mean(results['chargeSigma']/results['chargeMu']),
+    np.sum(results['peakC']/resultsSigma2['peakC']) / np.sum(1/resultsSigma2['peakC']),
+    np.sum(results['vallyC']/resultsSigma2['vallyC']) / np.sum(1/resultsSigma2['vallyC']),
+    np.sum(results['Gain']/resultsSigma2['Gain']) / np.sum(1/resultsSigma2['Gain']),
+    np.sum(results['GainSigma']/resultsSigma2['GainSigma']) / np.sum(1/resultsSigma2['GainSigma']),
+    np.sum(results['PV']/resultsSigma2['PV']) / np.sum(1/resultsSigma2['PV']),
+    np.sum(results['Rise']/resultsSigma2['Rise']) / np.sum(1/resultsSigma2['Rise']),
+    np.sum(results['Fall']/resultsSigma2['Fall'])/np.sum(1/resultsSigma2['Fall']),
+    np.sum(results['TH']/resultsSigma2['TH'])/np.sum(1/resultsSigma2['TH']),
+    np.sum(results['FWHM']/resultsSigma2['FWHM'])/np.sum(1/resultsSigma2['FWHM']),
+    np.mean(results['TTS']),
+    np.sum(results['TTS_bin']/resultsSigma2['TTS_bin'])/np.sum(1/resultsSigma2['TTS_bin']),
+    np.sum(ress/res_weights) / np.sum(1/res_weights),
+    np.sum(chargeress / chargeress_weights) / np.sum(1/chargeress_weights),
+    np.sum(results['TriggerRate'] / resultsSigma2['TriggerRate'])/np.sum(1/resultsSigma2['TriggerRate']),
+    np.sum(results['TriggerRateWODCR'] / resultsSigma2['TriggerRateWODCR'])/np.sum(1 / resultsSigma2['TriggerRateWODCR']),
+    np.sum(results['chargeMu'] / resultsSigma2['chargeMu']) / np.sum(1 / resultsSigma2['chargeMu']),
+    np.sum(results['chargeSigma2']/resultsSigma2['chargeSigma2']) / np.sum(1/resultsSigma2['chargeSigma2']),
     pde
     )
-# 暂时不用误差这一行
-# mergeresultsA[1] = (
-#     *mergeresults.std().values,
-#     np.std(results['GainSigma']/results['Gain']),
-#     np.std(results['TriggerRate']),
-#     np.std(results['TriggerRateWODCR'])
-#     )
+# 误差使用最小二乘法
+mergeresultsA[1] = (
+    1 / np.sum(1/resultsSigma2['peakC']),
+    1 / np.sum(1/resultsSigma2['vallyC']),
+    1 / np.sum(1/resultsSigma2['Gain']),
+    1 / np.sum(1/resultsSigma2['GainSigma']),
+    1 / np.sum(1/resultsSigma2['PV']),
+    1 / np.sum(1/resultsSigma2['Rise']),
+    1 / np.sum(1/resultsSigma2['Fall']),
+    1 / np.sum(1/resultsSigma2['TH']),
+    1 / np.sum(1/resultsSigma2['FWHM']),
+    np.std(results['TTS']),
+    1 / np.sum(1/resultsSigma2['TTS_bin']),
+    1 / np.sum(1/res_weights),
+    1 / np.sum(1/chargeress_weights),
+    1 / np.sum(1/resultsSigma2['TriggerRate']),
+    1 / np.sum(1 / resultsSigma2['TriggerRateWODCR']),
+    1 / np.sum(1/resultsSigma2['chargeMu']),
+    1 / np.sum(1/resultsSigma2['chargeSigma2']),
+    pde_sigma2
+    )
 
 # 统计多批数据的afterpulse
 pulseResults = pd.concat([loadPulse(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL']) for run in selectruns])
-pulseratioResults = pd.concat([loadRatio(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL'], run['RUNNO']) for run in selectruns])
+infos = [loadRatio(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL'], run['RUNNO']) for run in selectruns]
+pulseratioResults = pd.concat([i[0] for i in infos])
+pulseratioResultsSigma2 = pd.concat([i[1] for i in infos])
 promptwindow, delay1window, delay10window = promptB - promptE, delay1E - delay1B, delay10E - delay10B
-if darkExpect:
-    pulseratioResults['promptWODCR'] = (pulseratioResults['prompt'] - darkresult['DCR'] * promptwindow * 1e-6)/(1 - darkresult['DCR'] * promptwindow * 1e-6)
-    pulseratioResults['delay1WODCR'] = (pulseratioResults['delay1'] - darkresult['DCR'] * delay1window * 1e-6)/(1 - darkresult['DCR'] * delay1window * 1e-6)
-    pulseratioResults['delay10WODCR'] = (pulseratioResults['delay10'] - darkresult['DCR'] * delay10window * 1e-6)/(1 - darkresult['DCR'] * delay10window * 1e-6)
-if not darkExpect or (np.sum(pulseratioResults['promptWODCR']* pulseratioResults['TriggerNum'])<0):
+
+if not darkExpect:
     # use pre pulse ratio to estimate the DCR
     pulseratioResults['promptWODCR'] = 0
     pulseratioResults['delay1WODCR'] = (pulseratioResults['delay1'] - pulseratioResults['prompt'] * delay1window / promptwindow)
     pulseratioResults['delay10WODCR'] = (pulseratioResults['delay10'] -pulseratioResults['prompt'] * delay10window / promptwindow)
+    promptwodcrSigma2s = 0
+    delay1wodcrSigma2s = pulseratioResultsSigma2['delay1'] + pulseratioResultsSigma2['prompt'] * (delay1window / promptwindow)**2
+    delay10wodcrSigma2s = pulseratioResultsSigma2['delay10'] + pulseratioResultsSigma2['prompt'] * (delay10window / promptwindow)**2
+    promptwodcr = 0
+    promptwodcrSigma2 = 0
+else:
+    pulseratioResults['promptWODCR'] = (pulseratioResults['prompt'] - darkresult[0]['DCR'] * promptwindow * 1e-6)/(1 - darkresult[0]['DCR'] * promptwindow * 1e-6)
+    pulseratioResults['delay1WODCR'] = (pulseratioResults['delay1'] - darkresult[0]['DCR'] * delay1window * 1e-6)/(1 - darkresult[0]['DCR'] * delay1window * 1e-6)
+    pulseratioResults['delay10WODCR'] = (pulseratioResults['delay10'] - darkresult[0]['DCR'] * delay10window * 1e-6)/(1 - darkresult[0]['DCR'] * delay10window * 1e-6)
+    promptwodcrSigma2s = pulseratioResults['promptWODCR']**2 * ((pulseratioResultsSigma2['prompt'] + darkresult[1]['DCR'] * (promptwindow * 1e-6)**2) / (pulseratioResults['prompt'] - darkresult[0]['DCR'] * promptwindow * 1e-6)**2 + (darkresult[1]['DCR'] * (promptwindow * 1e-6)**2)/(1-darkresult[0]['DCR'] * promptwindow * 1e-6)**2)
+    delay1wodcrSigma2s = pulseratioResults['delay1WODCR']**2 * ((pulseratioResultsSigma2['delay1'] + darkresult[1]['DCR'] * (delay1window * 1e-6)**2) / (pulseratioResults['delay1'] - darkresult[0]['DCR'] * delay1window * 1e-6)**2 + (darkresult[1]['DCR'] * (delay1window * 1e-6)**2)/(1-darkresult[0]['DCR'] * delay1window * 1e-6)**2)
+    delay10wodcrSigma2s = pulseratioResults['delay10WODCR']**2 * ((pulseratioResultsSigma2['delay10'] + darkresult[1]['DCR'] * (delay10window * 1e-6)**2) / (pulseratioResults['delay10'] - darkresult[0]['DCR'] * delay10window * 1e-6)**2 + (darkresult[1]['DCR'] * (delay10window * 1e-6)**2)/(1-darkresult[0]['DCR'] * delay10window * 1e-6)**2)
+    promptwodcr = np.sum(pulseratioResults['promptWODCR']/promptwodcrSigma2s) / np.sum(1/promptwodcrSigma2s)
+    promptwodcrSigma2 = 1 / np.sum(1/promptwodcrSigma2s)
+delay1wodcr = np.sum(pulseratioResults['delay1WODCR']/delay1wodcrSigma2s) / np.sum(1/delay1wodcrSigma2s)
+delay10wodcr = np.sum(pulseratioResults['delay10WODCR']/delay10wodcrSigma2s) / np.sum(1/delay10wodcrSigma2s)
+
 mergePulseResults = np.zeros((2,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4')])
 totalTriggerNum = np.sum(pulseratioResults['TriggerNum'])
 mergePulseResults[0] = (
-    np.sum(pulseratioResults['prompt'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-    np.sum(pulseratioResults['delay1'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-    np.sum(pulseratioResults['delay10'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-    np.sum(pulseratioResults['promptWODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-    np.sum(pulseratioResults['delay1WODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum,
-    np.sum(pulseratioResults['delay10WODCR'] * pulseratioResults['TriggerNum'])/totalTriggerNum)
+    np.sum(pulseratioResults['prompt'] / pulseratioResultsSigma2['prompt'])/np.sum(1 / pulseratioResultsSigma2['prompt']),
+    np.sum(pulseratioResults['delay1'] / pulseratioResultsSigma2['delay1'])/np.sum(1 / pulseratioResultsSigma2['delay1']),
+    np.sum(pulseratioResults['delay10'] / pulseratioResultsSigma2['delay10'])/np.sum(1 / pulseratioResultsSigma2['delay10']),
+    promptwodcr,
+    delay1wodcr,
+    delay10wodcr
+)
+mergePulseResults[1] = (
+    1 / np.sum(1 / pulseratioResultsSigma2['prompt']),
+    1 / np.sum(1 / pulseratioResultsSigma2['delay1']),
+    1 / np.sum(1 / pulseratioResultsSigma2['delay10']),
+    promptwodcrSigma2,
+    1 / np.sum(1/delay1wodcrSigma2s),
+    1 / np.sum(1/delay10wodcrSigma2s)
+)
 # 统计ser参数
-## tau, sigma考虑的误差
+## tau, sigma考虑的误差为统计误差，未考虑拟合误差, tau_total, sigma_total未考虑拟合误差
 serResults = pd.concat([loadSER(args.dir.format(run['RUNNO']) + '/serMerge.h5', run['CHANNEL'], run['RUNNO']) for run in selectruns])
 mergeSERResults = np.zeros((2,), dtype=[('tau', '<f4'), ('sigma', '<f4'), ('tau_total', '<f4'), ('sigma_total', '<f4')])
 mergeSERResults[0] = (
-    np.mean(serResults['tau']),
-    np.mean(serResults['sigma']),
+    np.sum(serResults['tau']/serResults['tau_sigma']**2)/np.sum(1/serResults['tau_sigma']**2),
+    np.sum(serResults['sigma']/serResults['sigma_sigma']**2)/np.sum(1/serResults['sigma_sigma']**2),
     np.mean(serResults['tau_total']),
     np.mean(serResults['sigma_total']),
 )
@@ -169,17 +235,33 @@ cmap = ListedColormap(newcolors)
 with PdfPages(args.opt + '.pdf') as pdf:
     # Trigger Rate变化
     fig, ax = plt.subplots()
-    ax.plot(results['Run'], results['TriggerRate'], marker='o', label='Trigger Rate')
+    ax.errorbar(results['Run'], results['TriggerRate'], yerr=np.sqrt(resultsSigma2['TriggerRate']), marker='o', label='Trigger Rate')
     if darkExpect:
-        ax.plot(results['Run'], results['TriggerRateWODCR'], marker='o', label='Trigger Rate WO Dark Noise')
+        ax.errorbar(results['Run'], results['TriggerRateWODCR'], yerr=np.sqrt(resultsSigma2['TriggerRateWODCR']), marker='o', label='Trigger Rate WO Dark Noise')
     ax.set_xlabel('Run')
     ax.set_ylabel('Trigger Rate')
     ax.legend()
     pdf.savefig(fig)
     plt.close()
+
+    fig, ax = plt.subplots()
+    ax.errorbar(results['Run'], results['Gain'], yerr=np.sqrt(resultsSigma2['Gain']), marker='o')
+    ax.axhline(mergeresultsA[0]['Gain'])
+    ax.fill_betweenx([mergeresultsA[0]['Gain']-np.sqrt(mergeresultsA[1]['Gain']), mergeresultsA[0]['Gain']+np.sqrt(mergeresultsA[1]['Gain'])], results['Run'].values[0], results['Run'].values[-1], alpha=0.5)
+    ax.set_xlabel('Run')
+    ax.set_ylabel('$G_1$')
+    pdf.savefig(fig)
+
+    fig, ax = plt.subplots()
+    ax.errorbar(results['Run'], results['chargeMu']/50/1.6*ADC2mV, yerr=np.sqrt(resultsSigma2['chargeMu'])/50/1.6*ADC2mV, marker='o')
+    ax.axhline(mergeresultsA[0]['chargeMu']/50/1.6*ADC2mV)
+    ax.fill_betweenx([(mergeresultsA[0]['chargeMu']-np.sqrt(mergeresultsA[1]['chargeMu']))/50/1.6*ADC2mV, (mergeresultsA[0]['chargeMu']+np.sqrt(mergeresultsA[1]['chargeMu']))/50/1.6*ADC2mV], results['Run'].values[0], results['Run'].values[-1], alpha=0.5)
+    ax.set_xlabel('Run')
+    ax.set_ylabel('Gain')
+    pdf.savefig(fig)
     # tts对比
     fig, ax = plt.subplots()
-    ax.scatter(results['TTS'], results['TTS_bin'], marker='o', label='Trigger Rate')
+    ax.errorbar(results['TTS'], results['TTS_bin'], yerr=resultsSigma2['TTS'], xerr=resultsSigma2['TTS_bin'], fmt='o', label='Trigger Rate')
     ax.set_xlabel('TTS')
     ax.set_ylabel('TTS bin fit')
     ax.legend()
@@ -257,7 +339,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
     ax.plot(edges[startEdges:endEdges], eys+expectPrompt, linewidth=1, alpha=0.9, label='fit')
     ax.axhline(expectPrompt, linewidth=1, linestyle='--', label='Average prepulse')
     if darkExpect:
-        ax.axhline(totalTriggerNum * darkresult['DCR'] * binwidth * 1e-6, label='Expected Dark Noise')
+        ax.axhline(totalTriggerNum * darkresult[0]['DCR'] * binwidth * 1e-6, label='Expected Dark Noise')
     # for pn in MCPPeakNum:
     #     ax.annotate(pn['N'], (pn['t'], pn['pv'] + expectPrompt), (pn['t'], pn['pv'] + expectPrompt + 5))
     ax.set_xlabel('Relative t/ns')
