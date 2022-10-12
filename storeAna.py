@@ -38,10 +38,10 @@ if MODE:
     if not args.pulse:
         for r, pmt, splitter in zip(res, pmts, splitters):
             tmpcsv.loc[args.run *10 + r['Channel'],['RUNNO', 'BOXID', 'CHANNEL', 'PMT', 'HV', 'QE', 'Gain', 'PV', 'Res',
-       'PDE', 'DCR', 'TTS', 'Linear', 'Rise',
+        'DCR', 'TTS', 'Linear', 'Rise',
        'Fall', 'TH', 'Overshoot', 'EventNum', 'DCR_trigger']] = (
                 args.run, splitter, r['Channel'], pmt, 0, 0, r['Gain'], r['PV'], r['GainSigma']/r['Gain'],
-                0, 0, r['TTS'],
+                0, r['TTS'],
                 0,
                 r['Rise'], r['Fall'], r['TH'],
                 0, r['TotalNum'], r['DCR']
@@ -57,10 +57,10 @@ else:
     # NOISE MODE
     for r, pmt, splitter in zip(res, pmts, splitters):
         tmpcsv.loc[args.run *10 + r['Channel'], ['RUNNO', 'BOXID', 'CHANNEL', 'PMT', 'HV', 'QE', 'Gain', 'PV', 'Res',
-       'PDE', 'DCR', 'TTS', 'Pre', 'After1', 'After2', 'Linear', 'Rise',
+        'DCR', 'TTS', 'Pre', 'After1', 'After2', 'Linear', 'Rise',
        'Fall', 'TH', 'Overshoot', 'EventNum', 'TriggerNum', 'DCR_trigger']] = (
             args.run, splitter, r['Channel'], pmt, 0, 0, r['Gain'], r['PV'], r['GainSigma']/r['Gain'],
-            0, r['DCR'], 0,
+            r['DCR'], 0,
             0, 0, 0,
             0,
             r['Rise'], r['Fall'], r['TH'],
