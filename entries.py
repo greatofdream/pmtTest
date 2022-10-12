@@ -15,5 +15,5 @@ if __name__=="__main__":
     for i,p in enumerate(path):
         with uproot.open(p) as ipt:
             eventid = ipt["Readout/TriggerNo"].array(library='np')
-            nums[i] = eventid.shape[0]
+            nums[i] = eventid[-1]
     np.savetxt(args.opt, nums, fmt='%d')

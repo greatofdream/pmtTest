@@ -29,6 +29,7 @@ info = reader.read()
 totalNums = np.sum(info[-1].reshape((-1,len(args.channel))), axis=0).astype(int)
 print(totalNums)
 result = np.zeros(len(args.channel), dtype=[('Channel', '<i2'), ('TriggerNum', '<i4'), ('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4')])
+resultSigma2 = np.zeros(len(args.channel), dtype=[('Channel', '<i2'), ('TriggerNum', '<i4'), ('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4')])
 for j in range(len(args.channel)):
     delay1c = info[j]['EventID'][(info[j]['t']>delay1B) & (info[j]['t']<delay1E)]
     delay10c = info[j]['EventID'][(info[j]['t']>delay10B) & (info[j]['t']<delay10E)]
@@ -39,10 +40,12 @@ for j in range(len(args.channel)):
     # c_p = np.unique(promptc)
     c_p = promptc
     result[j] = (args.channel[j], totalNums[j], len(c_p)/totalNums[j], len(c1)/totalNums[j], len(c10)/totalNums[j])
+    resultSigma2[j] = (args.channel[j], 0, len(c_p)/totalNums[j]*2, len(c1)/totalNums[j]**2, len(c10)/totalNums[j]**2)
 # store the pulse ratio
 
 with h5py.File(args.opt, 'w') as opt:
     opt.create_dataset('ratio', data=result, compression='gzip')
+    opt.create_dataset('resSigma2', data=resultSigma2, compression='gzip')
     for j in range(len(args.channel)):
         opt.create_dataset('ch{}'.format(args.channel[j]), data=info[j], compression='gzip')
 # set the figure appearance
