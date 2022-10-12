@@ -4,6 +4,25 @@
 import numpy as np
 from scipy.optimize import minimize
 from scipy.special import erf
+import numdifftools as nd
+import ROOT
+class RootFit():
+    def setFunc(self, func, x0):
+        self.func = func
+        self.func.SetParameters(x0)
+    def setHist(self, bins, counts):
+        self.hists = ROOT.TH1D("", "", len(bins)-1, bins)
+        for i in range(len(bins) - 1):
+            self.hists.SetBinContent(i, counts[i])
+    def Fit( self ):
+        self.hists.Fit(self.func, 'R')
+        return self.func.GetParameters(), self.func.GetParErrors()
+
+def centralMoment(xs, xmean, k):
+    return np.sum((xs - np.mean(xs))**k) / (len(xs) - 1)
+def Hessian(f, x, step):
+    df = nd.Hessian(f, step=step)
+    return df(x)
 def findFirstRisingEdge(edge, counts, window=(2, 10)):
     # 寻找peak分布第一个上升沿
     i = 0
@@ -58,7 +77,7 @@ def fitGausB(tts, limits, timeLength, b_u):
             ],
         method='SLSQP',
         options={'eps':0.0001}
-            ) for tts_sigma in np.arange(0.2, 3, 0.1)]
+            ) for tts_sigma in np.arange(0.2, 3, 0.05)]
     result = min(results, key=lambda x:x.fun)
     return result
 # SER function fit
@@ -78,11 +97,12 @@ def likelihoodSER(x, *args):
 
 def fitSER(xs, ys):
     mu0 = xs[np.argmax(ys)]
-    result = minimize(likelihoodSER, [mu0, 5, 10, 8], args=(xs, ys), bounds=[
+    result = minimize(likelihoodSER, [mu0, 2, 5, 8], args=(xs, ys), bounds=[
         (xs[0], mu0 + 20), (0.5, 10), (1, 20), (1, 2000)
     ], constraints=({
-        'type': 'ineq', 'fun': lambda x: x[2] - x[1]}
+        'type': 'ineq', 'fun': lambda x: 2 + x[2] - x[1]}
     ),
+    options={'eps':0.0001},
     method='SLSQP')
     return result
 
@@ -94,10 +114,25 @@ def peakfind(ys, thresholds, padding=2):
     localmax[padding:-padding] = (ys[padding:-padding] >= ys[(padding-1):(-padding-1)]) & (ys[padding:-padding] >= ys[(padding-2):(-padding-2)]) & (ys[padding:-padding] >= ys[(padding+1):(-padding+1)]) & (ys[padding:-padding] >= ys[(padding+2):])
     candidate = sig & localmax
     return candidate
+def vallyfind(ys, height=0.5):
+    # 谷检测,当两个峰较高，且谷的位置小于峰高的x倍
+    peak = np.max(ys)
+    threshold = peak * height
+    peakArea = (ys>threshold).astype(int)
+    vallycandidate = np.where(np.abs(peakArea[1:] - peakArea[:-1])==1)[0]
+    vallyn = vallycandidate.shape[0]
+    if peakArea[vallycandidate[0]] == -1:
+        vallyn += 1
+    if peakArea[vallycandidate[-1]] == 1:
+        vallyn += 1
+    return vallyn//2 - 1
 def peakNum(ys, std, padding=2):
     # 局域极值，信号判定
     candidate = peakfind(ys, 5*std, padding).astype(int)
-    return np.sum((candidate[1:] - candidate[:-1])==1)
+    peakn = np.sum((candidate[1:] - candidate[:-1])==1)
+    if peakn == 1:
+        peakn += vallyfind(ys)
+    return peakn
 def getIntervals(xs, ys, thresholds, pre_ser_length, after_ser_length, padding=2):
     # 局域极值，信号判定
     candidate = peakfind(ys, thresholds, padding)
