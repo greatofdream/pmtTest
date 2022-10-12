@@ -57,7 +57,7 @@ if __name__=="__main__":
         h = ax.hist((info[j]['minPeakPos'] - trigger['triggerTime'])[info[j]['minPeak']>5], bins=int((r_range - l_range)/binwidth), range=(l_range, r_range), histtype='step', label='TT {:.2f}$\pm${:.2f}'.format(*relative_interval[j][['mean','sigma']]))
         xs = np.arange(relative_interval[j]['mean']-10*relative_interval[j]['sigma'],relative_interval[j]['mean']+10*relative_interval[j]['sigma'], relative_interval[j]['sigma']/5)
         ax.plot(xs, N*binwidth*np.exp(-(xs-relative_interval[j]['mean'])**2/2/relative_interval[j]['sigma']**2)/np.sqrt(2*np.pi)/relative_interval[j]['sigma'], label='Fit')
-        ax.fill_between([relative_interval[j]['start'], relative_interval[j]['end']], [0, 0], [np.max(h[0]), np.max(h[0])], color='c', alpha=0.5, label='Candidate area')
+        ax.fill_between([relative_interval[j]['start'], relative_interval[j]['end']], [0, 0], [np.max(h[0]), np.max(h[0])], color='c', alpha=0.1, label='Candidate area')
         ax.set_xlabel('$t_p-t_{\mathrm{trig}}$/ns')
         ax.set_ylabel('Entries')
         ax.xaxis.set_minor_locator(MultipleLocator(1))
