@@ -31,7 +31,7 @@ class Triggerana(Waveana):
         baseline = self.minPeakBaseline
         self.allCharge = np.sum(baseline-self.wave[int(self.triggerTime):])
         return self.allCharge
-    def integrateMinPeakWave(self, minIndex, baselength=15, afterlength=40):
+    def integrateMinPeak(self, minIndex, baselength=15, afterlength=40):
         self.minIndex = minIndex
         self.minPeak = self.minPeakBaseline-self.wave[self.minIndex]
         if self.minPeak<0:
