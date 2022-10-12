@@ -31,7 +31,8 @@ with h5py.File(args.ana, 'r') as ana_ipt, h5py.File(args.summary, 'r') as sum_ip
     for j in range(len(args.channel)):
         info.append(ana_ipt['ch{}'.format(args.channel[j])][:])
         thresholds.append(
-            (sum_ipt['res'][j]['peakC'] * (1 - sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']), sum_ipt['res'][j]['peakC'] * (1 + sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']))
+            # (sum_ipt['res'][j]['peakC'] * (1 - sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']), sum_ipt['res'][j]['peakC'] * (1 + sum_ipt['res'][j]['GainSigma']/sum_ipt['res'][j]['Gain']))
+            (0.5 * sum_ipt['res'][j]['peakC'], 1000)
             )
     trigger = ana_ipt['trigger'][:]
     peakCs = sum_ipt['res'][:]
@@ -51,7 +52,7 @@ if not args.merge:
     fitResult = []
     for j in range(len(args.channel)):
         # 筛选出对应的波形
-        indexTF = (info[j]['minPeakCharge']>thresholds[j][0])&(info[j]['minPeakCharge']<thresholds[j][1])&(info[j]['FWHM']>5)&(info[j]['minPeak']>3)
+        indexTF = (info[j]['minPeakCharge']>thresholds[j][0])&(info[j]['minPeakCharge']<thresholds[j][1])&(info[j]['FWHM']>4)&(info[j]['FWHM']<12)&(info[j]['minPeak']>5)
         index = np.where(indexTF)[0]
         fitResult.append(np.zeros((np.sum(indexTF)), dtype=fitdtype))
         # print('select number is {}'.format(nums[j]))
@@ -76,7 +77,7 @@ if not args.merge:
                     info[j][i]['std'], peakn
                     )
                 # 排除识别的单峰和拟合偏差大的波形
-                if peakn==1 and fitResult[j][idx]['maxerr']<5*info[j][i]['std']:
+                if peakn==1 and fitResult[j][idx]['maxerr']<3*info[j][i]['std']:
                     storeWave[j] += baseline - wave[chmap.loc[ch[j]]][begin:end]
                     nums[j] += 1
     with h5py.File(args.opt,'w') as opt:
@@ -112,6 +113,10 @@ else:
     white = np.array([1, 1, 1, 0.5])
     newcolors[0, :] = white
     cmap = ListedColormap(newcolors)
+    fitSummary = np.zeros(len(args.channel), dtype=[
+        ('Channel', '<i2'), ('tau', '<f4'), ('sigma', '<f4'), ('tau_sigma', '<f4'), ('sigma_sigma', '<f4'),
+        ('tau_total', '<f4'), ('sigma_total', '<f4'), ('SelectNum', '<i4')
+        ])
     with PdfPages(args.opt + '.pdf') as pdf:
         for j in range(len(args.channel)):
             fig, ax = plt.subplots()
@@ -130,6 +135,13 @@ else:
             plt.close()
 
             fig, ax = plt.subplots()
+            h = ax.hist(fitResult[j]['A'], bins=100, histtype='step')
+            ax.set_xlabel('A')
+            ax.set_ylabel(r'Entries')
+            pdf.savefig(fig)
+            plt.close()
+
+            fig, ax = plt.subplots()
             h = ax.hist2d(fitResult[j]['sigma'], fitResult[j]['tau'], bins=[100,100], cmap=cmap)
             fig.colorbar(h[3], ax=ax)
             ax.set_xlabel('$\sigma$/ns')
@@ -138,15 +150,40 @@ else:
             plt.close()
 
             fig, ax = plt.subplots()
-            select = (fitResult[j]['maxerr']<5*fitResult[j]['std']) & (fitResult[j]['peakNum']==1)
+            # 剔除拟合非常坏的波形
+            select = (fitResult[j]['maxerr']<3*fitResult[j]['std']) & (fitResult[j]['peakNum']==1)
             print('{}/{}'.format(np.sum(select), fitResult[j].shape[0]))
             h = ax.hist2d(fitResult[j]['sigma'][select], fitResult[j]['tau'][select], bins=[100,100], cmap=cmap)
+            ax.scatter(np.mean(fitResult[j]['sigma'][select]), np.std(fitResult[j]['tau'][select]), marker='*', s=20)
             fig.colorbar(h[3], ax=ax)
-            ax.set_xlabel('$\sigma$/ADCns')
+            ax.set_xlabel('$\sigma$/ns')
             ax.set_ylabel(r'$\tau$/ns')
             pdf.savefig(fig)
             plt.close()
-
+            fitSummary[j] = (args.channel[j], np.mean(fitResult[j]['tau'][select]), np.mean(fitResult[j]['sigma'][select]), np.std(fitResult[j]['tau'][select]), np.std(fitResult[j]['sigma'][select]), result.x[2], result.x[1], np.sum(select))
+            # 检查tau, sigma和A的关联性
+            fig, ax = plt.subplots()
+            h = ax.hist2d(fitResult[j]['A'][select], fitResult[j]['tau'][select], bins=[100,100], cmap=cmap)
+            fig.colorbar(h[3], ax=ax)
+            ax.set_xlabel('A')
+            ax.set_ylabel(r'$\tau$/ns')
+            pdf.savefig(fig)
+            plt.close()
+            fig, ax = plt.subplots()
+            h = ax.hist2d(fitResult[j]['A'][select], fitResult[j]['sigma'][select], bins=[100,100], cmap=cmap)
+            fig.colorbar(h[3], ax=ax)
+            ax.set_xlabel('A')
+            ax.set_ylabel(r'$\sigma$/ns')
+            pdf.savefig(fig)
+            plt.close()
+            # 检查chi2值
+            fig, ax = plt.subplots()
+            h = ax.hist2d(fitResult[j]['sigma'][select] + fitResult[j]['tau'][select], fitResult[j]['fun'][select], bins=[100,100], cmap=cmap)
+            fig.colorbar(h[3], ax=ax)
+            ax.set_xlabel(r'$\sigma+\tau$/ns')
+            ax.set_ylabel('$\chi^2$')
+            pdf.savefig(fig)
+            plt.close()
             # peak分布
             fig, ax = plt.subplots()
             h = ax.hist(info[j]['minPeak'],histtype='step', bins=1000, range=[0,1000], label='peak')
@@ -167,5 +204,5 @@ else:
         opt.create_dataset('nums', data=nums, compression='gzip')
         for j in range(len(args.channel)):
             opt.create_dataset('ch{}'.format(ch[j]), data=fitResult[j], compression='gzip')
-        opt.create_dataset('fitspe', data=result.x, compression='gzip')
         opt.create_dataset('mu', data=peakCs, compression='gzip')
+        opt.create_dataset('res', data=fitSummary, compression='gzip')
