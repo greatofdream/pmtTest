@@ -79,7 +79,9 @@ if __name__=="__main__":
     elif args.para=='ch':
         print(' '.join(map(str,testinfo.getChannel(args.run, istrigger=False))))
     elif args.para=='pmts':
-        print(' '.join(np.unique(testinfo.csv['PMT'].values)))
+        # Default read exclue runs
+        excluderuns = np.loadtxt('ExPMT/ExcludeRun.csv')
+        print(' '.join(np.unique(testinfo.csv[~testinfo.csv['RUNNO'].isin(excluderuns)]['PMT'].values)))
     elif args.para=='pmtruns':
         pd.merge(testinfo.csv[testinfo.csv['PMT']==args.ipt], runinfo.csv[['RUNNO', 'MODE']], on='RUNNO').to_csv(args.opt, index=False)
     else:

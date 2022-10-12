@@ -75,7 +75,7 @@ except:
 configcsv = pd.read_csv(args.config)
 PMTName = configcsv['PMT'].values[0]
 runs = configcsv[configcsv['MODE']==1].to_records()
-badruns = np.loadtxt(args.badrun)
+badruns = np.unique(np.append(np.loadtxt(args.badrun), np.loadtxt('ExPMT/ExcludeRun.csv')))
 selectruns = []
 for run in runs:
     if not run['RUNNO'] in badruns:

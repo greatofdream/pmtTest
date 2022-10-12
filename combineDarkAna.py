@@ -29,7 +29,7 @@ args = psr.parse_args()
 # 统计分析结果路径和对应ch号
 configcsv = pd.read_csv(args.config)
 runs = configcsv[configcsv['MODE']==0].to_records()
-badruns = np.loadtxt(args.badrun)
+badruns = np.unique(np.append(np.loadtxt(args.badrun), np.loadtxt('ExPMT/ExcludeRun.csv')))
 selectruns = []
 for run in runs:
     if not run['RUNNO'] in badruns:
