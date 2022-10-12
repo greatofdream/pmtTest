@@ -6,7 +6,8 @@ export OMP_NUM_THREADS=2
 wavecut:=0
 field:=std
 # anaNum
-all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/DN.pdf) $(anaNum:%=ExResult/%/$(wavecut)ns/profile.h5)
+all:  $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5) $(anaNum:%=ExResult/%/$(wavecut)ns/DN.pdf)
+#$(anaNum:%=ExResult/%/$(wavecut)ns/profile.h5)
 
 
 define preanalysis
