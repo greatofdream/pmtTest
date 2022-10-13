@@ -143,8 +143,9 @@ for j in range(len(args.channel)):
     print(result)
     ## ROOT fit
     rootfit.setFunc(ROOT.TF1("", "[0]*(x-[1])^2+[2]", h[1][li-vallyspanl], h[1][li+vallyspanr]), result.x)
-    rootfit.func.SetParLimits(0, 0, 100000)
-    rootfit.func.SetParLimits(2, 0, A)
+    rootfit.func.SetParLimits(0, 0.1, 100000)
+    rootfit.func.SetParLimits(1, 5, pi)
+    rootfit.func.SetParLimits(2, 1, A)
     rootfit.setHist(h[1], h[0])
     paraRoot, errorRoot = rootfit.Fit()
     print((paraRoot[0], paraRoot[1], paraRoot[2]), (errorRoot[0], errorRoot[1], errorRoot[2]))
