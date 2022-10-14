@@ -69,8 +69,6 @@ pdf = PdfPages(args.opt+'.pdf')
 
 # 下面循环绘制每个channel的图像
 for j in range(len(args.channel)):
-    peakspanl, peakspanr = config.peakspanl, config.peakspanr
-    vallyspanl, vallyspanr = config.vallyspanl, config.vallyspanr
     rangemin = int(np.min(info[j]['minPeakCharge'])-1)
     rangemax = int(np.max(info[j]['minPeakCharge'])+1)
     bins = rangemax-rangemin
@@ -99,6 +97,10 @@ for j in range(len(args.channel)):
     pv = h[0][(zeroOffset+15+vi_r):(zeroOffset+15+vi_r+100)][pi_r]
     vv = h[0][(zeroOffset+15):(zeroOffset+70)][vi_r]
     print(([pi, vi], [pv, vv]))
+    ## 初步估计一个拟合区间
+    estimateG = 15 + vi_r + pi_r
+    peakspanl, peakspanr = int(config.peakspanl * estimateG), int(config.peakspanr * estimateG)
+    vallyspanl, vallyspanr = int(config.vallyspanl * estimateG), int(config.vallyspanr * estimateG)
     # 使用上面值作为初值进行最小二乘拟合
     hi = zeroOffset + 15 + vi_r + pi_r
     result = minimize(peakResidual, [pv, pi, 30], 
@@ -109,6 +111,9 @@ for j in range(len(args.channel)):
     ## 使用拟合值为初值，降低步长再次拟合
     pv, pi = result.x[0], result.x[1]
     hi = zeroOffset + int(pi)
+    estimateG = pi
+    peakspanl, peakspanr = int(config.peakspanl * estimateG), int(config.peakspanr * estimateG)
+    vallyspanl, vallyspanr = int(config.vallyspanl * estimateG), int(config.vallyspanr * estimateG)
     result = minimize(peakResidual, result.x, 
         args=(h[0][(hi-peakspanl):(hi+peakspanr)], (h[1][(hi-peakspanl):(hi+peakspanr)]+h[1][(hi-peakspanl+1):(hi+peakspanr+1)])/2),
         bounds=[(0,None), (5, None), (0, None)],
@@ -134,8 +139,8 @@ for j in range(len(args.channel)):
     li = zeroOffset + 15 + vi_r
     yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     ## 对vally进行区间调整，放置左侧padding过长
-    while (yy[0] > 3 * np.max(yy[-10:])) and vallyspanl > 2:
-        vallyspanl = vallyspanl // 2
+    while (yy[0] > 1.5 * np.max(yy[-10:])) and vallyspanl > 2:
+        vallyspanl = vallyspanl - 1
         yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
     result = minimize(vallyResidual, [0.3, vi, vv + 5], args=(yy, (h[1][(li-vallyspanl):(li+vallyspanr)] + h[1][(li-vallyspanl+1):(li+vallyspanr+1)])/2),
         bounds=[(0.1, None), (vi-5, vi+5), (3, A)],
@@ -143,7 +148,7 @@ for j in range(len(args.channel)):
     print(result)
     ## ROOT fit
     rootfit.setFunc(ROOT.TF1("", "[0]*(x-[1])^2+[2]", h[1][li-vallyspanl], h[1][li+vallyspanr]), result.x)
-    rootfit.func.SetParLimits(0, 0.1, 100000)
+    rootfit.func.SetParLimits(0, 0.001, 100000)
     rootfit.func.SetParLimits(1, 5, pi)
     rootfit.func.SetParLimits(2, 1, A)
     rootfit.setHist(h[1], h[0])
