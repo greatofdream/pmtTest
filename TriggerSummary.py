@@ -288,8 +288,9 @@ for j in range(len(args.channel)):
     print('estimate DCR {}'.format(estimateDCR))
     l_range, r_range = int(tts_mu - 5*tts_sigma), int(tts_mu + 5*tts_sigma)+1
     # l_range, r_range = int(limits_mu - 1*limits_sigma), int(limits_mu + 1*limits_sigma)
-    binwidth = 0.2
+    binwidth = 0.5
     h = ax.hist(info[j]['begin10'][totalselect], bins=int((r_range - l_range)/binwidth), range=[l_range, r_range], histtype='step', label='$t^r_{10}-t_{\mathrm{trig}}$')
+    ax.hist(info[j]['begin10'][totalselect], bins=int(r_range - l_range)*5, range=[l_range, r_range], histtype='step', label='$t^r_{10}-t_{\mathrm{trig}}$')
     probf = (tts_A * np.exp(-(np.arange(l_range, r_range, 0.1) - tts_mu)**2/2/tts_sigma**2)/np.sqrt(2*np.pi)/tts_sigma + (1-tts_A)/ 2 / limits_sigma)
     ax.plot(np.arange(l_range, r_range, 0.1), N * binwidth * probf, '--')
     probf = (tts_A * np.exp(-(np.arange(limits[0], limits[1], 0.1) - tts_mu)**2/2/tts_sigma**2)/np.sqrt(2*np.pi)/tts_sigma + (1-tts_A)/ 2 / limits_sigma)
@@ -299,8 +300,8 @@ for j in range(len(args.channel)):
     tts_counts = h[0]
     tts_pi = np.where(tts_mu<=tts_edges)[0][0]
     ## 拟合区间缩至2ns
-    t_n = 10
-    ttsResults = [minimize(peakResidual, [tts_counts[tts_pi], tts_edges[tts_pi]+0.5, tts_sigma_init], 
+    t_n = int(2/binwidth)
+    ttsResults = [minimize(peakResidual, [tts_counts[tts_pi], tts_edges[tts_pi], tts_sigma_init], 
         args=(tts_counts[(tts_pi-t_n):(tts_pi+t_n+1)], tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]),
         bounds=[(tts_counts[tts_pi]/10, None), (tts_edges[tts_pi]-2, tts_edges[tts_pi]+2), (0.1, 5)],
         method='SLSQP',
@@ -308,14 +309,14 @@ for j in range(len(args.channel)):
         for tts_sigma_init in np.arange(0.2,1.5,0.05)]
     ttsResult = min(ttsResults, key=lambda x:x.fun)
     # ROOT Fit
-    rootfit.setFunc(ROOT.TF1("", "[0]*exp(-0.5*((x-[1])/[2])^2)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n+1]), ttsResult.x)
+    rootfit.setFunc(ROOT.TF1("", "[0]*exp(-0.5*((x-[1])/[2])^2)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), ttsResult.x)
     rootfit.setHist(h[1], h[0])
     paraRoot, errorRoot = rootfit.Fit()
     tts_A_bin, tts_mu_bin, tts_sigma_bin = paraRoot[0], paraRoot[1], paraRoot[2]
     results['TTS_bin'][j] = tts_sigma_bin * np.sqrt(2 * np.log(2)) * 2
     paraSigma2['TTS_bin'][j] = errorRoot[2]**2
 
-    ax.plot(tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]+binwidth/2, tts_A_bin * np.exp(-(tts_edges[(tts_pi-t_n):(tts_pi+t_n+1)]-tts_mu_bin)**2/2/tts_sigma_bin**2), label='binned fit $\sigma$:{:.3f}$\pm{:.3f}$ns '.format(tts_sigma_bin, errorRoot[2]))
+    ax.plot(np.arange(tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n+1], 0.1), tts_A_bin * np.exp(-(np.arange(tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n+1], 0.1)-tts_mu_bin)**2/2/tts_sigma_bin**2), label='binned fit $\sigma$:{:.3f}$\pm{:.3f}$ns '.format(tts_sigma_bin, errorRoot[2]))
     ax.set_xlabel('TT/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim([l_range, r_range])

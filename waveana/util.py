@@ -12,8 +12,8 @@ class RootFit():
         self.func.SetParameters(x0)
     def setHist(self, bins, counts):
         self.hists = ROOT.TH1D("", "", len(bins)-1, bins)
-        for i in range(len(bins) - 1):
-            self.hists.SetBinContent(i, counts[i])
+        for i in range(1, len(bins)):
+            self.hists.SetBinContent(i, counts[i-1])
     def Fit( self ):
         self.hists.Fit(self.func, 'R')
         return self.func.GetParameters(), self.func.GetParErrors()
