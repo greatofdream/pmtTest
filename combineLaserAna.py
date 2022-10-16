@@ -118,7 +118,7 @@ triggerNum = results['TriggerNum']
 ress = results['GainSigma'] / results['Gain']
 res_weights = ress**2 * (resultsSigma2['GainSigma']/results['GainSigma']**2 + resultsSigma2['Gain']/results['Gain']**2)
 chargeress = np.sqrt(results['chargeSigma2']) / results['chargeMu']
-chargeress_weights = chargeress**2 * (results['chargeSigma2']/results['chargeSigma2']**2/4 + results['chargeMu']/results['chargeMu']**2)
+chargeress_weights = chargeress**2 * (resultsSigma2['chargeSigma2']/results['chargeSigma2']**2/4 + resultsSigma2['chargeMu']/results['chargeMu']**2)
 
 mergeresultsA[0] = (
     np.sum(results['peakC']/resultsSigma2['peakC']) / np.sum(1/resultsSigma2['peakC']),
@@ -240,6 +240,26 @@ with PdfPages(args.opt + '.pdf') as pdf:
         ax.errorbar(results['Run'], results['TriggerRateWODCR'], yerr=np.sqrt(resultsSigma2['TriggerRateWODCR']), marker='o', label='Trigger Rate WO Dark Noise')
     ax.set_xlabel('Run')
     ax.set_ylabel('Trigger Rate')
+    ax.legend()
+    pdf.savefig(fig)
+    plt.close()
+
+    fig, ax = plt.subplots()
+    ax.errorbar(pulseratioResults['Run'], pulseratioResults['prompt'], yerr=np.sqrt(pulseratioResultsSigma2['prompt']), marker='o', label='prompt')
+    ax.errorbar(pulseratioResults['Run'], pulseratioResults['delay1'], yerr=np.sqrt(pulseratioResultsSigma2['delay1']), marker='o', label='delay1')
+    ax.errorbar(pulseratioResults['Run'], pulseratioResults['delay10'], yerr=np.sqrt(pulseratioResultsSigma2['delay10']), marker='o', label='delay10')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('rate')
+    ax.legend()
+    pdf.savefig(fig)
+    plt.close()
+
+    fig, ax = plt.subplots()
+    ax.errorbar(pulseratioResults['Run'], pulseratioResults['promptWODCR'], yerr=np.sqrt(promptwodcrSigma2s), marker='o', label='prompt')
+    ax.errorbar(pulseratioResults['Run'], pulseratioResults['delay1WODCR'], yerr=np.sqrt(delay1wodcrSigma2s), marker='o', label='delay1')
+    ax.errorbar(pulseratioResults['Run'], pulseratioResults['delay10WODCR'], yerr=np.sqrt(delay10wodcrSigma2s), marker='o', label='delay10')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('rate')
     ax.legend()
     pdf.savefig(fig)
     plt.close()

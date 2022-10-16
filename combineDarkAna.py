@@ -50,7 +50,7 @@ mergeresultsA = np.zeros((2,), dtype=[
 ress = results['GainSigma'] / results['Gain']
 res_weights = ress**2 * (resultsSigma2['GainSigma']/results['GainSigma']**2 + resultsSigma2['Gain']/results['Gain']**2)
 chargeress = np.sqrt(results['chargeSigma2']) / results['chargeMu']
-chargeress_weights = chargeress**2 * (results['chargeSigma2']/results['chargeSigma2']**2/4 + results['chargeMu']/results['chargeMu']**2)
+chargeress_weights = chargeress**2 * (resultsSigma2['chargeSigma2']/results['chargeSigma2']**2/4 + resultsSigma2['chargeMu']/results['chargeMu']**2)
 
 # peakC...,RiseSigma使用最小二乘加权
 mergeresultsA[0] = (
