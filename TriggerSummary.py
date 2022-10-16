@@ -316,7 +316,7 @@ for j in range(len(args.channel)):
     results['TTS_bin'][j] = tts_sigma_bin * np.sqrt(2 * np.log(2)) * 2
     paraSigma2['TTS_bin'][j] = errorRoot[2]**2
 
-    ax.plot(np.arange(tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n+1], 0.1), tts_A_bin * np.exp(-(np.arange(tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n+1], 0.1)-tts_mu_bin)**2/2/tts_sigma_bin**2), label='binned fit $\sigma$:{:.3f}$\pm{:.3f}$ns '.format(tts_sigma_bin, errorRoot[2]))
+    ax.plot(np.arange(tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n], 0.1), tts_A_bin * np.exp(-(np.arange(tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n], 0.1)-tts_mu_bin)**2/2/tts_sigma_bin**2), label='binned fit $\sigma$:{:.3f}$\pm{:.3f}$ns '.format(tts_sigma_bin, errorRoot[2]))
     ax.set_xlabel('TT/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim([l_range, r_range])
