@@ -59,8 +59,8 @@ if __name__=="__main__":
             baseline, std = anar['baseline'], anar['std']
             triggerPulseT = int(trigger[i]['triggerTime'] + anar['begin10'])
             threshold = np.max([args.nsigma * std, 3])
-            # 避免在delay1B的位置出现奇怪的异常峰，将搜寻范围扩大至delayB-speend
-            start = triggerPulseT + delay1B - speend
+            # 避免在delay1B的位置出现奇怪的异常峰，~将搜寻范围扩大至delayB-speend~,直接在delayB中调整数值为300->200, 范围计算到100
+            start = triggerPulseT + delay1B - 100
             ## 检查后脉冲
             if np.max(baseline - w[start:]) > threshold:
                 intervals = getIntervals(np.arange(start, waveformLength), baseline - w[start:], threshold, spestart, speend)
