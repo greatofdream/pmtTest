@@ -40,7 +40,7 @@ for j in range(len(args.channel)):
     # c_p = np.unique(promptc)
     c_p = promptc
     result[j] = (args.channel[j], totalNums[j], len(c_p)/totalNums[j], len(c1)/totalNums[j], len(c10)/totalNums[j])
-    resultSigma2[j] = (args.channel[j], 0, len(c_p)/totalNums[j]*2, len(c1)/totalNums[j]**2, len(c10)/totalNums[j]**2)
+    resultSigma2[j] = (args.channel[j], 0, len(c_p)/totalNums[j]**2, len(c1)/totalNums[j]**2, len(c10)/totalNums[j]**2)
 # store the pulse ratio
 
 with h5py.File(args.opt, 'w') as opt:
