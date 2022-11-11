@@ -55,7 +55,7 @@ if __name__=="__main__":
             wave = waveforms[eid].reshape((ch.shape[0],-1))
             chwave = wave[chmap.loc[cid]][:]
             ## 处理触发后的波形切分
-            start = int(info[eid]['begin10'] + delay1B)
+            start = int(trigger[eid]['triggerTime'] + info[eid]['begin10'] + delay1B)
             baseline, std = info[eid]['baseline'], info[eid]['std']
             if np.max(baseline - chwave[start:])<5:
                 continue
@@ -66,16 +66,17 @@ if __name__=="__main__":
 
             # 绘制原始波形切分范围
             fig, ax = plt.subplots(figsize=(12,6))
+            ax.axvline(trigger[eid]['triggerTime'], linestyle='--', linewidth=1, alpha=0.5, color='g', label='trigger time')
+            ax.axvline(trigger[eid]['triggerTime'] + info[eid]['begin10'], linestyle='--', linewidth=1, alpha=0.5, color='r', label='$t_{10}^r$')
             ax.plot(baseline - chwave, linewidth=0.2, label='PMT waveform')
-            ax.axvline(trigger[eid]['triggerTime'], linestyle='--', color='g', label='trigger time')
-            ax.axvline(trigger[eid]['triggerTime'] + info[eid]['begin10'], linestyle='--', color='r', label='$t_{10}^r$')
             maxy = np.max(baseline-chwave)
             for interval, label in zip(intervals, np.concatenate([['Pulse interval'], ['_']*(len(intervals)-1)])):
                 line = ax.fill_between(interval, [0, 0], [maxy/2, maxy/2], alpha=0.5, color='violet', label=label)
-            ax.fill_between([int(trigger[eid]['triggerTime'] + info[eid]['begin10'])+delay1B, int(trigger[eid]['triggerTime'] + info[eid]['begin10'])+delay10E], [0, 0], [3, 3], alpha=0.5, color='gray', label='After pulse search window')
+            ax.fill_between([start, int(trigger[eid]['triggerTime'] + info[eid]['begin10'])+delay10E], [0, 0], [3, 3], alpha=0.5, color='gray', label='After-pulse search window')
+            ax.fill_between([int(trigger[eid]['triggerTime'] + info[eid]['begin10'])-promptB, int(trigger[eid]['triggerTime'] + info[eid]['begin10'])-promptE], [0, 0], [3, 3], alpha=0.5, color='orange', label='Pre-pulse search window')
             ax.set_xlabel('t/ns')
             ax.set_ylabel('Amplitude/ADC')
-            ax.set_xlim([0, int(trigger[eid]['triggerTime'] + info[eid]['begin10'])+delay10E])
+            ax.set_xlim([0, wavelength])
             ax.xaxis.set_minor_locator(MultipleLocator(100))
             ax.legend()
             pdf.savefig(fig)
