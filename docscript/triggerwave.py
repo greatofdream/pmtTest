@@ -55,27 +55,30 @@ if __name__=="__main__":
     with PdfPages(args.opt) as pdf:
         # 绘制原始波形切分范围
         fig, ax = plt.subplots(figsize=(12,6))
-        ax.plot(chwave, label='PMT waveform')
-        ax.plot(triggerWave, label='trigger waveform')
-        ax.axhline(baseline1, linestyle='--', alpha=0.5)
-        ax.axhline(baseline2, linestyle='--', alpha=0.5)
-        ax.scatter(trigger[eid]['triggerTime'], (baseline1 + baseline2)/2, marker='+', s=200, c='g', label='trigger time')
+        # ax.plot(chwave, label='PMT waveform')
+        ax.axhline(baseline1, linestyle='--', color='k', alpha=0.5)
+        ax.axhline(baseline2, linestyle='--', color='k', alpha=0.5)
+        ax.plot(triggerWave, color='orange', label='trigger waveform')
+        ax.scatter(trigger[eid]['triggerTime'], (baseline1 + baseline2)/2, marker='x', s=200, c='g', label='$t_{\mathrm{trig}}$')
         ax.set_xlabel('t/ns')
-        ax.set_ylabel('Amplitude/ADC')
-        ax.set_xlim([0, waveCut])
-        ## 绘制放大波形
-        axins = inset_axes(ax, width="50%", height="30%", loc='lower left',
-                   bbox_to_anchor=(0.47, 0.2, 1, 2),
-                   bbox_transform=ax.transAxes)
-        axins.plot(range(int(trigger[eid]['triggerTime']) + 100, waveCut), chwave[(int(trigger[eid]['triggerTime']) + 100):waveCut])
+        ax.set_ylabel('Trigger Amplitude/ADC')
+        ax.set_xlim([100, waveCut])
+        ## 绘制放大波形在第二个坐标轴
+        axins = ax.twinx()
+        # axins = inset_axes(ax, width="50%", height="30%", loc='lower left',
+        #            bbox_to_anchor=(0.47, 0.2, 1, 2),
+        #            bbox_transform=ax.transAxes)
+        axins.plot(range(int(trigger[eid]['triggerTime']), waveCut), chwave[(int(trigger[eid]['triggerTime'])):waveCut], label='PMT waveform')
         axins.axhline(info[eid]['baseline'], linestyle='--')
         axins.axvline(info[eid]['begin10'], linestyle='--', color='r', label='$t^r_{10}$')
         print(info[eid]['begin10'])
         axins.axvline(info[eid]['minPeakPos'], linestyle='--', color='y', label='$t_{p}$')
-        axins.set_xlim([int(trigger[eid]['triggerTime']) + 100, waveCut])
-        axins.xaxis.set_minor_locator(MultipleLocator(10))
+        axins.fill_between(np.arange(info[eid]['minPeakPos']-config.baselength, info[eid]['minPeakPos']+config.afterlength), np.minimum(chwave[(info[eid]['minPeakPos']-config.baselength):(info[eid]['minPeakPos']+config.afterlength)]-0.5,info[eid]['baseline']-1), np.zeros(config.baselength + config.afterlength)+info[eid]['baseline']+0.5, color='pink', alpha=0.5, label='integration window')
+        axins.set_ylabel('PMT Amplitude/ADC')
+        # axins.set_xlim([int(trigger[eid]['triggerTime']) + 100, waveCut])
+        # axins.xaxis.set_minor_locator(MultipleLocator(10))
         ## ax上绘制指示框和连接线
-        mark_inset(ax, axins, loc1=2, loc2=1, fc="none", ec='k', lw=0.5)
+        # mark_inset(ax, axins, loc1=2, loc2=1, fc="none", ec='k', lw=0.5)
 
         ax.xaxis.set_minor_locator(MultipleLocator(10))
         lines = []
