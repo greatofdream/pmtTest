@@ -93,9 +93,10 @@ with h5py.File(args.opt, 'w') as opt:
 # 绘制变化曲线
 with PdfPages(args.opt + '.pdf') as pdf:
     fig, ax = plt.subplots()
-    ax.errorbar(results['Run'], results['DCR'], yerr=np.sqrt(resultsSigma2['DCR']), marker='o')
+    ax.errorbar([str(run['RUNNO'])+'-'+str(run['BOXID']) for run in selectruns], results['DCR'], yerr=np.sqrt(resultsSigma2['DCR']), marker='o')
     ax.axhline(mergeresultsA[0]['DCR'])
-    ax.fill_betweenx([mergeresultsA[0]['DCR']-np.sqrt(mergeresultsA[1]['DCR']), mergeresultsA[0]['DCR']+np.sqrt(mergeresultsA[1]['DCR'])], results['Run'].values[0], results['Run'].values[-1], alpha=0.5)
+    # ax.fill_betweenx([mergeresultsA[0]['DCR']-np.sqrt(mergeresultsA[1]['DCR']), mergeresultsA[0]['DCR']+np.sqrt(mergeresultsA[1]['DCR'])], results['Run'].values[0], results['Run'].values[-1], alpha=0.5)
+    ax.set_xticklabels([str(run['RUNNO'])+'-'+str(run['BOXID']) for run in selectruns], rotation=45)
     ax.set_xlabel('Run')
     ax.set_ylabel('DCR')
     pdf.savefig(fig)

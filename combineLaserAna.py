@@ -288,7 +288,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
     pdf.savefig(fig)
     plt.close()
     # Afterpulse 变化
-    binwidth = 20
+    binwidth = 10
     fig, ax = plt.subplots(figsize=(15,6))
     h = ax.hist2d(pulseResults['t'], pulseResults['Q'], bins=[int((delay10E + promptB)/binwidth), 50], range=[[-promptB, delay10E], [0, 1000]], cmap=cmap)
     fig.colorbar(h[3], ax=ax)
@@ -296,6 +296,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
     ax.set_ylabel('Equivalent Charge/ADCns')
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     pdf.savefig(fig)
+    
 
     fig, ax = plt.subplots(figsize=(15,6))
     h1 = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[0, delay10E], histtype='step', label='After-pulse')
@@ -366,6 +367,23 @@ with PdfPages(args.opt + '.pdf') as pdf:
     ax.set_ylabel('Entries')
     ax.set_xlim([-promptB, delay10E])
     ax.xaxis.set_minor_locator(MultipleLocator(100))
+    ax.xaxis.set_major_locator(MultipleLocator(1000))
+    ax.legend()
+    pdf.savefig(fig)
+    ax.set_xlim([-promptB, delay1B])
+    ax.set_yscale('log')
+    pdf.savefig(fig)
+
+    fig, ax = plt.subplots(figsize=(15,6))
+    h_a = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[delay1B, delay10E], histtype='step', label='After-pulse')
+    h_p = ax.hist(pulseResults['t'], bins=int((promptB - promptE)/binwidth), range=[-promptB, -promptE], histtype='step', label='Pre-pulse')
+    ax.plot(edges[startEdges:endEdges], eys+expectPrompt, linewidth=1, alpha=0.9, label='Fit')
+    ax.axhline(expectPrompt, linewidth=1, linestyle='--', label='DCR')
+    ax.set_xlabel('Relative t/ns')
+    ax.set_ylabel('Entries')
+    ax.set_xlim([-promptB, delay10E])
+    ax.xaxis.set_minor_locator(MultipleLocator(100))
+    ax.xaxis.set_major_locator(MultipleLocator(1000))
     ax.legend()
     pdf.savefig(fig)
 # 统计结果并合并存储
