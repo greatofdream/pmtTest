@@ -94,8 +94,8 @@ for j in range(len(args.channel)):
     # charge分布
     fig, ax = plt.subplots()
     h = ax.hist(info[j]['minPeakCharge'][selectNearMax], histtype='step', bins=bins, range=[rangemin, rangemax], label='charge')
-    ax.hist(info[j]['minPeakCharge'][selectNearMax&(info[j]['minPeak']>3)], histtype='step', bins=bins, range=[rangemin, rangemax], alpha=0.8, label='charge($V_p>3ADC$)')
-    ax.set_xlabel('Equivalent Charge/ADCns')
+    ax.hist(info[j]['minPeakCharge'][selectNearMax&(info[j]['minPeak']>3)], histtype='step', bins=bins, range=[rangemin, rangemax], alpha=0.8, label='charge($V_p>3$ADC)')
+    ax.set_xlabel('Equivalent Charge/ADC$\cdot$ns')
     ax.set_ylabel('Entries')
     ax.legend(loc='best')
     ax.set_yscale('log')
@@ -158,7 +158,7 @@ for j in range(len(args.channel)):
     ax.fill_betweenx([0, pv], h[1][hi-peakspanl], h[1][hi+peakspanr], alpha=0.5, color='lightsalmon', label='peak fit interval')
     ax.set_xlim([0, 600])
     ax.set_ylim([0, 2*pv])
-    ax.axvline(0.25*mu, linestyle='--', label='0.25p.e.')
+    ax.axvline(0.25*mu, linestyle='--', label='0.25$\mu_{C_1}$')
     ## 拟合峰谷处所需参数,smooth不是必须的;polyfit包不能进行MLE拟合,所以放弃polyfit包，手动实现MLE
     li = zeroOffset + 15 + vi_r
     yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
@@ -225,7 +225,7 @@ for j in range(len(args.channel)):
     # peak分布## 绘制筛选后的结果
     fig, ax = plt.subplots()
     h = ax.hist(info[j]['minPeak'][selectNearMax],histtype='step', bins=1000, range=[0, 1000], label='peak')
-    ax.hist(info[j]['minPeak'][selectNearMax&(info[j]['minPeakCharge']>0.25*mu)], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, label='peak($C_{\mathrm{equ}}>0.25 p.e.$)')
+    ax.hist(info[j]['minPeak'][selectNearMax&(info[j]['minPeakCharge']>0.25*mu)], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, label='peak($C_{\mathrm{equ}}$>0.25$\mu_{C_1}$)')
     print('peak height max:{};max index {}; part of peak {}'.format(np.max(h[0]), np.argmax(h[0]), h[0][:(np.argmax(h[0])+5)]))
     ax.set_xlabel('Peak/ADC')
     ax.set_ylabel('Entries')
