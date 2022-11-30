@@ -29,7 +29,10 @@ def getInterval(minpeakpos, minpeak, threshold=5):
     # 启动拟合
     timeselect = minpeakpos[(minpeak>threshold)&(minpeakpos>(mean-5*sigma))&(minpeakpos<(mean+5*sigma))]
     mean, sigma = fitInterval((mean, sigma), timeselect)
-    begin, end = int(mean-NSIGMA*sigma), int(mean+NSIGMA*sigma)+1
+    if sigma>3:
+        begin, end = int(mean-NSIGMA*sigma), int(mean+NSIGMA*sigma)+1
+    else:
+        begin, end = int(mean-15), int(mean+15)+1
     return (begin, end, mean, sigma), timeselect.shape[0]
 if __name__=="__main__":
     psr = argparse.ArgumentParser()

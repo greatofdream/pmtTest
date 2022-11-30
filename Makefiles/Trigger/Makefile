@@ -43,8 +43,7 @@ ExResult/$(1)/$(2)ns/qe/preanalysis0.h5: $$(Ex1DataNewDir)/$(1)/*$(1).root ExRes
 ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/h5/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/h5/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)/$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
 ExResult/$(1)/$(2)ns/h5/trigger.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
-	python trigInterval.py -i $$^ -o $$@ -c $$(channels) > $$@.log 2>&1
-
+	python TrigInterval.py -i $$^ -o $$@ -c $$(channels) > $$@.log 2>&1
 
 ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5: ExResult/$(1)/$(2)ns/qe/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/qe/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)/$(1)/*$(1)_*.root))))
 	python3 mergeH5.py -i $$^ -o $$@
