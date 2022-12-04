@@ -42,7 +42,7 @@ if __name__=="__main__":
         peakCs = sum_ipt['res']['peakC']
 
     # initialize the storerage
-    storedtype = [('EventID', '<i4'), ('t', '<f4'), ('Q', '<f4')]
+    storedtype = [('EventID', '<i4'), ('t', '<f4'), ('Q', '<f4'), ('peak', '<f4')]
     ## suppose the ratio of trigger is 0.1 and average pulse number not exceed 10.
     pulse = np.zeros((entries, len(args.channel)), dtype=storedtype)
     nums = np.zeros((len(args.channel)), dtype=int)
@@ -54,7 +54,7 @@ if __name__=="__main__":
             w = wave[chmap.loc[channels[j]]]
             anar = info[j][i]
             ## 判定有没有触发,判定条件为Ampitude,Charge, FWHM
-            if not anar['isTrigger'] or anar['minPeakCharge']< 0.25 * peakCs[j] or anar['FWHM']<5:
+            if not anar['isTrigger'] or anar['minPeakCharge']< 0.25 * peakCs[j] or anar['FWHM']<2:
                 continue
             baseline, std = anar['baseline'], anar['std']
             triggerPulseT = int(trigger[i]['triggerTime'] + anar['begin10'])
@@ -65,22 +65,22 @@ if __name__=="__main__":
             if np.max(baseline - w[start:]) > threshold:
                 intervals = getIntervals(np.arange(start, waveformLength), baseline - w[start:], threshold, spestart, speend)
                 for interval in intervals:
-                    t, Q = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
+                    t, Q, pv = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
                     # store the relative time ot begin10
-                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q)
+                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv)
                     nums[j] += 1
             ## 检查前脉冲
             end = triggerPulseT - config.anapromptE
             if np.max(baseline - w[:end]) > threshold:
                 intervals = getIntervals(np.arange(end), baseline - w[:end], threshold, spestart, speend)
                 for interval in intervals:
-                    t, Q = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
+                    t, Q, pv = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
                     # store the relative time ot begin10
-                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q)
+                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv)
                     nums[j] += 1
     totalNums = np.zeros(len(args.channel))
     for j in range(len(args.channel)):
-        totalNums[j] = np.sum(info[j]['isTrigger'] & (info[j]['minPeakCharge']> 0.25 * peakCs[j]) & (info[j]['FWHM']>5))
+        totalNums[j] = np.sum(info[j]['isTrigger'] & (info[j]['minPeakCharge']> 0.25 * peakCs[j]) & (info[j]['FWHM']>2))
     with h5py.File(args.opt, 'w') as opt:
         for j in range(len(args.channel)):
             opt.create_dataset('ch{}'.format(args.channel[j]), data=pulse[:nums[j], j], compression='gzip')
