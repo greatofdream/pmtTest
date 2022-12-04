@@ -84,12 +84,8 @@ ExResult/$(1)/$(2)ns/pulse/preanalysis0.h5: $$(Ex1DataNewDir)/$(1)/*$(1).root Ex
 	mkdir -p $$(dir $$@)
 	python3 TriggerPulseAna.py -i $$< -c $$(channels) -t $$(triggerch)  -o $$@ --result $$(word 2,$$^) --summary $$(word 3,$$^) > $$@.log 2>&1
 ExResult/$(1)/$(2)ns/pulseRatio.h5: ExResult/$(1)/$(2)ns/pulse/preanalysis0.h5 $$(patsubst %.root,ExResult/$(1)/$(2)ns/pulse/preanalysis%.h5,$$(notdir $$(subst $(1)_,/,$$(shell ls -v $$(Ex1DataNewDir)/$(1)/*$(1)_*.root))))
-	python3 TriggerPulseSummary.py -i $$^ -o $$@ -c $$(channels)
+	python3 TriggerPulseSummary.py -i $$^ -o $$@ -c $$(channels) --ana ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 --interval ExResult/$(1)/$(2)ns/trigger.h5
 	python3 storeAna.py -i $$@ -o ExResult/TestSummary.csv --run $(1) --pulse
-ExResult/$(1)/$(2)ns/pulse/ratio.pdf: ExResult/$(1)/$(2)ns/pulse/preanalysisMerge.h5
-	python3 trigger/pulseRatio.py -i $$^ -o $$@ > $$@.log
-ExResult/$(1)/$(2)ns/qe/ratio.h5: ExResult/$(1)/$(2)ns/qe/preanalysisMerge.h5 ExResult/$(1)/$(2)ns/h5/trigger.h5
-	python3 trigger/QERatio.py -i $$< -o $$@ --interval $$(word 2,$$^) -c $$(channels) > $$@.log
 
 ExResult/$(1)/$(2)ns/charge.h5: ExResult/$(1)/$(2)ns/h5/preanalysisMerge.h5
 	python3 BasicSummary.py -c $$(channels) -t $$(triggerch) -i $$^ -o $$@ > $$@.log 2>&1
