@@ -115,8 +115,8 @@ if __name__=="__main__":
                 w = wave[chmap.loc[channels[j]]]
                 # 检查之前预分析的baseline结果是否对应
                 anar = info[j][i]
-                # calculate inteval for each waveform
-                interval_j = [int(rinterval[j]['start']+trigger[i]['triggerTime']), int(rinterval[j]['end']+trigger[i]['triggerTime'])]
+                # calculate inteval for each waveform; padding before window for noise pestal fit
+                interval_j = [int(rinterval[j]['start']+trigger[i]['triggerTime'])-config.baselength, int(rinterval[j]['end']+trigger[i]['triggerTime'])]
                 ## 左右延长范围3ns, r_min相对于选择时间窗，rminIndex相对于激光上升沿
                 r_min = np.argmin(w[(interval_j[0]-3):(interval_j[1]+3)]) - 3
                 rminIndex = interval_j[0] + r_min - int(trigger[i]['triggerTime'])
