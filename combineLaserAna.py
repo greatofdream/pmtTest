@@ -98,7 +98,7 @@ else:
 mergeresultsA = np.zeros((2,), dtype=[
     ('peakC', '<f4'), ('vallyC', '<f4'), ('Gain', '<f4'), ('GainSigma', '<f4'), ('PV', '<f4'),
     ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
-    ('TTS', '<f4'), ('TTS_bin', '<f4'), ('Res', '<f4'), ('chargeRes', '<f4'),
+    ('TTS', '<f4'), ('TTSA', '<f4'), ('TTS2', '<f4'), ('TTSA2', '<f4'), ('TTS_bin', '<f4'), ('Res', '<f4'), ('chargeRes', '<f4'),
     ('TriggerRate', '<f4'), ('TriggerRateWODCR', '<f4'), ('chargeMu', '<f4'), ('chargeSigma', '<f4'), ('PDE', '<f4')
 ])
 # PDE测量从TestSummary.csv中获取
@@ -130,7 +130,10 @@ mergeresultsA[0] = (
     np.sum(results['Fall']/resultsSigma2['Fall'])/np.sum(1/resultsSigma2['Fall']),
     np.sum(results['TH']/resultsSigma2['TH'])/np.sum(1/resultsSigma2['TH']),
     np.sum(results['FWHM']/resultsSigma2['FWHM'])/np.sum(1/resultsSigma2['FWHM']),
-    np.mean(results['TTS']),
+    np.sum(results['TTS']/resultsSigma2['TTS'])/np.sum(1/resultsSigma2['TTS']),
+    np.sum(results['TTA']/resultsSigma2['TTA'])/np.sum(1/resultsSigma2['TTA']),
+    np.sum(results['TTS2']/resultsSigma2['TTS2'])/np.sum(1/resultsSigma2['TTS2']),
+    np.sum(results['TTA2']/resultsSigma2['TTA2'])/np.sum(1/resultsSigma2['TTA2']),
     np.sum(results['TTS_bin']/resultsSigma2['TTS_bin'])/np.sum(1/resultsSigma2['TTS_bin']),
     np.sum(ress/res_weights) / np.sum(1/res_weights),
     np.sum(chargeress / chargeress_weights) / np.sum(1/chargeress_weights),
@@ -151,7 +154,10 @@ mergeresultsA[1] = (
     1 / np.sum(1/resultsSigma2['Fall']),
     1 / np.sum(1/resultsSigma2['TH']),
     1 / np.sum(1/resultsSigma2['FWHM']),
-    np.std(results['TTS']),
+    1 / np.sum(1/resultsSigma2['TTS']),
+    1 / np.sum(1/resultsSigma2['TTA']),
+    1 / np.sum(1/resultsSigma2['TTS2']),
+    1 / np.sum(1/resultsSigma2['TTA2']),
     1 / np.sum(1/resultsSigma2['TTS_bin']),
     1 / np.sum(1/res_weights),
     1 / np.sum(1/chargeress_weights),
@@ -167,31 +173,24 @@ pulseResults = pd.concat([loadPulse(args.dir.format(run['RUNNO']) + '/pulseRatio
 infos = [loadRatio(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL'], run['RUNNO']) for run in selectruns]
 pulseratioResults = pd.concat([i[0] for i in infos])
 pulseratioResultsSigma2 = pd.concat([i[1] for i in infos])
-promptwindow, delay1window, delay10window = promptB - promptE, delay1E - delay1B, delay10E - delay10B
+promptwindow, delay1window, delay10window, DCRwindow = promptB - promptE, delay1E - delay1B, delay10E - delay10B, config.DCRE-config.DCRB
 
-if not darkExpect:
-    # use pre pulse ratio to estimate the DCR
-    pulseratioResults['promptWODCR'] = 0
-    pulseratioResults['delay1WODCR'] = (pulseratioResults['delay1'] - pulseratioResults['prompt'] * delay1window / promptwindow)
-    pulseratioResults['delay10WODCR'] = (pulseratioResults['delay10'] -pulseratioResults['prompt'] * delay10window / promptwindow)
-    promptwodcrSigma2s = 0
-    delay1wodcrSigma2s = pulseratioResultsSigma2['delay1'] + pulseratioResultsSigma2['prompt'] * (delay1window / promptwindow)**2
-    delay10wodcrSigma2s = pulseratioResultsSigma2['delay10'] + pulseratioResultsSigma2['prompt'] * (delay10window / promptwindow)**2
-    promptwodcr = 0
-    promptwodcrSigma2 = 0
-else:
-    pulseratioResults['promptWODCR'] = (pulseratioResults['prompt'] - darkresult[0]['DCR'] * promptwindow * 1e-6)/(1 - darkresult[0]['DCR'] * promptwindow * 1e-6)
-    pulseratioResults['delay1WODCR'] = (pulseratioResults['delay1'] - darkresult[0]['DCR'] * delay1window * 1e-6)/(1 - darkresult[0]['DCR'] * delay1window * 1e-6)
-    pulseratioResults['delay10WODCR'] = (pulseratioResults['delay10'] - darkresult[0]['DCR'] * delay10window * 1e-6)/(1 - darkresult[0]['DCR'] * delay10window * 1e-6)
-    promptwodcrSigma2s = pulseratioResults['promptWODCR']**2 * ((pulseratioResultsSigma2['prompt'] + darkresult[1]['DCR'] * (promptwindow * 1e-6)**2) / (pulseratioResults['prompt'] - darkresult[0]['DCR'] * promptwindow * 1e-6)**2 + (darkresult[1]['DCR'] * (promptwindow * 1e-6)**2)/(1-darkresult[0]['DCR'] * promptwindow * 1e-6)**2)
-    delay1wodcrSigma2s = pulseratioResults['delay1WODCR']**2 * ((pulseratioResultsSigma2['delay1'] + darkresult[1]['DCR'] * (delay1window * 1e-6)**2) / (pulseratioResults['delay1'] - darkresult[0]['DCR'] * delay1window * 1e-6)**2 + (darkresult[1]['DCR'] * (delay1window * 1e-6)**2)/(1-darkresult[0]['DCR'] * delay1window * 1e-6)**2)
-    delay10wodcrSigma2s = pulseratioResults['delay10WODCR']**2 * ((pulseratioResultsSigma2['delay10'] + darkresult[1]['DCR'] * (delay10window * 1e-6)**2) / (pulseratioResults['delay10'] - darkresult[0]['DCR'] * delay10window * 1e-6)**2 + (darkresult[1]['DCR'] * (delay10window * 1e-6)**2)/(1-darkresult[0]['DCR'] * delay10window * 1e-6)**2)
-    promptwodcr = np.sum(pulseratioResults['promptWODCR']/promptwodcrSigma2s) / np.sum(1/promptwodcrSigma2s)
-    promptwodcrSigma2 = 1 / np.sum(1/promptwodcrSigma2s)
+
+# use pre pulse ratio to estimate the DCR
+pulseratioResults['DCR'] = pulseratioResults['DCR']/DCRwindow*1E6
+pulseratioResults['promptWODCR'] = pulseratioResults['prompt'] - pulseratioResults['DCR']/DCRwindow * promptwindow
+pulseratioResults['delay1WODCR'] = pulseratioResults['delay1'] - pulseratioResults['DCR']/DCRwindow * delay1window
+pulseratioResults['delay10WODCR'] = pulseratioResults['delay10'] - pulseratioResults['DCR']/DCRwindow * delay10window
+promptwodcrSigma2s = pulseratioResultsSigma2['prompt'] + pulseratioResultsSigma2['DCR'] * (promptwindow/DCRwindow)**2
+delay1wodcrSigma2s = pulseratioResultsSigma2['delay1'] + pulseratioResultsSigma2['DCR'] * (delay1window / DCRwindow)**2
+delay10wodcrSigma2s = pulseratioResultsSigma2['delay10'] + pulseratioResultsSigma2['DCR'] * (delay10window / DCRwindow)**2
+# combine the results using LE
+promptwodcr = np.sum(pulseratioResults['promptWODCR']/promptwodcrSigma2s) / np.sum(1/promptwodcrSigma2s)
 delay1wodcr = np.sum(pulseratioResults['delay1WODCR']/delay1wodcrSigma2s) / np.sum(1/delay1wodcrSigma2s)
 delay10wodcr = np.sum(pulseratioResults['delay10WODCR']/delay10wodcrSigma2s) / np.sum(1/delay10wodcrSigma2s)
 
-mergePulseResults = np.zeros((2,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4')])
+
+mergePulseResults = np.zeros((2,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4'), ('DCR', '<f4'), ('meanDCR', '<f4')])
 totalTriggerNum = np.sum(pulseratioResults['TriggerNum'])
 mergePulseResults[0] = (
     np.sum(pulseratioResults['prompt'] / pulseratioResultsSigma2['prompt'])/np.sum(1 / pulseratioResultsSigma2['prompt']),
@@ -199,15 +198,19 @@ mergePulseResults[0] = (
     np.sum(pulseratioResults['delay10'] / pulseratioResultsSigma2['delay10'])/np.sum(1 / pulseratioResultsSigma2['delay10']),
     promptwodcr,
     delay1wodcr,
-    delay10wodcr
+    delay10wodcr,
+    np.sum(pulseratioResults['DCR']/pulseratioResultsSigma2['DCR']) / np.sum(1/pulseratioResultsSigma2['DCR']),
+    np.sum(pulseratioResults['DCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum'])
 )
 mergePulseResults[1] = (
     1 / np.sum(1 / pulseratioResultsSigma2['prompt']),
     1 / np.sum(1 / pulseratioResultsSigma2['delay1']),
     1 / np.sum(1 / pulseratioResultsSigma2['delay10']),
-    promptwodcrSigma2,
+    1 / np.sum(1/promptwodcrSigma2s),
     1 / np.sum(1/delay1wodcrSigma2s),
-    1 / np.sum(1/delay10wodcrSigma2s)
+    1 / np.sum(1/delay10wodcrSigma2s),
+    1 / np.sum(1/pulseratioResultsSigma2['DCR']),
+    np.sum(pulseratioResults['DCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum'])**2
 )
 # 统计ser参数
 ## tau, sigma考虑的误差为统计误差，未考虑拟合误差, tau_total, sigma_total未考虑拟合误差
@@ -240,6 +243,33 @@ with PdfPages(args.opt + '.pdf') as pdf:
         ax.errorbar(results['Run'], results['TriggerRateWODCR'], yerr=np.sqrt(resultsSigma2['TriggerRateWODCR']), marker='o', label='Trigger Rate WO Dark Noise')
     ax.set_xlabel('Run')
     ax.set_ylabel('Trigger Rate')
+    ax.legend()
+    pdf.savefig(fig)
+    plt.close()
+
+    fig, ax = plt.subplots()
+    ax.errorbar(pulseratioResults['Run'], pulseratioResults['DCR'], yerr=np.sqrt(pulseratioResultsSigma2['DCR']), marker='o', label='DCR')
+    ax.axhline(mergePulseResults[0]['DCR'], linewidth=1, linestyle='--', color='r', label='Merge DCR')
+    ax.axhline(mergePulseResults[0]['meanDCR'], linewidth=1, linestyle='--', label='Average DCR')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('DCR')
+    ax.legend()
+    pdf.savefig(fig)
+    plt.close()
+
+    fig, ax = plt.subplots()
+    ax.errorbar(results['Run'], results['TTS'], yerr=np.sqrt(resultsSigma2['TTS']), marker='o', label='main TTS')
+    ax.errorbar(results['Run'], results['TTS2'], yerr=np.sqrt(resultsSigma2['TTS2']), marker='o', label='pre TTS')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('TTS')
+    ax.legend()
+    pdf.savefig(fig)
+    plt.close()
+
+    fig, ax = plt.subplots()
+    ax.plot(results['Run'], results['TTA']*np.sqrt(results['TTS'])/(results['TTA']*np.sqrt(results['TTS'])+results['TTA2']*np.sqrt(results['TTS2'])), marker='o')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('gauss ratio TTA/(TTA2+TTA)')
     ax.legend()
     pdf.savefig(fig)
     plt.close()
@@ -281,16 +311,17 @@ with PdfPages(args.opt + '.pdf') as pdf:
     pdf.savefig(fig)
     # tts对比
     fig, ax = plt.subplots()
-    ax.errorbar(results['TTS'], results['TTS_bin'], yerr=resultsSigma2['TTS'], xerr=resultsSigma2['TTS_bin'], fmt='o', label='Trigger Rate')
-    ax.set_xlabel('TTS')
-    ax.set_ylabel('TTS bin fit')
+    ax.errorbar(results['Run'], results['TTS'], yerr=resultsSigma2['TTS'], marker='o', label='TTS')
+    ax.errorbar(results['Run'], results['TTS_bin'], yerr=resultsSigma2['TTS_bin'], marker='o', label='TTS_bin')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('TTS')
     ax.legend()
     pdf.savefig(fig)
     plt.close()
     # Afterpulse 变化
     binwidth = 10
     fig, ax = plt.subplots(figsize=(15,6))
-    h = ax.hist2d(pulseResults['t'], pulseResults['Q'], bins=[int((delay10E + promptB)/binwidth), 50], range=[[-promptB, delay10E], [0, 1000]], cmap=cmap)
+    h = ax.hist2d(pulseResults['t'], pulseResults['Q'], bins=[int((delay10E - config.DCRB)/binwidth), 50], range=[[config.DCRB, delay10E], [0, 1000]], cmap=cmap)
     fig.colorbar(h[3], ax=ax)
     ax.set_xlabel('Relative t/ns')
     ax.set_ylabel('Equivalent Charge/ADCns')
@@ -300,25 +331,26 @@ with PdfPages(args.opt + '.pdf') as pdf:
 
     fig, ax = plt.subplots(figsize=(15,6))
     h1 = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[0, delay10E], histtype='step', label='After-pulse')
-    h2 = ax.hist(pulseResults['t'], bins=int((promptB - promptE)/binwidth), range=[-promptB, -promptE], histtype='step', label='Pre-pulse')
+    h2 = ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE)/binwidth), range=[config.DCRB, -promptE], histtype='step', label='Pre-pulse')
     ax.set_xlabel('Relative t/ns')
     ax.set_ylabel('Entries')
-    ax.set_xlim([-promptB, delay10E])
+    ax.set_xlim([config.DCRB, delay10E])
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     ax.legend()
     pdf.savefig(fig)
+
     # 计算后脉冲比例
     if PMTName.startswith('PM'):
         searchwindows = config.searchwindowsMCP
     else:
         searchwindows = config.searchwindowsHama
-    expectPrompt = np.sum((pulseResults['t']>-promptB)&(pulseResults['t']<-promptE))/(promptB-promptE) * binwidth
+    expectPrompt = np.sum((pulseResults['t']>config.DCRB)&(pulseResults['t']<config.DCRE))/(config.DCRE-config.DCRB) * binwidth
     MCPPeakNum = np.zeros(len(searchwindows), dtype=[('Group', '<i2'), ('t', '<f4'), ('N', '<i4'), ('pv', '<i4'), ('left', '<f4'), ('right', '<f4'), ('sigma', '<f4')])
     counts, edges = h1[0] - expectPrompt, (h1[1][:-1] + h1[1][1:])/2
     
     fig, ax = plt.subplots(figsize=(15,6))
     h_a = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[0, delay10E], histtype='step', label='After-pulse')
-    h_p = ax.hist(pulseResults['t'], bins=int((promptB - promptE)/binwidth), range=[-promptB, -promptE], histtype='step', label='Pre-pulse')
+    h_p = ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE)/binwidth), range=[config.DCRB, -promptE], histtype='step', label='Pre-pulse')
     # 改变搜索算法为拟合算法
     for i, w in enumerate(searchwindows):
         MCPPeakNum['Group'][i] = i
@@ -359,29 +391,30 @@ with PdfPages(args.opt + '.pdf') as pdf:
     eys = Afterpulse(aftergroups.x, edges[startEdges:endEdges])
     ax.plot(edges[startEdges:endEdges], eys+expectPrompt, linewidth=1, alpha=0.9, label='fit')
     ax.axhline(expectPrompt, linewidth=1, linestyle='--', label='Average prepulse')
+    ax.axhline(mergePulseResults[0]['DCR']/1E6*np.sum(triggerNum) * binwidth, linewidth=1, linestyle='--', color='r', label='Merge DCR')
     if darkExpect:
         ax.axhline(totalTriggerNum * darkresult[0]['DCR'] * binwidth * 1e-6, label='Expected Dark Noise')
     # for pn in MCPPeakNum:
     #     ax.annotate(pn['N'], (pn['t'], pn['pv'] + expectPrompt), (pn['t'], pn['pv'] + expectPrompt + 5))
     ax.set_xlabel('Relative t/ns')
     ax.set_ylabel('Entries')
-    ax.set_xlim([-promptB, delay10E])
+    ax.set_xlim([config.DCRB, delay10E])
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     ax.xaxis.set_major_locator(MultipleLocator(1000))
     ax.legend()
     pdf.savefig(fig)
-    ax.set_xlim([-promptB, delay1B])
+    ax.set_xlim([config.DCRB, delay1B])
     ax.set_yscale('log')
     pdf.savefig(fig)
 
     fig, ax = plt.subplots(figsize=(15,6))
     h_a = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[delay1B, delay10E], histtype='step', label='After-pulse')
-    h_p = ax.hist(pulseResults['t'], bins=int((promptB - promptE)/binwidth), range=[-promptB, -promptE], histtype='step', label='Pre-pulse')
+    h_p = ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE)/binwidth), range=[config.DCRB, -promptE], histtype='step', label='Pre-pulse')
     ax.plot(edges[startEdges:endEdges], eys+expectPrompt, linewidth=1, alpha=0.9, label='Fit')
     ax.axhline(expectPrompt, linewidth=1, linestyle='--', label='DCR')
     ax.set_xlabel('Relative t/ns')
     ax.set_ylabel('Entries')
-    ax.set_xlim([-promptB, delay10E])
+    ax.set_xlim([config.DCRB, delay10E])
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     ax.xaxis.set_major_locator(MultipleLocator(1000))
     ax.legend()
