@@ -11,10 +11,13 @@ import matplotlib.colors as colors
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import matplotlib.patches as mpatches
+import matplotlib.colors as colors
 from scipy.optimize import minimize
 import config
+from csvDatabase import OriginINFO
 from waveana.util import peakResidual, vallyResidual, fitGausB, centralMoment, RootFit
 import ROOT
+from scipy.special import erf
 ADC2mV = config.ADC2mV
 rootfit = RootFit()
 psr = argparse.ArgumentParser()
@@ -32,7 +35,7 @@ results = np.zeros(len(args.channel),
         ('chargeMu','<f4'), ('chargeSigma2','<f4'),
         ('Gain', '<f4'), ('GainSigma', '<f4'),
         ('TriggerRate', '<f4'), ('TotalNum', '<i4'), ('TriggerNum', '<i4'), ('window', '<f4'),
-        ('TTS', '<f4'), ('TTS2', '<f4'), ('TT', '<f4'), ('TT2', '<f4'), ('TTA', '<f4'), ('TTA2', '<f4'), ('DCR', '<f4'), ('TTSinterval', '<f4'), ('TTS_bin', '<f4'),
+        ('TTS', '<f4'), ('TTS2', '<f4'), ('TT', '<f4'), ('TT2', '<f4'), ('TTA', '<f4'), ('TTA2', '<f4'), ('TTS_exp', '<f4'), ('TTA_exp', '<f4'), ('DCR', '<f4'), ('DCR_exp', '<f4'), ('TTSinterval', '<f4'), ('TTS_bin', '<f4'),
         ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
         ('RiseSigma2', '<f4'), ('FallSigma2', '<f4'), ('THSigma2', '<f4'), ('FWHMSigma2', '<f4')
         ])
@@ -43,7 +46,7 @@ paraSigma2 = np.zeros(len(args.channel),
         ('chargeMu','<f4'), ('chargeSigma2','<f4'),
         ('Gain', '<f4'), ('GainSigma', '<f4'),
         ('TriggerRate', '<f4'), ('TotalNum', '<i4'), ('TriggerNum', '<i4'), ('window', '<f4'),
-        ('TTS', '<f4'), ('TTS2', '<f4'), ('TT', '<f4'), ('TT2', '<f4'), ('TTA', '<f4'), ('TTA2', '<f4'), ('DCR', '<f4'), ('TTSinterval', '<f4'), ('TTS_bin', '<f4'),
+        ('TTS', '<f4'), ('TTS2', '<f4'), ('TT', '<f4'), ('TT2', '<f4'), ('TTA', '<f4'), ('TTA2', '<f4'), ('TTS_exp', '<f4'), ('TTA_exp', '<f4'), ('DCR', '<f4'), ('DCR_exp', '<f4'), ('TTSinterval', '<f4'), ('TTS_bin', '<f4'),
         ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
         ('RiseSigma2', '<f4'), ('FallSigma2', '<f4'), ('THSigma2', '<f4'), ('FWHMSigma2', '<f4')
     ])
@@ -53,6 +56,11 @@ with h5py.File(args.ipt, 'r') as ipt:
         info.append(ipt['ch{}'.format(args.channel[j])][:])
 with h5py.File(args.trigger, 'r') as ipt:
     rinterval = ipt['rinterval'][:]
+# PMT type: isMCP?
+runno = args.opt.split('/')[1]
+pmtinfo = OriginINFO(config.databaseDir+'/{}.csv'.format(runno))
+ismcp = np.array([pmt.startswith('PM') for pmt in pmtinfo.getPMT()])
+
 rangemin =-100
 rangemax = 500
 bins = rangemax-rangemin
@@ -264,12 +272,13 @@ for j in range(len(args.channel)):
     binwidth = 0.5
     fig, ax = plt.subplots()
     print(np.sum(totalselect&(~info[j]['isTrigger'])))
-    ## 限制拟合区间，其中要求sigma不能超过15，从而限制最后的拟合区间最大为2*15
+    ## 限制拟合区间
     limits_mu, limits_sigma = np.mean(info[j]['begin10'][(totalselect)]), np.std(info[j]['begin10'][totalselect])
     # 范围不能过大，否则会超过之前预分析的触发区间
-    max_sigma = min(limits_mu - np.min(info[j]['begin10'][totalselect]), np.max(info[j]['begin10'][totalselect]) - limits_mu)
-    limits_sigma = min(max(10 * limits_sigma, 5), max_sigma)
-    limits = [limits_mu - limits_sigma, limits_mu + limits_sigma]
+    max_sigma = min(limits_mu - np.min(info[j]['begin10'][totalselect]), np.max(info[j]['begin10'][totalselect]) - limits_mu)-1
+    limits_sigma = min(max(10*limits_sigma, 10), max_sigma)
+    # padding 5ns before window
+    limits = [limits_mu - limits_sigma - 5, limits_mu + limits_sigma]
     tts = info[j]['begin10'][totalselect]
     tts_select = tts[(tts<limits[1]) & (tts>limits[0])]
     N = len(tts_select)
@@ -289,31 +298,85 @@ for j in range(len(args.channel)):
     rootfit.setHist(h[1], h[0])
     tts_edges = (h[1][1:] + h[1][:-1]) / 2
     tts_counts = h[0]
+    estimateB_T = 5
+    estimateB_bins = int(estimateB_T/binwidth)
+    estimateB = np.mean(tts_counts[:estimateB_bins])# estimate DCR
+    estimateB2 = np.mean(tts_counts[-estimateB_bins:])# estimate DCR2
     tts_pi = np.where(tts_mu<=tts_edges)[0][0]
-    t_n = int(limits_sigma/binwidth)
-    rootfit.setFunc(ROOT.TF1("", "[0]*exp(-0.5*((x-[1])/[2])^2)+[3]+[4]*exp(-0.5*((x-[5])/[6])^2)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([*result.x, 10*results[j]['TotalNum']*binwidth/1e6, result.x[0]/100, result.x[1]-1, result.x[2]*3]))
-    paraRoot, errorRoot = rootfit.Fit()
-    if paraRoot[2]<paraRoot[6]:
-        tts_para1, tts_para2 = (paraRoot[0], paraRoot[1], paraRoot[2]), (paraRoot[4], paraRoot[5], paraRoot[6])
-        tts_error1, tts_error2 = (errorRoot[0], errorRoot[1], errorRoot[2]), (errorRoot[4], errorRoot[5], errorRoot[6])
+    t_n = int(10/binwidth)# Fit interval 20ns
+    # MCP PMT
+    if ismcp[j]:
+        rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2) + (x>([2]+2*[3]) ? [7]*TMath::Exp(-(x-[2]-2*[3])/[8])+[9] : 0.0)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], result.x[2], N/100, result.x[1]-4, result.x[2]*5, 100, 10, max(1,estimateB2-estimateB)]))
+        # rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2) + [7]*(1-TMath::Erf(([3]^2/[8]-(x-[2]-2*[3]))/[3]/2^0.5))*exp(-(x-[2]-2*[3])/[8]) + (x>([2]+2*[3]) ? [9] : 0.0)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], result.x[2], N/100, result.x[1]-4, result.x[2]*5, 100, 10, max(1,estimateB2-estimateB)]))
+        rootfit.func.SetParLimits(0, max(0, estimateB-0.1), estimateB+0.1)
+        rootfit.func.SetParLimits(1, 1, len(info[j]))
+        rootfit.func.SetParLimits(2, result.x[1]-5, result.x[1]+5)
+        rootfit.func.SetParLimits(3, 0.5, 1.5)
+        rootfit.func.SetParLimits(4, 1, len(info[j])/10)
+        rootfit.func.SetParLimits(5, result.x[1]-6, result.x[1]-3)
+        rootfit.func.SetParLimits(6, 1, 2)
+        rootfit.func.SetParLimits(7, 1, len(info[j])/100)
+        rootfit.func.SetParLimits(8, 1, 10)
+        rootfit.func.SetParLimits(9, max(0, estimateB2-estimateB-5), max(0, estimateB2-estimateB-5)+10)
+    # rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2) + (x>([2]) ? [7]*(1-TMath::Erf(([8]^2/[9]-(x-[2]))/[8]/2^0.5))*exp(-(x-[2])/[9])+[10]:0.0)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], result.x[2]*5, N/100, result.x[1]-4, result.x[2]*5, 100, 5, 5, max(1,estimateB2-estimateB)]))
+    # rootfit.setParLimits(2, result.x[1]-5, result.x[1]+5)
+    # rootfit.setParLimits(5, result.x[1]-6, result.x[1]-3)
+    # rootfit.setParLimits(3, 0.5, 1.5)
+    # rootfit.setParLimits(6, 1, 2)
+    # rootfit.setParLimits(0, max(0, estimateB-0.1), estimateB+0.1)
+    # rootfit.setParLimits(1, 1, 1E8)
+    # rootfit.setParLimits(9, 1, 10)
+    # rootfit.setParLimits(10, max(0, estimateB2-estimateB-0.5), max(0, estimateB2-estimateB-0.5)+1)
+    # # rootfit.setParLimits(7, max(0, estimateB2-estimateB-0.5),  max(0, estimateB2-estimateB-0.5)+1)
+    # rootfit.setParLimits(8, 1, 10)
+    # # rootfit.setParLimits(9, 1, 10)
+    # rootfit.setParLimits(7, 50, 1000)
     else:
-        tts_para2, tts_para1 = (paraRoot[0], paraRoot[1], paraRoot[2]), (paraRoot[4], paraRoot[5], paraRoot[6])
-        tts_error2, tts_error1 = (errorRoot[0], errorRoot[1], errorRoot[2]), (errorRoot[4], errorRoot[5], errorRoot[6])
-    results[['TTS', 'TTS2', 'TT', 'TT2', 'TTA', 'TTA2']][j] = (tts_para1[2] * np.sqrt(2 * np.log(2)) * 2, tts_para2[2] * np.sqrt(2 * np.log(2)) * 2, tts_para1[1], tts_para2[1], tts_para1[0], tts_para1[0])
-    paraSigma2[['TTS', 'TTS2', 'TT', 'TT2', 'TTA', 'TTA2']][j] = (tts_error1[2]**2 * 2 * np.log(2) * 4, tts_error2[2]**2 * 2 * np.log(2) * 4, tts_error1[1]**2, tts_error2[1]**2, tts_error1[0]**2, tts_error1[0]**2)
-    probf1 = paraRoot[0] * np.exp(-(np.arange(limits[0], limits[1], 0.1) - paraRoot[1])**2/2/paraRoot[2]**2)
-    probf2 = paraRoot[4] * np.exp(-(np.arange(limits[0], limits[1], 0.1) - paraRoot[5])**2/2/paraRoot[6]**2)
-    ax.plot(np.arange(limits[0], limits[1], 0.1), probf1 + probf2 + paraRoot[3], label='Fit:{:.3f}$\pm${:.3f}'.format(paraRoot[2], errorRoot[2]))
-    ax.plot(np.arange(limits[0], limits[1], 0.1), probf1 + paraRoot[3], linestyle='--', color='k', alpha=0.8, label='{:.3f} {:.3f}$\pm${:.3f}'.format(paraRoot[0], paraRoot[2], errorRoot[2]))
-    ax.plot(np.arange(limits[0], limits[1], 0.1), probf2 + paraRoot[3], linestyle='--', color='k', alpha=0.8, label='{:.3f} {:.3f}$\pm${:.3f}'.format(paraRoot[4], paraRoot[6], errorRoot[6]))
+        rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], result.x[2], N/100, result.x[1]-4, result.x[2]*5]))
+        rootfit.func.SetParLimits(0, max(0, estimateB-0.1), estimateB+0.1)
+        rootfit.func.SetParLimits(1, 1, 1E7)
+        rootfit.func.SetParLimits(2, result.x[1]-5, result.x[1]+5)
+        rootfit.func.SetParLimits(3, 0.5, 1.5)
+        rootfit.func.SetParLimits(4, 1, 1E4)
+        rootfit.func.SetParLimits(5, result.x[1]-6, result.x[1]-3)
+        rootfit.func.SetParLimits(6, 1, 3)
+    paraRoot, errorRoot = rootfit.Fit()
+    if paraRoot[3]<paraRoot[6]:
+        tts_para1, tts_para2 = (paraRoot[1], paraRoot[2], paraRoot[3]), (paraRoot[4], paraRoot[5], paraRoot[6])
+        tts_error1, tts_error2 = (errorRoot[1], errorRoot[2], errorRoot[3]), (errorRoot[4], errorRoot[5], errorRoot[6])
+    else:
+        tts_para2, tts_para1 = (paraRoot[1], paraRoot[2], paraRoot[3]), (paraRoot[4], paraRoot[5], paraRoot[6])
+        tts_error2, tts_error1 = (errorRoot[1], errorRoot[2], errorRoot[3]), (errorRoot[4], errorRoot[5], errorRoot[6])
+    results[['TTS', 'TTS2', 'TT', 'TT2', 'TTA', 'TTA2']][j] = (tts_para1[2] * np.sqrt(2 * np.log(2)) * 2, tts_para2[2] * np.sqrt(2 * np.log(2)) * 2, tts_para1[1], tts_para2[1], tts_para1[0], tts_para2[0])
+    paraSigma2[['TTS', 'TTS2', 'TT', 'TT2', 'TTA', 'TTA2']][j] = (tts_error1[2]**2 * 2 * np.log(2) * 4, tts_error2[2]**2 * 2 * np.log(2) * 4, tts_error1[1]**2, tts_error2[1]**2, tts_error1[0]**2, tts_error2[0]**2)
+    probf1 = tts_para1[0] * np.exp(-(np.arange(limits[0], limits[1], 0.1) - tts_para1[1])**2/2/tts_para1[2]**2)
+    probf2 = tts_para2[0] * np.exp(-(np.arange(limits[0], limits[1], 0.1) - tts_para2[1])**2/2/tts_para2[2]**2)
+    results[['DCR', 'TTSinterval']][j] = (estimateDCR, 2*limits_sigma)
+
+    results['DCR'][j] = paraRoot[0]/(binwidth*results[j]['TriggerNum'])*1E6
+    if ismcp[j]:
+        probf3 = paraRoot[9]+paraRoot[7]*np.exp(-(np.arange(limits[0], limits[1], 0.1)-paraRoot[2]-2*paraRoot[3])/paraRoot[8])
+        # probf3 = paraRoot[7] * (1-erf((paraRoot[3]**2/paraRoot[8]-np.arange(limits[0], limits[1], 0.1)+paraRoot[2]+2*para)/np.sqrt(2)/paraRoot[8])) * np.exp(-(np.arange(limits[0], limits[1], 0.1)-paraRoot[2])/paraRoot[9])+paraRoot[9]
+        probf3[np.arange(limits[0], limits[1], 0.1)<(paraRoot[2]+2*paraRoot[3])] = 0
+        results[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = paraRoot[8], paraRoot[7], paraRoot[9]
+    else:
+        probf3 = np.zeros(np.arange(limits[0], limits[1], 0.1).shape)
+    
+    ax.plot(np.arange(limits[0], limits[1], 0.1), probf1 + probf2 + probf3+ paraRoot[0], label='Fit')
+    ax.plot(np.arange(limits[0], limits[1], 0.1), probf1 + paraRoot[0], linestyle='--', color='k', alpha=0.8, label='{:.3f} {:.3f} {:.3f}$\pm${:.3f}'.format(paraRoot[1], paraRoot[2], paraRoot[3], errorRoot[3]))
+    ax.plot(np.arange(limits[0], limits[1], 0.1), probf2 + paraRoot[0], linestyle='--', color='k', alpha=0.8, label='{:.3f} {:.3f} {:.3f}$\pm${:.3f}'.format(paraRoot[4], paraRoot[5], paraRoot[6], errorRoot[6]))
+    if ismcp[j]:
+        ax.plot(np.arange(limits[0], limits[1], 0.1), probf3 + paraRoot[0], linestyle='--', color='k', alpha=0.8)
     ax.set_xlabel('TT/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim(limits)
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.legend()
+    pdf.savefig(fig)
     ax.set_yscale('log')
     pdf.savefig(fig)
     plt.close()
+
     # TTS 分布与bin拟合
     fig, ax = plt.subplots()  
     l_range, r_range = int(tts_mu - 5*tts_sigma), int(tts_mu + 5*tts_sigma)+1
@@ -348,7 +411,6 @@ for j in range(len(args.channel)):
     ax.set_xlim([l_range, r_range])
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.legend()
-    results[['DCR', 'TTSinterval']][j] = (estimateDCR, 2*limits_sigma)
     handles, labels = ax.get_legend_handles_labels()
     handles.append(mpatches.Patch(color='none', label='$\sigma$={:.3f}ns'.format(tts_sigma)))
     handles.append(mpatches.Patch(color='none', label='TTS={:.3f}ns'.format(results[j]['TTS'])))
@@ -392,7 +454,7 @@ for j in range(len(args.channel)):
 
     fig, ax = plt.subplots()
     h = ax.hist2d(info[j]['begin10'][totalselect], info[j]['minPeakCharge'][totalselect],
-        range=[limits, [0, 600]], bins=[int(limits[1]-limits[0])*2, 600], cmap=cmap)
+        range=[limits, [0, 600]], bins=[int(limits[1]-limits[0])*2, 120], norm=colors.LogNorm(), cmap=cmap)
     fig.colorbar(h[3], ax=ax)
     ax.set_ylabel('Equivalent Charge/ADC$\cdot$ns')
     ax.set_xlabel('TT/ns')
