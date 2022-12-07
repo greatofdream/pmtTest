@@ -32,8 +32,8 @@ reader = h5Merger(args.ipt)
 info = reader.read()
 totalNums = np.sum(info[-1].reshape((-1,len(args.channel))), axis=0).astype(int)
 print(totalNums)
-result = np.zeros(len(args.channel), dtype=[('Channel', '<i2'), ('TriggerNum', '<i4'), ('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4')])
-resultSigma2 = np.zeros(len(args.channel), dtype=[('Channel', '<i2'), ('TriggerNum', '<i4'), ('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4')])
+result = np.zeros(len(args.channel), dtype=[('Channel', '<i2'), ('TriggerNum', '<i4'), ('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('DCR', '<f4')])
+resultSigma2 = np.zeros(len(args.channel), dtype=[('Channel', '<i2'), ('TriggerNum', '<i4'), ('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('DCR', '<f4')])
 for j in range(len(args.channel)):
     delay1c = info[j]['EventID'][(info[j]['t']>delay1B) & (info[j]['t']<delay1E)]
     delay10c = info[j]['EventID'][(info[j]['t']>delay10B) & (info[j]['t']<delay10E)]
@@ -43,8 +43,9 @@ for j in range(len(args.channel)):
     promptc = info[j]['EventID'][(info[j]['t']>-promptB) & (info[j]['t']<-promptE)]
     # c_p = np.unique(promptc)
     c_p = promptc
-    result[j] = (args.channel[j], totalNums[j], len(c_p)/totalNums[j], len(c1)/totalNums[j], len(c10)/totalNums[j])
-    resultSigma2[j] = (args.channel[j], 0, len(c_p)/totalNums[j]**2, len(c1)/totalNums[j]**2, len(c10)/totalNums[j]**2)
+    DCRc = info[j]['EventID'][(info[j]['t']>config.DCRB) & (info[j]['t']<config.DCRE)]
+    result[j] = (args.channel[j], totalNums[j], len(c_p)/totalNums[j], len(c1)/totalNums[j], len(c10)/totalNums[j], len(DCRc)/totalNums[j])
+    resultSigma2[j] = (args.channel[j], 0, len(c_p)/totalNums[j]**2, len(c1)/totalNums[j]**2, len(c10)/totalNums[j]**2, len(DCRc)/totalNums[j]**2)
 # store the pulse ratio
 
 with h5py.File(args.opt, 'w') as opt:
@@ -86,7 +87,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
         pdf.savefig(fig)
 
         fig, ax = plt.subplots()
-        h = ax.hist2d(info[j]['t'], info[j]['Q'], bins=[int((delay1B - promptE)/2), 50], range=[[-promptB, delay1B], [0, 1000]], cmap=cmap)
+        h = ax.hist2d(info[j]['t'], info[j]['Q'], bins=[int((delay1B - config.DCRB)/2), 50], range=[[config.DCRB, delay1B], [0, 1000]], cmap=cmap)
         fig.colorbar(h[3], ax=ax)
         ax.set_xlabel('Relative t/ns')
         ax.set_ylabel('Equivalent Charge/ADCns')
@@ -95,7 +96,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
 
         fig, ax = plt.subplots()
         h = ax.hist(info[j]['t'], bins=int((delay1B -config.anadelay1B)/2), range=[config.anadelay1B, delay1B], histtype='step')
-        h = ax.hist(info[j]['t'], bins=int((promptB - promptE)/2), range=[-promptB, -promptE], histtype='step')
+        h = ax.hist(info[j]['t'], bins=int((-config.DCRB - promptE)/2), range=[config.DCRB, -promptE], histtype='step')
         ax.set_xlabel('Relative t/ns')
         ax.set_ylabel('Entries')
         ax.set_yscale('log')
@@ -103,12 +104,12 @@ with PdfPages(args.opt + '.pdf') as pdf:
         pdf.savefig(fig)
 
         fig, ax = plt.subplots()
-        pre_select = (info[j]['t']>-promptE)&(info[j]['t']<delay1B)
+        pre_select = (info[j]['t']>config.anadelay1B)&(info[j]['t']<delay1B)
         eid_select = info[j][pre_select]['EventID']
         anainfoDf = pd.DataFrame(anainfo[j]).set_index('EventID')
         interval = (int(rinterval[j]['start']), int(rinterval[j]['end']))
-        h = ax.hist2d(info[j]['t'][pre_select], anainfoDf.loc[eid_select,'begin10'], bins=[int((delay1B - promptE)/2), interval[1]-interval[0]], range=[[-promptB, delay1B], interval], cmap=cmap)
+        h = ax.hist2d(info[j]['t'][pre_select], anainfoDf.loc[eid_select,'begin10'], bins=[int((delay1B - config.anadelay1B)/2), interval[1]-interval[0]], range=[[config.anadelay1B, delay1B], interval], cmap=cmap)
         ax.set_xlabel('Relative t/ns')
-        ax.set_ylabel('$t_r^{10}$')
+        ax.set_ylabel('$t_p$')
         ax.xaxis.set_minor_locator(MultipleLocator(1))
         pdf.savefig(fig)
