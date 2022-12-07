@@ -4,6 +4,7 @@
 + 获取pmt对应通道信息
 python3 CSVDatabase.py --origincsv runinfo/697.csv --runcsv runinfo/RUNINFO.csv --testcsv runinfo/TESTINFO.csv
 '''
+from select import select
 from multidict import istr
 import pandas as pd, numpy as np
 import argparse
@@ -81,7 +82,10 @@ if __name__=="__main__":
     elif args.para=='pmts':
         # Default read exclue runs
         excluderuns = np.loadtxt('ExPMT/ExcludeRun.csv')
-        print(' '.join(np.unique(testinfo.csv[~testinfo.csv['RUNNO'].isin(excluderuns)]['PMT'].values)))
+        excludepmts = np.loadtxt('ExPMT/ExcludePMT.csv', dtype=np.str_)
+        pmtsInRuns = np.unique(testinfo.csv[~testinfo.csv['RUNNO'].isin(excluderuns)]['PMT'].values)
+        selected = [(pmt not in excludepmts) for pmt in pmtsInRuns]
+        print(' '.join(pmtsInRuns[selected]))
     elif args.para=='pmtruns':
         pd.merge(testinfo.csv[testinfo.csv['PMT']==args.ipt], runinfo.csv[['RUNNO', 'MODE']], on='RUNNO').to_csv(args.opt, index=False)
     else:
