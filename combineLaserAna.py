@@ -98,7 +98,7 @@ else:
 mergeresultsA = np.zeros((2,), dtype=[
     ('peakC', '<f4'), ('vallyC', '<f4'), ('Gain', '<f4'), ('GainSigma', '<f4'), ('PV', '<f4'),
     ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
-    ('TTS', '<f4'), ('TTSA', '<f4'), ('TTS2', '<f4'), ('TTSA2', '<f4'), ('TTS_bin', '<f4'), ('Res', '<f4'), ('chargeRes', '<f4'),
+    ('TTS', '<f4'), ('TTA', '<f4'), ('TTS2', '<f4'), ('TTA2', '<f4'), ('TTS_bin', '<f4'), ('Res', '<f4'), ('chargeRes', '<f4'),
     ('TriggerRate', '<f4'), ('TriggerRateWODCR', '<f4'), ('chargeMu', '<f4'), ('chargeSigma', '<f4'), ('PDE', '<f4')
 ])
 # PDE测量从TestSummary.csv中获取
@@ -177,7 +177,7 @@ promptwindow, delay1window, delay10window, DCRwindow = promptB - promptE, delay1
 
 
 # use pre pulse ratio to estimate the DCR
-pulseratioResults['DCR'] = pulseratioResults['DCR']/DCRwindow*1E6
+pulseratioResults['DCR_laser'] = pulseratioResults['DCR']/DCRwindow*1E6
 pulseratioResults['promptWODCR'] = pulseratioResults['prompt'] - pulseratioResults['DCR']/DCRwindow * promptwindow
 pulseratioResults['delay1WODCR'] = pulseratioResults['delay1'] - pulseratioResults['DCR']/DCRwindow * delay1window
 pulseratioResults['delay10WODCR'] = pulseratioResults['delay10'] - pulseratioResults['DCR']/DCRwindow * delay10window
@@ -190,7 +190,7 @@ delay1wodcr = np.sum(pulseratioResults['delay1WODCR']/delay1wodcrSigma2s) / np.s
 delay10wodcr = np.sum(pulseratioResults['delay10WODCR']/delay10wodcrSigma2s) / np.sum(1/delay10wodcrSigma2s)
 
 
-mergePulseResults = np.zeros((2,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4'), ('DCR', '<f4'), ('meanDCR', '<f4')])
+mergePulseResults = np.zeros((2,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4'), ('DCR', '<f4'), ('meanDCR', '<f4'), ('meanprompt', '<f4'), ('meandelay1', '<f4'), ('meandelay10', '<f4')])
 totalTriggerNum = np.sum(pulseratioResults['TriggerNum'])
 mergePulseResults[0] = (
     np.sum(pulseratioResults['prompt'] / pulseratioResultsSigma2['prompt'])/np.sum(1 / pulseratioResultsSigma2['prompt']),
@@ -199,8 +199,11 @@ mergePulseResults[0] = (
     promptwodcr,
     delay1wodcr,
     delay10wodcr,
-    np.sum(pulseratioResults['DCR']/pulseratioResultsSigma2['DCR']) / np.sum(1/pulseratioResultsSigma2['DCR']),
-    np.sum(pulseratioResults['DCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum'])
+    np.sum(pulseratioResults['DCR']/pulseratioResultsSigma2['DCR']) / np.sum(1/pulseratioResultsSigma2['DCR'])/DCRwindow*1E6,
+    np.sum(pulseratioResults['DCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum'])/DCRwindow*1E6,
+    np.sum(pulseratioResults['promptWODCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum']),
+    np.sum(pulseratioResults['delay1WODCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum']),
+    np.sum(pulseratioResults['delay10WODCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum']),
 )
 mergePulseResults[1] = (
     1 / np.sum(1 / pulseratioResultsSigma2['prompt']),
@@ -209,8 +212,11 @@ mergePulseResults[1] = (
     1 / np.sum(1/promptwodcrSigma2s),
     1 / np.sum(1/delay1wodcrSigma2s),
     1 / np.sum(1/delay10wodcrSigma2s),
-    1 / np.sum(1/pulseratioResultsSigma2['DCR']),
-    np.sum(pulseratioResults['DCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum'])**2
+    1 / np.sum(1/pulseratioResultsSigma2['DCR'])*(1E6/DCRwindow)**2,
+    np.sum(pulseratioResults['DCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum'])**2*(1E6/DCRwindow)**2,
+    np.sum(promptwodcrSigma2s*pulseratioResults['TriggerNum']**2)/np.sum(pulseratioResults['TriggerNum'])**2,
+    np.sum(delay1wodcrSigma2s*pulseratioResults['TriggerNum']**2)/np.sum(pulseratioResults['TriggerNum'])**2,
+    np.sum(delay10wodcrSigma2s*pulseratioResults['TriggerNum']**2)/np.sum(pulseratioResults['TriggerNum'])**2,
 )
 # 统计ser参数
 ## tau, sigma考虑的误差为统计误差，未考虑拟合误差, tau_total, sigma_total未考虑拟合误差
@@ -248,7 +254,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
     plt.close()
 
     fig, ax = plt.subplots()
-    ax.errorbar(pulseratioResults['Run'], pulseratioResults['DCR'], yerr=np.sqrt(pulseratioResultsSigma2['DCR']), marker='o', label='DCR')
+    ax.errorbar(pulseratioResults['Run'], pulseratioResults['DCR_laser'], yerr=np.sqrt(pulseratioResultsSigma2['DCR']), marker='o', label='DCR')
     ax.axhline(mergePulseResults[0]['DCR'], linewidth=1, linestyle='--', color='r', label='Merge DCR')
     ax.axhline(mergePulseResults[0]['meanDCR'], linewidth=1, linestyle='--', label='Average DCR')
     ax.set_xlabel('Run')
