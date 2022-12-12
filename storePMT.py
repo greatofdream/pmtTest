@@ -26,16 +26,16 @@ except:
 storecsv = pd.read_csv(args.opt)
 tmpcsv = storecsv.set_index('PMT')
 ## mean
-tmpcsv.loc[args.pmt, ['Gain', 'PV', 'Res', 'TTS', 'TTS_bin', 'Rise', 'Fall', 'TH', 'FWHM', 'chargeMu', 'chargeRes', 'PDE']] = (
-    laserres[0]['Gain'], laserres[0]['PV'], laserres[0]['Res'], laserres[0]['TTS'], laserres[0]['TTS_bin'], laserres[0]['Rise'], laserres[0]['Fall'], laserres[0]['TH'], laserres[0]['FWHM'], laserres[0]['chargeMu'], laserres[0]['chargeRes'], laserres[0]['PDE']
+tmpcsv.loc[args.pmt, ['Gain', 'PV', 'Res', 'TTS', 'TTS2', 'TTA', 'TTA2','TTS_bin', 'Rise', 'Fall', 'TH', 'FWHM', 'chargeMu', 'chargeRes', 'PDE']] = (
+    laserres[0]['Gain'], laserres[0]['PV'], laserres[0]['Res'], laserres[0]['TTS'], laserres[0]['TTS2'], laserres[0]['TTA'], laserres[0]['TTA2'], laserres[0]['TTS_bin'], laserres[0]['Rise'], laserres[0]['Fall'], laserres[0]['TH'], laserres[0]['FWHM'], laserres[0]['chargeMu'], laserres[0]['chargeRes'], laserres[0]['PDE']
 )
-tmpcsv.loc[args.pmt, ['Pre', 'After1', 'After2']] = (pulse[0]['promptWODCR'], pulse[0]['delay1WODCR'], pulse[0]['delay10WODCR'])
+tmpcsv.loc[args.pmt, ['Pre', 'After1', 'After2', 'DCR_laser']] = (pulse[0]['promptWODCR'], pulse[0]['delay1WODCR'], pulse[0]['delay10WODCR'], pulse[0]['DCR'])
 tmpcsv.loc[args.pmt, ['ser_tau', 'ser_sigma']] = (serres[0]['tau'], serres[0]['sigma'])
 ## variance
 tmpcsv.loc[args.pmt, ['GainVar', 'PVVar', 'ResVar', 'TTSVar', 'TTS_binVar', 'RiseVar', 'FallVar', 'THVar', 'FWHMVar', 'chargeMuVar', 'chargeResVar', 'PDEVar']] = (
     laserres[1]['Gain'], laserres[1]['PV'], laserres[1]['Res'], laserres[1]['TTS'], laserres[1]['TTS_bin'], laserres[1]['Rise'], laserres[1]['Fall'], laserres[1]['TH'], laserres[1]['FWHM'], laserres[1]['chargeMu'], laserres[1]['chargeRes'], laserres[1]['PDE']
 )
-tmpcsv.loc[args.pmt, ['PreVar', 'After1Var', 'After2Var']] = (pulse[1]['promptWODCR'], pulse[1]['delay1WODCR'], pulse[1]['delay10WODCR'])
+tmpcsv.loc[args.pmt, ['PreVar', 'After1Var', 'After2Var', 'DCR_laserVar']] = (pulse[1]['promptWODCR'], pulse[1]['delay1WODCR'], pulse[1]['delay10WODCR'], pulse[1]['DCR'])
 tmpcsv.loc[args.pmt, ['ser_tauVar', 'ser_sigmaVar']] = (serres[1]['tau'], serres[1]['sigma'])
 
 if darkExpect:

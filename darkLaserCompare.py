@@ -76,8 +76,8 @@ if args.run == -1:
         ax.scatter(pmtcsv[selectHama]['chargeMu']/50/1.6*ADC2mV, pmtcsv[selectHama]['chargeRes'], marker='.', color='g', label='$G$,$Res$ of Reference PMT')
         ax.scatter(pmtcsv[selectMCP]['Gain'], pmtcsv[selectMCP]['Res'], marker='x', color='r', label='$G_1$,$Res_1$ of MCP PMT')
         ax.scatter(pmtcsv[selectMCP]['chargeMu']/50/1.6*ADC2mV, pmtcsv[selectMCP]['chargeRes'], marker='.', color='r', label='$G$,$Res$ of MCP PMT')
-        ax.set_xlabel('Gain/1E7 in laser stage')
-        ax.set_ylabel('Res in laser stage')
+        ax.set_xlabel('Gain/1E7')
+        ax.set_ylabel('Res')
         ax.legend()
         pdf.savefig(fig)
         plt.close()
@@ -124,6 +124,7 @@ if args.run == -1:
 
         fig, ax = plt.subplots()
         ax.errorbar(pmtcsv[selectMCP]['PDE'], pmtcsv[selectMCP]['DCR'], xerr=np.sqrt(pmtcsv[selectMCP]['PDEVar']), yerr=np.sqrt(pmtcsv[selectMCP]['DCRVar']), fmt='o', color='r')
+        ax.errorbar(pmtcsv[selectMCP]['PDE'], pmtcsv[selectMCP]['DCR_laser'], xerr=np.sqrt(pmtcsv[selectMCP]['PDEVar']), yerr=np.sqrt(pmtcsv[selectMCP]['DCR_laserVar']), fmt='o', color='g')
         # ax.errorbar(
         #     [np.sum(pmtcsv[selectMCP]['PDE']/pmtcsv[selectMCP]['PDEVar'])/np.sum(1/pmtcsv[selectMCP]['PDEVar'])],
         #     [np.sum(pmtcsv[selectMCP]['DCR']/pmtcsv[selectMCP]['DCRVar'])/np.sum(1/pmtcsv[selectMCP]['DCRVar'])],
@@ -167,8 +168,8 @@ if args.run == -1:
 
         fig, ax = plt.subplots()
         ax.errorbar(pmtcsv[selectMCP]['ser_tau'], pmtcsv[selectMCP]['ser_sigma'], xerr=np.sqrt(pmtcsv[selectMCP]['ser_tauVar']), yerr=np.sqrt(pmtcsv[selectMCP]['ser_sigmaVar']), fmt='o', color='r')
-        ax.set_xlabel(r'$\tau_{\mathrm{ser}}$/ns in laser stage')
-        ax.set_ylabel(r'$\sigma_{\mathrm{ser}}$/ns in laser stage')
+        ax.set_xlabel(r'$\tau_{\mathrm{ser}}$/ns')
+        ax.set_ylabel(r'$\sigma_{\mathrm{ser}}$/ns')
         pdf.savefig(fig)
         plt.close()
 
@@ -181,7 +182,7 @@ if args.run == -1:
             if pmt.startswith('PM'):
                 with h5py.File(args.dir+'/'+pmt+'/laser.h5', 'r') as ipt:
                     afterpulse = ipt['AfterPulse'][:]
-                ax.plot(afterpulse['t'], afterpulse['pv']/afterpulse['pv'][0], marker='o')
+                ax.plot(afterpulse['t'], afterpulse['pv']/afterpulse['pv'][0], marker='o', label=pmt)
                 afterratios.append(afterpulse['pv']/afterpulse['pv'][0])
                 afterPeaks.append(afterpulse['t'])
                 afterSigmas.append(afterpulse['sigma'])
@@ -189,6 +190,7 @@ if args.run == -1:
         ax.set_xlabel('t/ns of peaks')
         ax.set_ylabel(r'$\frac{A_i}{A_1}$')
         ax.xaxis.set_minor_locator(MultipleLocator(100))
+        ax.legend()
         pdf.savefig(fig)
         plt.close()
         afterratios = np.array(afterratios)
@@ -217,10 +219,20 @@ if args.run == -1:
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['DCRVar'])),
             np.mean(pmtcsv[selectMCP]['DCR']), np.std(pmtcsv[selectMCP]['DCR'])
             ))
+        print('DCR laser {:.3f} {:.3f} {:.3f} {:.3f}'.format(
+            np.sum(pmtcsv[selectMCP]['DCR_laser']/pmtcsv[selectMCP]['DCR_laserVar'])/np.sum(1/pmtcsv[selectMCP]['DCR_laserVar']),
+            np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['DCR_laserVar'])),
+            np.mean(pmtcsv[selectMCP]['DCR_laser']), np.std(pmtcsv[selectMCP]['DCR_laser'])
+            ))
         print('TTS {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['TTS_bin']/pmtcsv[selectMCP]['TTS_binVar'])/np.sum(1/pmtcsv[selectMCP]['TTS_binVar']),
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['TTS_binVar'])),
             np.mean(pmtcsv[selectMCP]['TTS_bin']), np.std(pmtcsv[selectMCP]['TTS_bin'])
+            ))
+        print('TTS fit {:.3f} {:.3f} {:.3f} {:.3f}'.format(
+            np.sum(pmtcsv[selectMCP]['TTS']/pmtcsv[selectMCP]['TTSVar'])/np.sum(1/pmtcsv[selectMCP]['TTSVar']),
+            np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['TTSVar'])),
+            np.mean(pmtcsv[selectMCP]['TTS']), np.std(pmtcsv[selectMCP]['TTS'])
             ))
         print('PDE {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['PDE']/pmtcsv[selectMCP]['PDEVar'])/np.sum(1/pmtcsv[selectMCP]['PDEVar']),
