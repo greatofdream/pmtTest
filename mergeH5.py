@@ -4,6 +4,7 @@ class h5Merger():
         self.files = files
         dtype = []
         length = []
+        shapes = []
         with h5py.File(files[0], 'r') as ipt:
             keys = list(ipt.keys())
             attrs = list(ipt.attrs)
@@ -11,6 +12,7 @@ class h5Merger():
             for i in range(len(keys)):
                 dtype.append(ipt[keys[i]].dtype)
                 length.append(0)
+                shapes.append(ipt[keys[i]].shape[1:])
         for h5f in files:
             with h5py.File(h5f, 'r') as ipt:
                 for i in range(len(keys)):
@@ -20,10 +22,11 @@ class h5Merger():
         self.dtype = dtype
         self.keys = keys
         self.attrs = attrs
+        self.shapes = shapes
     def read(self):
         info = []
         for i in range(len(self.keys)):
-            info.append(np.zeros((self.length[i],), dtype=self.dtype[i]))
+            info.append(np.zeros((self.length[i], *self.shapes[i]), dtype=self.dtype[i]))
         index = np.zeros(len(self.length), dtype=int)
         for h5f in self.files:
             with h5py.File(h5f, 'r') as ipt:

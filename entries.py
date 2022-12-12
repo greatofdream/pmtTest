@@ -2,6 +2,16 @@
 import uproot, argparse
 import numpy as np
 import subprocess
+class EntriesReader():
+    def __init__(self, file) -> None:
+        self.file = file
+        self.eids = np.loadtxt(file)
+    def getFileNum(self, eid):
+        res = np.where(self.eids >= eid)[0]
+        if len(res)==0:
+            return -1
+        else:
+            return res[0]
 # 储存每个文件中的entries数目
 if __name__=="__main__":
     psr = argparse.ArgumentParser()
