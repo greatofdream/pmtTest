@@ -20,6 +20,7 @@ dtype = [
         ('laserA', '<f4'), ('laserT', '<f4'), ('laserSigma', '<f4'),
         ('mainA', '<f4'), ('mainT', '<f4'), ('mainSigma', '<f4'),
         ('elasticA', '<f4'), ('elasticT', '<f4'), ('elasticSigma', '<f4'),
+        ('mainAelastic', '<f4')
     ]
 psr = argparse.ArgumentParser()
 psr.add_argument('-i', dest='ipt', help='input h5 file')
@@ -48,28 +49,31 @@ cmap = ListedColormap(newcolors)
 print('begin plot')
 pdf = PdfPages(args.opt+'.pdf')
 for j in range(NChannels):
-    start, end = intervalCenters[j] + config.laserB -10, intervalCenters[j] + config.elasticE
+    start, end = intervalCenters[j] + config.laserB -10, intervalCenters[j] + config.elasticE-10
     select0 = info[j][:,0]['isTrigger']
     select1 = info[j][:,1]['isTrigger']
-    select2 = info[j][:,2]['isTrigger']
-    print('Num:{},{},{}'.format(np.sum(select0), np.sum(select1), np.sum(select2)))
+    select2 = info[j][:,2]['isTrigger']&((info[j][:,2]['begin10']- trigger['triggerTime'])>(intervalCenters[j] + 10))
+    results[['Channel','laserA','mainA','elasticA','mainAelastic']][j] = (args.channel[j], np.sum(select0), np.sum(select1), np.sum(select2), np.sum(select1&select2))
+    print('Num:{},{},{}'.format(*results[j][['laserA','mainA','elasticA']]))
     print('laser and main:{}'.format(np.sum(select0&select1)))
-    print('elastic and main:{}'.format(np.sum(select2&select1)))
+    print('elastic and main:{},{}'.format(results[j]['mainAelastic'],results[j]['mainAelastic']/results[j]['mainA']))
     # Time distribution
     fig, ax = plt.subplots()
-    ax.hist(info[j][:,0]['begin10'][select0] - trigger['triggerTime'][select0], range=[start, end], bins=end-start, histtype='step', color='r')
-    ax.hist(info[j][:,1]['begin10'][select1] - trigger['triggerTime'][select1], range=[start, end], bins=end-start, histtype='step', color='g')
-    ax.hist(info[j][:,2]['begin10'][select2] - trigger['triggerTime'][select2], range=[start, end], bins=end-start, histtype='step', color='b')
-    ax.hist(info[j][:,0]['begin10'][select0&select1] - trigger['triggerTime'][select0&select1], range=[start, end], bins=end-start, histtype='step', color='r')
+    ax.hist(info[j][:,1]['begin10'][select1] - trigger['triggerTime'][select1], range=[start, end], bins=end-start, histtype='step', color='g', label='main pulse')
+    ax.hist(info[j][:,2]['begin10'][select2] - trigger['triggerTime'][select2], range=[start, end], bins=end-start, histtype='step', color='b', label='delayed pulse')
     # ax.hist(info[j][:,1]['begin10'][select0&select1] - trigger['triggerTime'][select0&select1], range=[start, end], bins=end-start, histtype='step', color='g', label='laser & main')
-    ax.hist(info[j][:,2]['begin10'][select2&select1] - trigger['triggerTime'][select2&select1], range=[start, end], bins=end-start, histtype='step', color='b')
-    # ax.hist(info[j][:,1]['begin10'][select2&select1] - trigger['triggerTime'][select2&select1], range=[start, end], bins=end-start, histtype='step', color='g', label='elastic & main')
+    ax.hist(info[j][:,2]['begin10'][select2&select1] - trigger['triggerTime'][select2&select1], range=[start, end], bins=end-start, color='b')
+    ax.hist(info[j][:,1]['begin10'][select2&select1] - trigger['triggerTime'][select2&select1], range=[start, end], bins=end-start, color='g')
     ax.axhline(N*1e-5, ls='--', label='10kHz')
-    ax.set_xlim([start, end])
+    ax.set_xlim([intervalCenters[j] + config.laserE-5, end])
     ax.set_yscale('log')
     ax.set_xlabel('TT/ns')
     ax.legend()
     ax.xaxis.set_minor_locator(MultipleLocator(1))
+    pdf.savefig(fig)
+    ax.hist(info[j][:,0]['begin10'][select0] - trigger['triggerTime'][select0], range=[start, end], bins=end-start, histtype='step', color='r')
+    ax.hist(info[j][:,0]['begin10'][select0&select1] - trigger['triggerTime'][select0&select1], range=[start, end], bins=end-start, histtype='step', color='r')
+    ax.set_xlim([start, end])
     pdf.savefig(fig)
     plt.close()
     
@@ -100,6 +104,6 @@ for j in range(NChannels):
     pdf.savefig(fig)
     plt.close()
 pdf.close()
-# with h5py.File(args.opt, 'w') as opt:
-#     opt.create_dataset('res',data=results, compression='gzip')
-#     opt.create_dataset('resSigma2', data=paraSigma2, compression='gzip')
+with h5py.File(args.opt, 'w') as opt:
+    opt.create_dataset('res',data=results, compression='gzip')
+    opt.create_dataset('resSigma2', data=paraSigma2, compression='gzip')
