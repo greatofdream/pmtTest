@@ -1,4 +1,4 @@
-.PHONY:all
+.PHONY: all laserElastic test
 # 根据run的采数配置自动选择处理程序
 # example: make anaNum=720
 Ex1DataNewDir:=$(shell python3 -c "import config;print(config.databaseDir)")
@@ -14,6 +14,39 @@ ifeq ($(istrigger),1)
 else
 	echo "dark noise mode"
 	make anaNum=$(anaNum) channels="$(CHANNELS)" Ex1DataNewDir=$(Ex1DataNewDir) -f Makefiles/DN/Makefile -j$(cpunum)
+endif
+
+laserElastic:
+ifeq ($(istrigger),1)
+	echo "trigger mode"
+	make anaNum=$(anaNum) channels="$(CHANNELS)" Ex1DataNewDir=$(Ex1DataNewDir) triggerch=$(TRIGGERCH) laserElastic -f Makefiles/Trigger/Makefile -j$(cpunum)
+else
+	echo "dark noise mode"
+	echo "This mode doesn't contain laser signal"
+endif
+trig:
+ifeq ($(istrigger),1)
+	echo "trigger mode"
+	make anaNum=$(anaNum) channels="$(CHANNELS)" Ex1DataNewDir=$(Ex1DataNewDir) triggerch=$(TRIGGERCH) trig -f Makefiles/Trigger/Makefile -j$(cpunum)
+else
+	echo "dark noise mode"
+	echo "This mode doesn't contain laser signal"
+endif
+pulse:
+ifeq ($(istrigger),1)
+	echo "trigger mode"
+	make anaNum=$(anaNum) channels="$(CHANNELS)" Ex1DataNewDir=$(Ex1DataNewDir) triggerch=$(TRIGGERCH) pulse -f Makefiles/Trigger/Makefile -j$(cpunum)
+else
+	echo "dark noise mode"
+	echo "This mode doesn't contain laser signal"
+endif
+test:
+ifeq ($(istrigger),1)
+	echo "trigger mode"
+	echo "anaNum=$(anaNum) channels=$(CHANNELS) Ex1DataNewDir=$(Ex1DataNewDir) triggerch=$(TRIGGERCH) -f Makefiles/Trigger/Makefile -j$(cpunum)"
+else
+	echo "dark noise mode"
+	echo "anaNum=$(anaNum) channels=$(CHANNELS) Ex1DataNewDir=$(Ex1DataNewDir) -f Makefiles/DN/Makefile -j$(cpunum)"
 endif
 .DELETE_ON_ERROR:
 .SECONDARY:

@@ -10,10 +10,10 @@ field:=
 all: $(anaNum:%=ExResult/%/entries.txt)
 all: $(anaNum:%=ExResult/%/$(wavecut)ns/charge.h5)
 all: $(anaNum:%=ExResult/%/$(wavecut)ns/trigger.h5)
-all: $(anaNum:%=ExResult/%/$(wavecut)ns/chargeSelect.h5)
+trig: $(anaNum:%=ExResult/%/$(wavecut)ns/chargeSelect.h5)
 laserElastic: $(anaNum:%=ExResult/%/$(wavecut)ns/laserElastic.h5)
-all: $(anaNum:%=ExResult/%/$(wavecut)ns/serMerge.h5)
-all: $(anaNum:%=ExResult/%/$(wavecut)ns/pulseRatio.h5)
+ser: $(anaNum:%=ExResult/%/$(wavecut)ns/serMerge.h5)
+pulse: $(anaNum:%=ExResult/%/$(wavecut)ns/pulseRatio.h5)
 preview: $(anaNum:%=ExResult/%/preview.pdf) $(anaNum:%=ExResult/%/entries.txt) 
 
 define analysis
