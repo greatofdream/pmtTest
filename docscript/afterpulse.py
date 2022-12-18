@@ -40,9 +40,8 @@ if __name__=="__main__":
     process = subprocess.Popen("ls {}/{} -v".format(args.datadir, runno), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     path = process.stdout.read().decode('utf-8').split('\n')
     path = ['{}/{}/'.format(args.datadir, runno)+i for i in path[:-1]]
-    waveforms = uproot.concatenate([i+':Readout' for i in path[:1]], filter_name='Waveform',library='np')['Waveform']
+    waveforms = uproot.concatenate([i+':Readout' for i in path[:100]], filter_name='Waveform',library='np')['Waveform']
     ch = uproot.concatenate([i+':Readout' for i in path[:1]], filter_name='ChannelId',library='np')['ChannelId'][0]
-    eids = uproot.concatenate([i+':Readout' for i in path[:1]], filter_name='TriggerNo',library='np')['TriggerNo']
     # h5py读入分析结果
     with h5py.File(args.ana, 'r') as ipt:
         info = ipt['ch{}'.format(cid)][:]
@@ -51,19 +50,23 @@ if __name__=="__main__":
     with PdfPages(args.opt) as pdf:
         # 获取波形
         fignum = 0
-        for eid in np.where((info['isTrigger'] & (info['FWHM']>5) & (info['minPeakCharge']>50))[:len(eids)])[0]:
+        for eid in np.where((info['isTrigger'] & (info['FWHM']>5) & (info['minPeakCharge']>50))[:len(waveforms)])[0]:
             wave = waveforms[eid].reshape((ch.shape[0],-1))
             chwave = wave[chmap.loc[cid]][:]
             ## 处理触发后的波形切分
             start = int(trigger[eid]['triggerTime'] + info[eid]['begin10'] + delay1B)
+            ## 检查前脉冲
+            end = int(trigger[eid]['triggerTime'] + info[eid]['begin10']) - config.anapromptE
             baseline, std = info[eid]['baseline'], info[eid]['std']
-            if np.max(baseline - chwave[start:])<5:
+            if np.max(baseline - chwave[start:])<3 or np.max(baseline - chwave[:end]) < 3:
                 continue
             wavelength = chwave.shape[0]
             threshold = np.max([5 * std, 3])
             intervals = getIntervals(np.arange(start, wavelength), baseline - chwave[start:], threshold, spestart, speend)
             print(info[eid]['EventID'], intervals, np.max(baseline - chwave[start:]))
 
+            intervals_pre = getIntervals(np.arange(end), baseline - chwave[:end], threshold, spestart, speend)
+            print('begin plot')
             # 绘制原始波形切分范围
             fig, ax = plt.subplots(figsize=(12,6))
             ax.axvline(trigger[eid]['triggerTime'], linestyle='--', linewidth=1, alpha=0.5, color='g', label='trigger time')
@@ -72,9 +75,11 @@ if __name__=="__main__":
             maxy = np.max(baseline-chwave)
             for interval, label in zip(intervals, np.concatenate([['Pulse interval'], ['_']*(len(intervals)-1)])):
                 line = ax.fill_between(interval, [0, 0], [maxy/2, maxy/2], alpha=0.5, color='violet', label=label)
+            for interval, label in zip(intervals_pre, np.concatenate([['Pulse interval'], ['_']*(len(intervals_pre)-1)])):
+                ax.fill_between(interval, [0, 0], [maxy/2, maxy/2], alpha=0.5, color='violet', label=label)
             ax.fill_between([start, int(trigger[eid]['triggerTime'] + info[eid]['begin10'])+delay10E], [0, 0], [3, 3], alpha=0.5, color='gray', label='After-pulse search window')
             ax.fill_between([int(trigger[eid]['triggerTime'] + info[eid]['begin10'])-promptB, int(trigger[eid]['triggerTime'] + info[eid]['begin10'])-promptE], [0, 0], [3, 3], alpha=0.5, color='orange', label='Pre-pulse search window')
-            ax.set_xlabel('t/ns')
+            ax.set_xlabel('Relative t/ns')
             ax.set_ylabel('Amplitude/ADC')
             ax.set_xlim([0, wavelength])
             ax.xaxis.set_minor_locator(MultipleLocator(100))

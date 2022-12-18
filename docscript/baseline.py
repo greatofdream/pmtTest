@@ -49,7 +49,13 @@ if __name__=="__main__":
     begin10, begin50, begin90= waveana.begin10, waveana.begin50, waveana.begin90
     end10, end50, end90 = waveana.end10, waveana.end50, waveana.end90
     # 由于拟合没有在类里存中间数据，重新implement在waveana里的拟合
-    extractWave = waveana.wave[np.max([waveana.minIndex - 200, 0]):(waveana.minIndex - 10)]
+    begin = np.max([waveana.minIndex - 200, 0])
+    end = minIndex - 10
+    if (end - begin)< 100:
+        # 为基线补充大约100ns
+        extractWave = np.append(wave[begin:end], wave[(minIndex + 100): (minIndex + 200)])
+    else:
+        extractWave = wave[begin:end]
     roughbaseline, roughstd = np.mean(extractWave), np.clip(np.std(extractWave), 1, 3)
     print(roughstd)
     nsigma = 5
@@ -63,6 +69,14 @@ if __name__=="__main__":
             ],
         )
     print(x.x)
+    signalPos = np.where(extractWave<(x.x[0] - np.min([3, nsigma*x.x[1]])))[0]
+    signalPos = np.unique(np.clip(signalPos.reshape(-1,1) + np.arange(-10, 10), 0, extractWave.shape[0]-1))
+    mask = np.ones(extractWave.shape[0]).astype(bool)
+    mask[signalPos] = False
+    cutWave = extractWave[mask]
+    if cutWave.shape[0]<=10:
+        print('warning: baseline too short')
+    print(minIndex)
     with PdfPages(args.opt) as pdf:
         # 绘制原始波形切分范围
         fig, ax = plt.subplots(figsize=(12,6))
@@ -107,7 +121,7 @@ if __name__=="__main__":
         # 绘制baseline对应的histogram
         fig, ax = plt.subplots()
         ax.hist(extractWave, range=[930,980], bins=50, density=True, histtype='step', label='sample')
-        ax.plot(np.arange(930, 980, 0.1), np.exp(-(np.arange(930, 980, 0.1)-x.x[0])**2/2/x.x[1]**2)/np.sqrt(2*np.pi), label='fit')
+        ax.plot(np.arange(930, 980, 0.1), np.exp(-(np.arange(930, 980, 0.1)-x.x[0])**2/2/x.x[1]**2)/np.sqrt(2*np.pi)/x.x[1], label='fit $\sigma/\mu$:'+'{:.2f}/{:.2f}'.format(x.x[1],x.x[0]))
         ax.set_xlabel('Amplitude/ADC')
         ax.set_ylabel('PDF')
         ax.set_xlim([930, 980])
@@ -117,7 +131,9 @@ if __name__=="__main__":
         fig, ax = plt.subplots(figsize=(12,6))
         ax.plot(wave - baseline, label='waveform w/o baseline')
         ax.axhline(0, linestyle='--')
-        ax.fill_between([minIndex - config.baselength, minIndex + config.afterlength], [0, 0], [-5, -5], color='pink', alpha=0.5, label='integration window')
+        ax.fill_between(np.arange(minIndex - config.baselength, minIndex + config.afterlength), np.zeros(config.baselength + config.afterlength), wave[(minIndex - config.baselength):(minIndex + config.afterlength)] - baseline, color='pink', alpha=0.5, label='integration window')
+        ax.axhline(minIndex - config.baselength, linestyle='--', color='g')
+        ax.axhline(minIndex + config.afterlength, linestyle='--', color='g', label='integration edges')
         ax.annotate("baseline-0.1$V_p$", (end10+5, baseline-0.1*minpeak), color='r')
         ax.set_xlim([np.max([minIndex - 200, 0]), np.min([minIndex + 300, wavelength])])
         ax.set_ylim([-10, 5])

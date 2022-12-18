@@ -187,7 +187,7 @@ if args.run == -1:
                 afterPeaks.append(afterpulse['t'])
                 afterSigmas.append(afterpulse['sigma'])
                 print(pmt, afterpulse['t'], afterpulse['pv']/afterpulse['pv'][0])
-        ax.set_xlabel('t/ns of peaks')
+        ax.set_xlabel('Relative t/ns of peaks')
         ax.set_ylabel(r'$\frac{A_i}{A_1}$')
         ax.xaxis.set_minor_locator(MultipleLocator(100))
         ax.legend()
