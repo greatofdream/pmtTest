@@ -5,6 +5,7 @@ N: Test pmt number and run number. Unknown variable: 2N+(N-1)=3N-1. Total equati
 python3 TriggerPDE.py -i ExResult/{}/600ns/chargeSelect.h5 -o ExPMT/QE.h5 --runs 720 721 722 723 --ref CR365
 '''
 import statsmodels.api as sm
+import sys
 from patsy import dmatrices, dmatrix
 import numpy as np
 import pandas as pd
@@ -36,9 +37,11 @@ def merge(runs, iptdir, refpmt):
     rates = pd.concat([loadh5(iptdir.format(run), run) for run in runs])
     # 为PMT进行编号，将参考管编号置为0
     pmts = np.unique(rates['pmt'])
-    refindex = np.where(pmts==refpmt)[0]
+    refindex = np.where(pmts==refpmt)[0][0]
     pmtsID = np.arange(len(pmts))
-    pmtsID[refindex], pmtsID[0] = 0, refindex
+    if refindex!=0:
+        pmtsID[refindex] = 0
+        pmtsID[0:refindex] = pmtsID[0:refindex] + 1
     pmtmap = pd.Series(pmtsID, index = pmts)
     rates['pmtno'] = pmtmap.loc[rates['pmt']].values
     return rates, pmtmap
@@ -50,6 +53,37 @@ if __name__=="__main__":
     psr.add_argument('--ref', help='reference PMT')
     psr.add_argument('--glm', default=False, action='store_true')
     args = psr.parse_args()
+    if len(args.runs)==1:
+        print('direct using calibration splitter ratio')
+        rates = loadh5(args.ipt.format(args.runs[0]), args.runs[0])
+        calib_splitter = pd.read_csv('ExPMT/Calibration.csv')
+        print('use calibration result in {}'.format(calib_splitter.iloc[-1]['RUNNOS']))
+        splitterRatios = calib_splitter.iloc[-1][['SPLITTER0','SPLITTER1','SPLITTER2','SPLITTER3']]
+        # 此处默认splitter顺序不变化
+        PDEs = rates['TriggerRate'].values/splitterRatios.values
+        refindex = np.where(rates['pmt']==args.ref)[0][0]
+        rates['PDE'] = PDEs/PDEs[refindex]
+        rates['PDESigma2'] = 0
+        print(rates['pmt'])
+        pmts = np.unique(rates['pmt'])
+        refindex = np.where(pmts==args.ref)[0][0]
+        pmtsID = np.arange(len(pmts))
+        if refindex!=0:
+            pmtsID[refindex] = 0
+            pmtsID[0:refindex] = pmtsID[0:refindex] + 1
+        pmtmap = pd.Series(pmtsID, index = pmts)
+        rates['pmtno'] = pmtmap.loc[rates['pmt']].values
+        rates = rates.sort_values('pmtno')
+        PDE_t = np.vstack([
+            np.array(rates.iloc[1:]['PDE'].values, dtype=float),
+            rates.iloc[1:]['PDESigma2'].values
+        ])
+        print(rates[['pmt', 'PDE', 'PDESigma2']])
+        with h5py.File(args.opt, 'w') as opt:
+            opt.create_dataset('QE', data=PDE_t, compression='gzip')
+        sys.exit()
+    else:
+        print('calibration splitter')
     measuredRates, pmtmap = merge(args.runs, args.ipt, args.ref)
     pmts = pmtmap.index
     index = pmtmap.values
