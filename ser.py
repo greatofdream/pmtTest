@@ -52,7 +52,7 @@ if not args.merge:
     fitResult = []
     for j in range(len(args.channel)):
         # 筛选出对应的波形
-        indexTF = (info[j]['minPeakCharge']>thresholds[j][0])&(info[j]['minPeakCharge']<thresholds[j][1])&(info[j]['FWHM']>4)&(info[j]['FWHM']<12)&(info[j]['minPeak']>5)
+        indexTF = (info[j]['minPeakCharge']>thresholds[j][0])&(info[j]['minPeakCharge']<thresholds[j][1])&(info[j]['FWHM']>2)&(info[j]['FWHM']<15)#&(info[j]['minPeak']>5)
         index = np.where(indexTF)[0]
         fitResult.append(np.zeros((np.sum(indexTF)), dtype=fitdtype))
         # print('select number is {}'.format(nums[j]))
