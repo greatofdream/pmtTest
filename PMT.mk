@@ -40,5 +40,7 @@ ExPMT/GLM/786_788_790_792.h5:
 ExPMT/GLM/794_796_798_800.h5:
 	python3 TriggerPDE.py -i ExResult/{}/600ns/chargeSelect.h5 -o $@ --runs 794 796 798 800 --ref CR365 --glm > $@.log
 	python3 storePDE.py -i $@ --csv ExResult/TestSummary.csv --calibcsv ExPMT/Calibration.csv --runs 794 796 798 800
+ExPMT/GLM/802.h5:
+	python3 TriggerPDE.py -i ExResult/{}/600ns/chargeSelect.h5 -o $@ --runs 802 --ref CR365 > $@.log
 .DELETE_ON_ERROR:
 .SECONDARY:
