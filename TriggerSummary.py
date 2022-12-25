@@ -86,8 +86,8 @@ for j in range(len(args.channel)):
     # charge分布
     fig, ax = plt.subplots()
     h = ax.hist(info[j]['minPeakCharge'], histtype='step', bins=bins, range=[rangemin, rangemax], label='charge')
-    ax.hist(info[j]['minPeakCharge'][(info[j]['minPeak']>3)], histtype='step', bins=bins, range=[rangemin, rangemax], alpha=0.8, label='charge($V_p$>3ADC)')
-    ax.set_xlabel('Equivalent Charge/ADC$\cdot$ns')
+    ax.hist(info[j]['minPeakCharge'][(info[j]['minPeak']>3)], histtype='step', bins=bins, range=[rangemin, rangemax], alpha=0.8, ls='--', label='charge($V_p$>3ADC)')
+    ax.set_xlabel('Charge/ADC$\cdot$ns')
     ax.set_ylabel('Entries')
     ax.legend(loc='best')
     ax.set_yscale('log')
@@ -143,7 +143,7 @@ for j in range(len(args.channel)):
     ax.fill_betweenx([0, pv], h[1][hi-peakspanl], h[1][hi+peakspanr], alpha=0.5, color='lightsalmon', label='peak fit interval')
     ax.set_xlim([0, 600])
     ax.set_ylim([0, 2*pv])
-    ax.axvline(0.25*mu, linestyle='--', label='0.25$\mu_{C_1}$')
+    ax.axvline(0.25*mu, ymax=0.5,linestyle='--', label='0.25$Q_0$')
     ## 拟合峰谷处所需参数,smooth不是必须的，polyfit不能进行MLE拟合
     li = zeroOffset + 15 + vi_r
     yy  = h[0][(li-vallyspanl):(li+vallyspanr)]
@@ -195,7 +195,7 @@ for j in range(len(args.channel)):
     # peak分布
     fig, ax = plt.subplots()
     h = ax.hist(info[j]['minPeak'],histtype='step', bins=1000, range=[0,1000], label='peak')
-    ax.hist(info[j]['minPeak'][(info[j]['minPeakCharge']>0.25*mu)], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, label='peak($C_{\mathrm{equ}}$>0.25$\mu_{C_1}$)')
+    ax.hist(info[j]['minPeak'][(info[j]['minPeakCharge']>0.25*mu)], histtype='step', bins=1000, range=[0, 1000], alpha=0.8, ls='--', label='peak($Q$>0.25$Q_0$)')
     print('peak height max:{};max index {}; part of peak {}'.format(np.max(h[0]), np.argmax(h[0]), h[0][:(np.argmax(h[0])+5)]))
     ax.set_xlabel('Peak/ADC')
     ax.set_ylabel('Entries')
@@ -204,7 +204,7 @@ for j in range(len(args.channel)):
     ax.set_yscale('log')
     pdf.savefig(fig)
     ## zoom in
-    ax.axvline(3, linestyle='--', color='g', label='3ADC')
+    ax.axvline(3, ymax=0.5, linestyle='--', color='g', label='3ADC')
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.set_yscale('linear')
     ax.set_xlim([0, 50])
@@ -472,6 +472,37 @@ for j in range(len(args.channel)):
     ax.yaxis.set_minor_locator(MultipleLocator(10))
     pdf.savefig(fig)
 
+    # baseline and std distribution
+    fig, ax = plt.subplots()
+    ax.set_title('baseline-std')
+    h = ax.hist2d(info[j]['baseline'][totalselect],info[j]['std'][totalselect], bins=[100,100], cmap=cmap)
+    fig.colorbar(h[3], ax=ax)
+    ax.set_xlabel('baseline/mV')
+    ax.set_ylabel('std/mV')
+    pdf.savefig(fig)
+    plt.close()
+
+    # baseline
+    fig, ax = plt.subplots()
+    ax.set_title('baseline')
+    ax.hist(info[j]['baseline'][totalselect],histtype='step',bins=100, label='baseline')
+    ax.set_xlabel('baseline/mV')
+    ax.set_ylabel('entries')
+    ax.set_yscale('log')
+    ax.legend()
+    pdf.savefig(fig)
+    plt.close()
+
+    # std
+    fig, ax = plt.subplots()
+    ax.set_title('std distribution')
+    ax.hist(info[j]['std'][totalselect],histtype='step', bins=100, label='std')
+    ax.set_xlabel('std/mV')
+    ax.set_ylabel('entries')
+    ax.legend()
+    ax.set_yscale('log')
+    pdf.savefig(fig)
+    plt.close()
 pdf.close()
 with h5py.File(args.opt, 'w') as opt:
     opt.create_dataset('res',data=results, compression='gzip')
