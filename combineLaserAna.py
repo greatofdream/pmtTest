@@ -11,6 +11,7 @@ from matplotlib.ticker import MultipleLocator
 from matplotlib.colors import ListedColormap
 from scipy.optimize import minimize
 import config
+import ROOT
 ADC2mV = config.ADC2mV
 promptB, promptE = config.promptB, config.promptE
 delay1B, delay1E = config.delay1B, config.delay1E
@@ -47,7 +48,8 @@ def loadSER(f, channel, run):
     return result
 def Afterpulse(x, xs):
     x = x.reshape((-1,3))
-    return np.sum(x[:,0]*np.exp(-(xs[:,None]-x[:,1])**2/2/x[:,2]**2)/x[:,2], axis=-1)
+    # return np.sum(x[:,0]*np.exp(-(xs[:,None]-x[:,1])**2/2/x[:,2]**2)/x[:,2], axis=-1)
+    return np.sum(x[:,0]*np.exp(-(xs[:,None]-x[:,1])**2/2/x[:,2]**2), axis=-1)
 def likelihood(x, *args):
     xs, ys = args
     eys = Afterpulse(x, xs)
@@ -66,14 +68,15 @@ try:
     darkExpect = True
 except:
     darkExpect = False
-try:
-    with open(args.dark.replace('dark.h5', 'bounds.csv'), 'r') as ipt:
-        boundsSigma = np.loadtxt(ipt, delimiter=',')
-except:
-    boundsSigma = []
+
 # 统计分析结果路径和对应ch号
 configcsv = pd.read_csv(args.config)
 PMTName = configcsv['PMT'].values[0]
+if PMTName.startswith('PM'):
+    boundsSigma = config.boundsMCP
+else:
+    boundsSigma = config.boundsHama
+
 runs = configcsv[configcsv['MODE']==1].to_records()
 badruns = np.unique(np.append(np.loadtxt(args.badrun), np.loadtxt('ExPMT/ExcludeRun.csv')))
 selectruns = []
@@ -98,8 +101,9 @@ else:
 mergeresultsA = np.zeros((2,), dtype=[
     ('peakC', '<f4'), ('vallyC', '<f4'), ('Gain', '<f4'), ('GainSigma', '<f4'), ('PV', '<f4'),
     ('Rise', '<f4'), ('Fall', '<f4'), ('TH', '<f4'), ('FWHM', '<f4'),
-    ('TTS', '<f4'), ('TTA', '<f4'), ('TTS2', '<f4'), ('TTA2', '<f4'), ('TTS_bin', '<f4'), ('Res', '<f4'), ('chargeRes', '<f4'),
-    ('TriggerRate', '<f4'), ('TriggerRateWODCR', '<f4'), ('chargeMu', '<f4'), ('chargeSigma', '<f4'), ('PDE', '<f4')
+    ('TTS', '<f4'), ('TTA', '<f4'), ('TTS2', '<f4'), ('TTA2', '<f4'), ('TTS_exp', '<f4'), ('TTA_exp', '<f4'), ('DCR_exp', '<f4'), ('TTS_bin', '<f4'), ('Res', '<f4'), ('chargeRes', '<f4'),
+    ('TriggerRate', '<f4'), ('TriggerRateWODCR', '<f4'), ('chargeMu', '<f4'), ('chargeSigma', '<f4'), ('PDE', '<f4'),
+    ('TT_kToTT', '<f4'), ('TT_expToTT', '<f4'), ('TT_DCRToTT', '<f4'), ('TT2_1', '<f4')
 ])
 # PDE测量从TestSummary.csv中获取
 pdes = pd.read_csv(config.TestSummaryPath).set_index('PMT').loc[PMTName, 'PDE'].values
@@ -119,6 +123,10 @@ ress = results['GainSigma'] / results['Gain']
 res_weights = ress**2 * (resultsSigma2['GainSigma']/results['GainSigma']**2 + resultsSigma2['Gain']/results['Gain']**2)
 chargeress = np.sqrt(results['chargeSigma2']) / results['chargeMu']
 chargeress_weights = chargeress**2 * (resultsSigma2['chargeSigma2']/results['chargeSigma2']**2/4 + resultsSigma2['chargeMu']/results['chargeMu']**2)
+sig_TTS = results['TTS']/np.sqrt(2 * np.log(2))/2
+TT_kToTT = results['TTA2']*results['TTS2']/(results['TTA']*results['TTS'])
+TT_expToTT = (results['TTA_exp']*results['TTS_exp'])/(results['TTA']*sig_TTS*np.sqrt(2*np.pi))
+TT_DCRToTT = sig_TTS*2*results['DCR_exp']/(results['TTA']*sig_TTS*np.sqrt(2*np.pi))
 
 mergeresultsA[0] = (
     np.sum(results['peakC']/resultsSigma2['peakC']) / np.sum(1/resultsSigma2['peakC']),
@@ -134,6 +142,9 @@ mergeresultsA[0] = (
     np.sum(results['TTA']/resultsSigma2['TTA'])/np.sum(1/resultsSigma2['TTA']),
     np.sum(results['TTS2']/resultsSigma2['TTS2'])/np.sum(1/resultsSigma2['TTS2']),
     np.sum(results['TTA2']/resultsSigma2['TTA2'])/np.sum(1/resultsSigma2['TTA2']),
+    np.sum(results['TTS_exp']/resultsSigma2['TTS_exp'])/np.sum(1/resultsSigma2['TTS_exp']),
+    np.sum(results['TTA_exp']/resultsSigma2['TTA_exp'])/np.sum(1/resultsSigma2['TTA_exp']),
+    np.sum(results['DCR_exp']/resultsSigma2['DCR_exp'])/np.sum(1/resultsSigma2['DCR_exp']),
     np.sum(results['TTS_bin']/resultsSigma2['TTS_bin'])/np.sum(1/resultsSigma2['TTS_bin']),
     np.sum(ress/res_weights) / np.sum(1/res_weights),
     np.sum(chargeress / chargeress_weights) / np.sum(1/chargeress_weights),
@@ -141,7 +152,11 @@ mergeresultsA[0] = (
     np.sum(results['TriggerRateWODCR'] / resultsSigma2['TriggerRateWODCR'])/np.sum(1 / resultsSigma2['TriggerRateWODCR']),
     np.sum(results['chargeMu'] / resultsSigma2['chargeMu']) / np.sum(1 / resultsSigma2['chargeMu']),
     np.sum(results['chargeSigma2']/resultsSigma2['chargeSigma2']) / np.sum(1/resultsSigma2['chargeSigma2']),
-    pde
+    pde,
+    np.mean(TT_kToTT),
+    np.mean(TT_expToTT),
+    np.mean(TT_DCRToTT),
+    np.mean(results['TT']-results['TT2'])
     )
 # 误差使用最小二乘法
 mergeresultsA[1] = (
@@ -158,6 +173,9 @@ mergeresultsA[1] = (
     1 / np.sum(1/resultsSigma2['TTA']),
     1 / np.sum(1/resultsSigma2['TTS2']),
     1 / np.sum(1/resultsSigma2['TTA2']),
+    1 / np.sum(1/resultsSigma2['TTS_exp']),
+    1 / np.sum(1/resultsSigma2['TTA_exp']),
+    1 / np.sum(1/resultsSigma2['DCR_exp']),
     1 / np.sum(1/resultsSigma2['TTS_bin']),
     1 / np.sum(1/res_weights),
     1 / np.sum(1/chargeress_weights),
@@ -165,7 +183,11 @@ mergeresultsA[1] = (
     1 / np.sum(1 / resultsSigma2['TriggerRateWODCR']),
     1 / np.sum(1/resultsSigma2['chargeMu']),
     1 / np.sum(1/resultsSigma2['chargeSigma2']),
-    pde_sigma2
+    pde_sigma2,
+    0,
+    0,
+    0,
+    0
     )
 
 # 统计多批数据的afterpulse
