@@ -10,6 +10,8 @@ class RootFit():
     def setFunc(self, func, x0):
         self.func = func
         self.func.SetParameters(x0)
+    def setParLimits(self, ith, limits_l, limits_r):
+        self.func.SetParLimits(ith, limits_l, limits_r)
     def setHist(self, bins, counts):
         self.hists = ROOT.TH1D("", "", len(bins)-1, bins)
         for i in range(1, len(bins)):
@@ -155,9 +157,10 @@ def getIntervals(xs, ys, thresholds, pre_ser_length, after_ser_length, padding=2
         indexs = np.array([max(np.argmax(ys) - pre_ser_length, 0), min(np.argmax(ys) + after_ser_length, end-1)]).reshape((-1,2))
     return xs[indexs]
 def getTQ(xs, ys, ser):
-    ts = xs[np.argmax(ys)]
+    index = np.argmax(ys)
+    ts = xs[index]
     qs = np.sum(ys)
-    return ts, qs
+    return ts, qs, ys[index]
 def likelihoodAt(para, *args):
     n, sumlogn, mu = args
     pelist = np.zeros(n, dtype=[('HitPosInWindow', np.float64), ('Charge', np.float64)])
