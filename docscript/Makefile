@@ -39,7 +39,9 @@ ser720_ch5_eid238481.pdf: $(datadir)/720/Jinping_1ton_Ext_20220529_00000720.root
 	python3 serfit.py -c 2 3 4 5 --wave $< --ana ../ExResult/720/600ns/qe/preanalysis{}.h5 --summary $(word 2,$^) -o $@ --cid 5 --eid 238481 --run 720
 ser781_ch5_eid771478.pdf: $(datadir)/781/Jinping_1ton_Ext_20220909_00000781.root  ../ExResult/781/600ns/chargeSelect.h5
 	python3 serfit.py -c 2 3 4 5 --wave $< --ana ../ExResult/781/600ns/qe/preanalysis{}.h5 --summary $(word 2,$^) -o $@ --cid 5 --eid 771478 --run 781
-afterpulse720_2.pdf:
+afterpulse723_2.pdf:
 	python3 afterpulse.py --run 723 -t 1 --cid 2 --datadir $(datadir) --ana ../ExResult/723/600ns/qe/preanalysisMerge.h5 -o $@ 
+afterpulse720_2.pdf:
+	python3 afterpulse.py --run 720 -t 1 --cid 2 --datadir $(datadir) --ana ../ExResult/720/600ns/qe/preanalysisMerge.h5 -o $@ 
 afterpulse761_2.pdf:
 	python3 afterpulse.py --run 761 -t 1 --cid 2 --datadir $(datadir) --ana ../ExResult/761/600ns/qe/preanalysisMerge.h5 -o $@ 
