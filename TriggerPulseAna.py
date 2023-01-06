@@ -5,6 +5,7 @@
 import uproot, numpy as np, h5py
 from pandas import Series
 from waveana.util import getIntervals, getTQ
+from waveana.waveana import Qb, Qe
 import argparse
 import matplotlib.pyplot as plt
 import config
@@ -42,7 +43,7 @@ if __name__=="__main__":
         peakCs = sum_ipt['res']['peakC']
 
     # initialize the storerage
-    storedtype = [('EventID', '<i4'), ('t', '<f4'), ('Q', '<f4'), ('peak', '<f4')]
+    storedtype = [('EventID', '<i4'), ('t', '<f4'), ('Q', '<f4'), ('peak', '<f4'), ('begin10', '<f4'), ('down10', '<f4'), ('begin50', '<f4'), ('down50', '<f4'), ('begin90', '<f4'), ('down90', '<f4')]
     ## suppose the ratio of trigger is 0.1 and average pulse number not exceed 10.
     pulse = np.zeros((entries, len(args.channel)), dtype=storedtype)
     nums = np.zeros((len(args.channel)), dtype=int)
@@ -66,8 +67,10 @@ if __name__=="__main__":
                 intervals = getIntervals(np.arange(start, waveformLength), baseline - w[start:], threshold, spestart, speend)
                 for interval in intervals:
                     t, Q, pv = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
+                    up10, up50, up90 = Qb(w-baseline, t, 0)
+                    down10, down50, down90 = Qe(w-baseline, t, 0)
                     # store the relative time ot begin10
-                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv)
+                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT)
                     nums[j] += 1
             ## 检查前脉冲
             end = triggerPulseT - config.anapromptE
@@ -75,8 +78,10 @@ if __name__=="__main__":
                 intervals = getIntervals(np.arange(end), baseline - w[:end], threshold, spestart, speend)
                 for interval in intervals:
                     t, Q, pv = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
+                    up10, up50, up90 = Qb(w-baseline, t, 0)
+                    down10, down50, down90 = Qe(w-baseline, t, 0)
                     # store the relative time ot begin10
-                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv)
+                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT)
                     nums[j] += 1
     totalNums = np.zeros(len(args.channel))
     for j in range(len(args.channel)):
