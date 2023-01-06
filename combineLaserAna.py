@@ -295,10 +295,9 @@ with PdfPages(args.opt + '.pdf') as pdf:
     plt.close()
 
     fig, ax = plt.subplots()
-    ax.plot(results['Run'], results['TTA']*np.sqrt(results['TTS'])/(results['TTA']*np.sqrt(results['TTS'])+results['TTA2']*np.sqrt(results['TTS2'])), marker='o')
+    ax.plot(results['Run'], results['DCR_exp'], marker='o')
     ax.set_xlabel('Run')
-    ax.set_ylabel('gauss ratio TTA/(TTA2+TTA)')
-    ax.legend()
+    ax.set_ylabel('Exp components DCR')
     pdf.savefig(fig)
     plt.close()
 
@@ -351,16 +350,50 @@ with PdfPages(args.opt + '.pdf') as pdf:
     fig, ax = plt.subplots(figsize=(15,6))
     h = ax.hist2d(pulseResults['t'], pulseResults['Q'], bins=[int((delay10E - config.DCRB)/binwidth), 50], range=[[config.DCRB, delay10E], [0, 1000]], cmap=cmap)
     fig.colorbar(h[3], ax=ax)
-    ax.set_xlabel('Relative t/ns')
-    ax.set_ylabel('Equivalent Charge/ADCns')
+    ax.set_xlabel('Delay time/ns')
+    ax.set_ylabel('Charge/ADC$\cdot$ns')
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     pdf.savefig(fig)
     
+    fig, ax = plt.subplots(figsize=(15,6))
+    selectT = (pulseResults['t']<config.laserE)|(pulseResults['t']>config.delay1B)
+    h = ax.hist2d(pulseResults['t'][selectT], pulseResults['Q'][selectT], bins=[int((delay10E - config.DCRB)/binwidth/2), 300], range=[[config.DCRB, delay10E], [0, 6000]], cmap=cmap)
+    fig.colorbar(h[3], ax=ax)
+    ## 分割区间统计
+    pre_data = pulseResults[pulseResults['t']<config.laserE]
+    after_data = pulseResults[pulseResults['t']>config.delay1B]
+    pre_bins = np.linspace(config.DCRB, -config.promptE, int((-config.promptE - config.DCRB)/binwidth/2)+1)
+    pre_x = (pre_bins[:-1]+pre_bins[1:])/2
+    pre_label = np.digitize(pre_data['t'], pre_bins)
+    pre_df = pd.DataFrame({'t': pre_data['t'], 'bin': pre_label, 'Q': pre_data['Q']})
+    pre_mean = pre_df.groupby('bin')['Q'].mean().to_numpy()
+    pre_std = pre_df.groupby('bin')['Q'].std().to_numpy()
+    after_bins = np.linspace(config.delay1B, config.delay10E, int((config.delay10E - config.delay1B)/binwidth/2)+1)
+    after_x = (after_bins[:-1]+after_bins[1:])/2
+    after_label = np.digitize(after_data['t'], after_bins)
+    after_df = pd.DataFrame({'t': after_data['t'], 'bin': after_label, 'Q': after_data['Q']})
+    after_mean = after_df.groupby('bin')['Q'].mean().to_numpy()
+    after_std = after_df.groupby('bin')['Q'].std().to_numpy()
+    if np.min(pre_label)==0:
+        start = 1
+    else:
+        start = 0
+    ax.plot(pre_x, pre_mean[start:(start+len(pre_x))], color='k', lw=2, label='Mean')
+    ax.plot(after_x, after_mean[:-1], color='k', lw=2)
+    ax.plot(pre_x, pre_std[start:(start+len(pre_x))], color='orange', lw=1, label='Std')
+    ax.plot(after_x, after_std[0:-1], color='orange', lw=1)
+    ax.set_xlabel('Delay time/ns')
+    ax.set_ylabel('Charge/ADC$\cdot$ns')
+    ax.xaxis.set_minor_locator(MultipleLocator(100))
+    ax.xaxis.set_major_locator(MultipleLocator(1000))
+    ax.yaxis.set_minor_locator(MultipleLocator(100))
+    ax.legend()
+    pdf.savefig(fig)
 
     fig, ax = plt.subplots(figsize=(15,6))
     h1 = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[0, delay10E], histtype='step', label='After-pulse')
     h2 = ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE)/binwidth), range=[config.DCRB, -promptE], histtype='step', label='Pre-pulse')
-    ax.set_xlabel('Relative t/ns')
+    ax.set_xlabel('Delay time/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim([config.DCRB, delay10E])
     ax.xaxis.set_minor_locator(MultipleLocator(100))
@@ -368,17 +401,18 @@ with PdfPages(args.opt + '.pdf') as pdf:
     pdf.savefig(fig)
 
     # 计算后脉冲比例
+    binwidth_large = 40
     if PMTName.startswith('PM'):
         searchwindows = config.searchwindowsMCP
     else:
         searchwindows = config.searchwindowsHama
-    expectPrompt = np.sum((pulseResults['t']>config.DCRB)&(pulseResults['t']<config.DCRE))/(config.DCRE-config.DCRB) * binwidth
-    MCPPeakNum = np.zeros(len(searchwindows), dtype=[('Group', '<i2'), ('t', '<f4'), ('N', '<i4'), ('pv', '<i4'), ('left', '<f4'), ('right', '<f4'), ('sigma', '<f4')])
-    counts, edges = h1[0] - expectPrompt, (h1[1][:-1] + h1[1][1:])/2
+    expectPrompt = np.sum((pulseResults['t']>config.DCRB)&(pulseResults['t']<config.DCRE))/(config.DCRE-config.DCRB) * binwidth_large
+    MCPPeakNum = np.zeros(len(searchwindows), dtype=[('Group', '<i2'), ('t', '<f4'), ('N', '<i4'), ('pv', '<i4'), ('left', '<f4'), ('right', '<f4'), ('sigma', '<f4'), ('ratio', '<f4'), ('charge', '<f4'), ('chargeSigma', '<f4'), ('chargeSample', '<f4'), ('chargeSigmaSample', '<f4'), ('chargeDirect', '<f4'), ('A', '<f4')])
     
     fig, ax = plt.subplots(figsize=(15,6))
-    h_a = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[0, delay10E], histtype='step', label='After-pulse')
-    h_p = ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE)/binwidth), range=[config.DCRB, -promptE], histtype='step', label='Pre-pulse')
+    h_a = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth_large), range=[0, delay10E], histtype='step', label='After-pulse')
+    counts, edges = h_a[0] - expectPrompt, (h_a[1][:-1] + h_a[1][1:])/2
+    h_p = ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE+10)/binwidth_large), range=[config.DCRB-10, -promptE], histtype='step', label='Pre-pulse')
     # 改变搜索算法为拟合算法
     for i, w in enumerate(searchwindows):
         MCPPeakNum['Group'][i] = i
@@ -389,42 +423,66 @@ with PdfPages(args.opt + '.pdf') as pdf:
         MCPPeakNum['t'][i] = edges[area][pi]
         MCPPeakNum['pv'][i] = pv
         selectArea = selectCounts>(0.5*pv)
-        MCPPeakNum['N'][i] = np.sum(selectCounts[selectArea])
-        MCPPeakNum['left'][i] = edges[area][selectArea][0]
-        MCPPeakNum['right'][i] = edges[area][selectArea][-1]
+        if np.sum(selectArea)>1:
+            MCPPeakNum['N'][i] = np.sum(selectCounts[selectArea])
+            MCPPeakNum['left'][i] = edges[area][selectArea][0]
+            MCPPeakNum['right'][i] = edges[area][selectArea][-1]
+        else:
+            MCPPeakNum['left'][i] = w[0]
+            MCPPeakNum['right'][i] = w[1]
         # ax.fill_between(edges[area][selectArea], selectCounts[selectArea] + expectPrompt, np.ones(np.sum(selectArea)) * expectPrompt)
         print(edges[area][selectArea], selectCounts[selectArea], np.sum(selectArea))
-    x0 = np.vstack([MCPPeakNum['pv'], MCPPeakNum['t'], (MCPPeakNum['right'] - MCPPeakNum['left'])/2+10]).T.reshape(-1)
+    x0 = np.vstack([MCPPeakNum['pv']*2, MCPPeakNum['t'], (MCPPeakNum['right'] - MCPPeakNum['left'])/2+10]).T.reshape(-1)
     bounds = []
     for idx, sw in enumerate(searchwindows):
-        bounds.append((0, 100*MCPPeakNum['pv'][i]))
+        bounds.append((10, 1000*MCPPeakNum['pv'][i]))
         bounds.append(sw)
         if len(boundsSigma)>0:
             bounds.append(boundsSigma[idx])
         else:
             bounds.append((5,100))
-    startEdges = int((250)/binwidth)
-    endEdges = int(searchwindows[-1][-1]/binwidth)
-    aftergroups = minimize(
-        likelihood, x0,
-        args=(edges[startEdges:endEdges], counts[startEdges:endEdges]),
-        bounds=bounds,
-        options={'eps':0.0001}
-        )
-    aftergroupsX = aftergroups.x.reshape((-1,3))
+        x0[3*idx+2] += bounds[-1][-1]/10
+        if bounds[-1][-1]<x0[3*idx+2]:
+            x0[3*idx+2] = bounds[-1][-1]-1
+        if bounds[-1][0]>x0[3*idx+2]:
+            x0[3*idx+2] = (bounds[-1][0]+bounds[-1][1])/2
+    startEdges = int((250)/binwidth_large)
+    endEdges = int(searchwindows[-1][-1]/binwidth_large)
+    f_A = ROOT.TF1("", "gaus(0)+gaus(3)+gaus(6)+gaus(9)+gaus(12)", 250, searchwindows[-1][-1])
+    f_A.SetParameters(x0.reshape((-1)))
+    for ib,bo in enumerate(bounds):
+        f_A.SetParLimits(ib, bo[0], bo[1])
+    hists_A = ROOT.TH1D("", "", int(delay10E/binwidth_large), 0, delay10E)
+    for i in range(1, len(h_a[1])):
+        hists_A.SetBinContent(i, h_a[0][i-1]- expectPrompt)
+    hists_A.Fit(f_A, 'R')
+    print('finish fit')
+    pars, parErrors, par_length = f_A.GetParameters(), f_A.GetParErrors(), len(searchwindows)*3
+    pars.reshape((par_length,))
+    parErrors.reshape((par_length,))
+    aftergroupsX, aftergroupsXErrors = np.frombuffer(pars, dtype=np.float64, count=par_length).reshape((-1,3)), np.frombuffer(parErrors, dtype=np.float64, count=par_length).reshape((-1,3))
+    print('finish par get')
+    # aftergroups = minimize(
+    #     likelihood, x0,
+    #     args=(edges[startEdges:endEdges], counts[startEdges:endEdges]),
+    #     bounds=bounds,
+    #     options={'eps':0.0001}
+    #     )
+    # aftergroupsX = aftergroups.x.reshape((-1,3))
     MCPPeakNum['t'] = aftergroupsX[:, 1]
-    MCPPeakNum['pv'] = aftergroupsX[:, 0]
+    MCPPeakNum['pv'] = aftergroupsX[:, 0]*np.sqrt(2*np.pi)*aftergroupsX[:, 2]/binwidth_large
     MCPPeakNum['sigma'] = aftergroupsX[:, 2]
+    MCPPeakNum['ratio'] = MCPPeakNum['pv']/totalTriggerNum
 
-    eys = Afterpulse(aftergroups.x, edges[startEdges:endEdges])
+    eys = Afterpulse(aftergroupsX.reshape(-1), edges[startEdges:endEdges])
     ax.plot(edges[startEdges:endEdges], eys+expectPrompt, linewidth=1, alpha=0.9, label='fit')
     ax.axhline(expectPrompt, linewidth=1, linestyle='--', label='Average prepulse')
-    ax.axhline(mergePulseResults[0]['DCR']/1E6*np.sum(triggerNum) * binwidth, linewidth=1, linestyle='--', color='r', label='Merge DCR')
+    ax.axhline(mergePulseResults[0]['DCR']/1E6*np.sum(triggerNum) * binwidth_large, linewidth=1, linestyle='--', color='r', label='Merge DCR')
     if darkExpect:
-        ax.axhline(totalTriggerNum * darkresult[0]['DCR'] * binwidth * 1e-6, label='Expected Dark Noise')
+        ax.axhline(totalTriggerNum * darkresult[0]['DCR'] * binwidth_large * 1e-6, label='Expected Dark Noise')
     # for pn in MCPPeakNum:
     #     ax.annotate(pn['N'], (pn['t'], pn['pv'] + expectPrompt), (pn['t'], pn['pv'] + expectPrompt + 5))
-    ax.set_xlabel('Relative t/ns')
+    ax.set_xlabel('Delay time/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim([config.DCRB, delay10E])
     ax.xaxis.set_minor_locator(MultipleLocator(100))
@@ -436,17 +494,80 @@ with PdfPages(args.opt + '.pdf') as pdf:
     pdf.savefig(fig)
 
     fig, ax = plt.subplots(figsize=(15,6))
-    h_a = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth), range=[delay1B, delay10E], histtype='step', label='After-pulse')
-    h_p = ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE)/binwidth), range=[config.DCRB, -promptE], histtype='step', label='Pre-pulse')
+    ax.hist(pulseResults['t'], bins=int(delay10E/binwidth_large), range=[delay1B, delay10E], histtype='step', label='After-pulse')
+    ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE)/binwidth_large), range=[config.DCRB, -promptE], histtype='step', label='Pre-pulse')
     ax.plot(edges[startEdges:endEdges], eys+expectPrompt, linewidth=1, alpha=0.9, label='Fit')
     ax.axhline(expectPrompt, linewidth=1, linestyle='--', label='DCR')
-    ax.set_xlabel('Relative t/ns')
+    ax.set_xlabel('Delay time/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim([config.DCRB, delay10E])
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     ax.xaxis.set_major_locator(MultipleLocator(1000))
     ax.legend()
     pdf.savefig(fig)
+    ax.set_yscale('log')
+    pdf.savefig(fig)
+    ax.set_yscale('function', functions=(lambda x: x/binwidth_large/totalTriggerNum, lambda x: x*binwidth_large*totalTriggerNum))
+    ax.set_ylabel('Rate')
+    pdf.savefig(fig)
+
+    ## 各个After-pulse峰的charge分布,宽DCRE-DCRB
+    bins = np.arange(0, 8000, 40)
+    fig, ax = plt.subplots(figsize=(15, 6))
+    colors =['b', 'yellow', 'r', 'g', 'k', 'purple']
+    ax.hist(pulseResults['Q'][(pulseResults['t']>config.DCRB)&(pulseResults['t']<(config.DCRE))], histtype='step', bins=bins, color=colors[0], label='Dark Noise')
+    DCRNum = np.sum((pulseResults['t']>config.DCRB)&(pulseResults['t']<(config.DCRE)))
+    im = 0
+    for mcpr in MCPPeakNum:
+        if mcpr['Group']!=1:
+            selectT = (pulseResults['t']>(mcpr['t']-3*mcpr['sigma']))&(pulseResults['t']<(mcpr['t']+3*mcpr['sigma']))
+            selectQ = pulseResults['Q'][selectT]
+            scaledDCRNum = DCRNum / (config.DCRE-config.DCRB) * mcpr['sigma']*6
+            h = ax.hist(selectQ, weights=np.repeat((config.DCRE-config.DCRB)/mcpr['sigma']/6, np.sum(selectT)), histtype='step', bins=bins, color=colors[im+1], label='{}-th Peak'.format(mcpr['Group']+1))
+            if np.sum(selectQ>700)==0:
+                mu_c, sigma_c = 0, 0
+            else:
+                mu_c, sigma_c = np.average(selectQ[selectQ>700]), np.std(selectQ[selectQ>700])
+                # Fit
+                begin, end = np.max([700,mu_c-2*sigma_c]), np.min([mu_c+2*min(sigma_c,1000), 6000])
+                f1 = ROOT.TF1("", "gaus", begin, end)
+                f1.SetParameters(np.array([np.sum(selectT), mu_c, sigma_c]))
+                f1.SetParLimits(1, mu_c-sigma_c/2, mu_c+sigma_c/2)
+                hists = ROOT.TH1D("", "", 200, 0, 8000)
+                for i in range(1, len(bins)):
+                    hists.SetBinContent(i, h[0][i-1])
+                hists.Fit(f1, 'R')
+                pars, parErrors = f1.GetParameters(), f1.GetParErrors()
+                ax.plot(np.arange(begin, end, 10), pars[0]*np.exp(-0.5*(np.arange(begin, end, 10)-pars[1])**2/pars[2]**2), color=colors[im+1], alpha=0.8)
+                MCPPeakNum[['charge', 'chargeSigma', 'A', 'chargeSample', 'chargeSigmaSample']][mcpr['Group']] = pars[1], pars[2], pars[0], mu_c, sigma_c
+                MCPPeakNum['chargeDirect'][mcpr['Group']] = (np.sum(selectQ)-mergeresultsA['chargeMu'][0]*scaledDCRNum)/(np.sum(selectT)-scaledDCRNum)
+                print(mcpr['Group'], mu_c, sigma_c, pars[1], pars[2], MCPPeakNum['chargeDirect'][mcpr['Group']])
+            im += 1
+
+    ax.scatter(MCPPeakNum['charge'], MCPPeakNum['A'], color='violet', label='Fit')
+    ax.scatter(MCPPeakNum['chargeDirect'], MCPPeakNum['A'], color='cyan', label='Calculation')
+    ax.set_xlabel('Charge/ADC$\cdot$ns')
+    ax.set_ylabel('Scaled Entries')
+    ax.xaxis.set_minor_locator(MultipleLocator(100))
+    ax.legend()
+    pdf.savefig(fig)
+    ax.set_yscale('log')
+    pdf.savefig(fig)
+    print(MCPPeakNum)
+    print('total group {:.3f} 0-2000ns {:.3f} afterpulse {:.3f} TriggerNum{:.3f}'.format(np.sum(MCPPeakNum['pv'])/totalTriggerNum, (np.sum((pulseResults['t']<2000)&(pulseResults['t']>config.delay1B))-expectPrompt*1800/binwidth_large)/totalTriggerNum,mergePulseResults[0]['meandelay1']+mergePulseResults[0]['meandelay10'], totalTriggerNum))
+
+    # TT 各成分比例
+    fig, ax = plt.subplots()
+    ax.plot(results['Run'], TT_kToTT, marker='o', label='Early component')
+    # TTS分布0.5ns的binwidth
+    ax.plot(results['Run'], TT_expToTT, marker='o', label='Exp component')
+    ax.plot(results['Run'], TT_kToTT+TT_expToTT, marker='o', label='Total')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('ratio')
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.legend()
+    pdf.savefig(fig)
+
 # 统计结果并合并存储
 with h5py.File(args.opt, 'w') as opt:
     opt.create_dataset('concat', data=results.to_records(), compression='gzip')
