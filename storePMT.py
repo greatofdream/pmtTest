@@ -26,8 +26,8 @@ except:
 storecsv = pd.read_csv(args.opt)
 tmpcsv = storecsv.set_index('PMT')
 ## mean
-tmpcsv.loc[args.pmt, ['Gain', 'PV', 'Res', 'TTS', 'TTS2', 'TTA', 'TTA2','TTS_bin', 'Rise', 'Fall', 'TH', 'FWHM', 'chargeMu', 'chargeRes', 'PDE']] = (
-    laserres[0]['Gain'], laserres[0]['PV'], laserres[0]['Res'], laserres[0]['TTS'], laserres[0]['TTS2'], laserres[0]['TTA'], laserres[0]['TTA2'], laserres[0]['TTS_bin'], laserres[0]['Rise'], laserres[0]['Fall'], laserres[0]['TH'], laserres[0]['FWHM'], laserres[0]['chargeMu'], laserres[0]['chargeRes'], laserres[0]['PDE']
+tmpcsv.loc[args.pmt, ['Gain', 'PV', 'Res', 'TTS', 'TTS2', 'TTA', 'TTA2','TTS_bin', 'Rise', 'Fall', 'TH', 'FWHM', 'chargeMu', 'chargeRes', 'PDE', 'TT2_1', 'TT_kToTT', 'TT_expToTT']] = (
+    laserres[0]['Gain'], laserres[0]['PV'], laserres[0]['Res'], laserres[0]['TTS'], laserres[0]['TTS2'], laserres[0]['TTA'], laserres[0]['TTA2'], laserres[0]['TTS_bin'], laserres[0]['Rise'], laserres[0]['Fall'], laserres[0]['TH'], laserres[0]['FWHM'], laserres[0]['chargeMu'], laserres[0]['chargeRes'], laserres[0]['PDE'], laserres[0]['TT2_1'], laserres[0]['TT_kToTT'], laserres[0]['TT_expToTT']
 )
 tmpcsv.loc[args.pmt, ['Pre', 'After1', 'After2', 'DCR_laser']] = (pulse[0]['promptWODCR'], pulse[0]['delay1WODCR'], pulse[0]['delay10WODCR'], pulse[0]['DCR'])
 tmpcsv.loc[args.pmt, ['ser_tau', 'ser_sigma']] = (serres[0]['tau'], serres[0]['sigma'])
