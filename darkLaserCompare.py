@@ -19,6 +19,7 @@ psr.add_argument('--run', type=int, default=-1, help='run number; default using 
 psr.add_argument('--dir', default='ExPMT', help='directory of PMT results')
 args = psr.parse_args()
 excludedPMT = np.loadtxt('ExPMT/ExcludePMT.csv', dtype=str)
+lowStatisticPMT = np.loadtxt('ExPMT/LowStatisticsPMT.csv', dtype=str)
 if args.run == -1:
     # all pmt
     pmtcsv = pd.read_csv(args.ipt)
@@ -174,28 +175,56 @@ if args.run == -1:
         plt.close()
 
         # 绘制后脉冲峰比例
+        ishighstatistics = np.array([(pmt not in lowStatisticPMT) for pmt in pmtcsv['PMT'].values[ismcp]])
         afterratios = []
         afterPeaks = []
         afterSigmas = []
+        afterCharges = []
+        afterChargeSigmas = []
+        afterChargeDirects = []
         fig, ax = plt.subplots()
-        for pmt in pmtcsv['PMT'].values:
+        fig2, ax2 = plt.subplots()
+        fig3, ax3 = plt.subplots()
+        for index, pmtC in pmtcsv.iterrows():
+            pmt = pmtC['PMT']
             if pmt.startswith('PM'):
                 with h5py.File(args.dir+'/'+pmt+'/laser.h5', 'r') as ipt:
                     afterpulse = ipt['AfterPulse'][:]
-                ax.plot(afterpulse['t'], afterpulse['pv']/afterpulse['pv'][0], marker='o', label=pmt)
-                afterratios.append(afterpulse['pv']/afterpulse['pv'][0])
+                ax.plot(afterpulse['t'], afterpulse['ratio'], marker='o', label=pmt)
+                chargeTemp = afterpulse['charge']
+                chargeSigmaTemp = afterpulse['chargeSigma']
+                if (afterpulse['pv'][2]<100) and chargeSigmaTemp[2]>chargeTemp[2]:
+                    print('{} low statistic for 3th peak'.format(pmt))
+                    # remove low statistic for 3th peak
+                    chargeTemp[2] = afterpulse['chargeSample'][2]
+                    chargeSigmaTemp[2] = afterpulse['chargeSigmaSample'][2]
+                if pmt not in lowStatisticPMT:
+                    ax2.plot(afterpulse['t'][[0,2,3,4]], chargeTemp[[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)#, afterpulse['chargeSigma'][[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain']
+                    ax3.plot(afterpulse['t'][[0,2,3,4]], afterpulse['chargeDirect'][[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)
+                afterratios.append(afterpulse['ratio'])
                 afterPeaks.append(afterpulse['t'])
                 afterSigmas.append(afterpulse['sigma'])
-                print(pmt, afterpulse['t'], afterpulse['pv']/afterpulse['pv'][0])
-        ax.set_xlabel('Relative t/ns of peaks')
-        ax.set_ylabel(r'$\frac{A_i}{A_1}$')
+                afterCharges.append(chargeTemp/50/1.6*ADC2mV/pmtC['Gain'])
+                afterChargeSigmas.append(chargeSigmaTemp/50/1.6*ADC2mV/pmtC['Gain'])
+                afterChargeDirects.append(afterpulse['chargeDirect']/50/1.6*ADC2mV/pmtC['Gain'])
+                print(pmt, afterpulse['t'], afterpulse['ratio'])
+        ax.set_xlabel('Delay time/ns of peaks')
+        ax.set_ylabel(r'$A_i/N_{\mathrm{hit}}$')
         ax.xaxis.set_minor_locator(MultipleLocator(100))
         ax.legend()
         pdf.savefig(fig)
+        ax2.set_xlabel('Delay time/ns of peaks')
+        ax2.set_ylabel('Q/$Q_0$')
+        ax2.xaxis.set_minor_locator(MultipleLocator(100))
+        ax2.legend()
+        pdf.savefig(fig2)
+        ax3.set_xlabel('Delay time/ns of peaks')
+        ax3.set_ylabel('$Q^D/Q_0$')
+        ax3.xaxis.set_minor_locator(MultipleLocator(100))
+        ax3.legend()
+        pdf.savefig(fig3)
         plt.close()
-        afterratios = np.array(afterratios)
-        afterPeaks = np.array(afterPeaks)
-        afterSigmas = np.array(afterSigmas)
+        afterratios, afterPeaks, afterSigmas, afterCharges, afterChargeSigmas, afterChargeDirects = np.array(afterratios), np.array(afterPeaks), np.array(afterSigmas), np.array(afterCharges), np.array(afterChargeSigmas), np.array(afterChargeDirects)
 
         fig, ax = plt.subplots()
         pdegrid = np.arange(0.9, 2, 0.01)
@@ -209,11 +238,47 @@ if args.run == -1:
         print(pmtcsv[selectHama]['PDE'],  pmtcsv[selectHama]['chargeRes'])
         ax.clabel(CS, CS.levels,  # label every second level
               inline=True, fmt='%.1f', fontsize=14)
-        ax.set_xlabel('relative PDE')
-        ax.set_ylabel('Res')
+        ax.set_xlabel('$\eta^0$')
+        ax.set_ylabel(r'$\nu$')
         ax.legend()
         pdf.savefig(fig)
         plt.close()
+
+        fig, ax = plt.subplots()
+        ax.scatter(pmtcsv[selectHama]['chargeMu']/50/1.6*ADC2mV/pmtcsv[selectHama]['Gain'], pmtcsv[selectHama]['chargeRes']/pmtcsv[selectHama]['Res'], marker='x', color='g', label='Reference PMT')
+        ax.scatter(pmtcsv[selectMCP]['chargeMu']/50/1.6*ADC2mV/pmtcsv[selectMCP]['Gain'], pmtcsv[selectMCP]['chargeRes']/pmtcsv[selectMCP]['Res'], marker='x', color='r', label='MCP PMT')
+        ax.set_xlabel(r'$\overline{Q}/Q_0$')
+        ax.set_ylabel(r'$\nu$/$\nu_0$')
+        ax.legend()
+        pdf.savefig(fig)
+        plt.close()
+        # 绘制后脉冲峰比例
+        TT_kToTTs = []
+        TT_expToTTs = []
+        TT_DCRToTTs = []
+        TT2_1s = []
+        TTS2s = []
+        TTS_exps = []
+        DCR_exps = []
+        for index, pmtC in pmtcsv.iterrows():
+            pmt = pmtC['PMT']
+            if pmt.startswith('PM'):
+                with h5py.File(args.dir+'/'+pmt+'/laser.h5', 'r') as ipt:
+                    chargeMerge = ipt['merge'][:]
+                TT_kToTTs.append(chargeMerge['TT_kToTT'][0])
+                TT_expToTTs.append(chargeMerge['TT_expToTT'][0])
+                TT_DCRToTTs.append(chargeMerge['TT_DCRToTT'][0])
+                TT2_1s.append(chargeMerge['TT2_1'][0])
+                TTS2s.append(chargeMerge['TTS2'][0])
+                TTS_exps.append(chargeMerge['TTS_exp'][0])
+        TT_kToTTs, TT_expToTTs, TT2_1s, TTS2s, TTS_exps, DCR_exps = np.array(TT_kToTTs), np.array(TT_expToTTs), np.array(TT2_1s), np.array(TTS2s), np.array(TTS_exps), np.array(DCR_exps)
+        print('TT_kToTTs: {}, {:.3f}, {:.3f}'.format(TT_kToTTs, np.mean(TT_kToTTs), np.std(TT_kToTTs)))
+        print('TT_expToTTs: {}, {:.3f}, {:.3f}'.format(TT_expToTTs, np.mean(TT_expToTTs), np.std(TT_expToTTs)))
+        print('TT_DCRToTTs: {}, {:.5f}, {:.5f}'.format(TT_DCRToTTs, np.mean(TT_DCRToTTs), np.std(TT_DCRToTTs)))
+        print('TT2_1s: {}, {:.3f}, {:.3f}'.format(TT2_1s, np.mean(TT2_1s), np.std(TT2_1s)))
+        print('TTS2s: {}, {:.3f}, {:.3f}'.format(TTS2s, np.mean(TTS2s), np.std(TTS2s)))
+        print('TTS_exps: {}, {:.3f}, {:.3f}'.format(TTS_exps, np.mean(TTS_exps), np.std(TTS_exps)))
+
         print('DCR {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['DCR']/pmtcsv[selectMCP]['DCRVar'])/np.sum(1/pmtcsv[selectMCP]['DCRVar']),
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['DCRVar'])),
@@ -224,11 +289,13 @@ if args.run == -1:
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['DCR_laserVar'])),
             np.mean(pmtcsv[selectMCP]['DCR_laser']), np.std(pmtcsv[selectMCP]['DCR_laser'])
             ))
-        print('TTS {:.3f} {:.3f} {:.3f} {:.3f}'.format(
+        print(pmtcsv[selectMCP]['TTS_bin'])
+        print('TTS_bin {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['TTS_bin']/pmtcsv[selectMCP]['TTS_binVar'])/np.sum(1/pmtcsv[selectMCP]['TTS_binVar']),
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['TTS_binVar'])),
             np.mean(pmtcsv[selectMCP]['TTS_bin']), np.std(pmtcsv[selectMCP]['TTS_bin'])
             ))
+        print(pmtcsv[selectMCP]['TTS'])
         print('TTS fit {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['TTS']/pmtcsv[selectMCP]['TTSVar'])/np.sum(1/pmtcsv[selectMCP]['TTSVar']),
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['TTSVar'])),
@@ -259,6 +326,9 @@ if args.run == -1:
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['chargeMuVar']))/50/1.6*ADC2mV,
             np.mean(pmtcsv[selectMCP]['chargeMu'])/50/1.6*ADC2mV, np.std(pmtcsv[selectMCP]['chargeMu'])/50/1.6*ADC2mV
             ))
+        print('Gain/Gain1 {:.3f} {:.3f}'.format(
+            np.mean(pmtcsv[selectMCP]['chargeMu']/pmtcsv[selectMCP]['Gain'])/50/1.6*ADC2mV, np.std(pmtcsv[selectMCP]['chargeMu']/pmtcsv[selectMCP]['Gain'])/50/1.6*ADC2mV
+            ))
         print('tau {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['ser_tau']/pmtcsv[selectMCP]['ser_tauVar'])/np.sum(1/pmtcsv[selectMCP]['ser_tauVar']),
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['chargeMuVar'])),
@@ -279,6 +349,7 @@ if args.run == -1:
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['PreVar'])),
             np.mean(pmtcsv[selectMCP]['Pre']), np.std(pmtcsv[selectMCP]['Pre'])
             ))
+        print(pmtcsv[selectMCP]['After1']+pmtcsv[selectMCP]['After2'])
         print('After {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum((pmtcsv[selectMCP]['After1']+pmtcsv[selectMCP]['After2'])/(pmtcsv[selectMCP]['After1Var']+pmtcsv[selectMCP]['After2Var']))/np.sum(1/(pmtcsv[selectMCP]['After1Var']+pmtcsv[selectMCP]['After2Var'])),
             np.sqrt(1/np.sum(1/(pmtcsv[selectMCP]['After1Var']+pmtcsv[selectMCP]['After2Var']))),
@@ -295,6 +366,18 @@ if args.run == -1:
         print('After peak sigma {} {}'.format(
             np.mean(afterSigmas, axis=0),
             np.std(afterSigmas, axis=0)
+            ))
+        print('After peak charge {} {}'.format(
+            np.mean(afterCharges[ishighstatistics], axis=0),
+            np.std(afterCharges[ishighstatistics], axis=0)
+            ))
+        print('After peak charge sigma {} {}'.format(
+            np.mean(afterChargeSigmas[ishighstatistics], axis=0),
+            np.std(afterChargeSigmas[ishighstatistics], axis=0)
+            ))
+        print('After peak charge Direct {} {}'.format(
+            np.mean(afterChargeDirects[ishighstatistics], axis=0),
+            np.std(afterChargeDirects[ishighstatistics], axis=0)
             ))
         print('Rise {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['Rise']/pmtcsv[selectMCP]['RiseVar'])/np.sum(1/pmtcsv[selectMCP]['RiseVar']),
