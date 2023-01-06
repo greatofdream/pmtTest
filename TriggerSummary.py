@@ -270,7 +270,8 @@ for j in range(len(args.channel)):
 
     # TTS 分布与unbinned拟合
     binwidth = 0.5
-    fig, ax = plt.subplots()
+    fig, (ax2, ax) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [1, 5]})
+    fig.subplots_adjust(hspace=0)
     print(np.sum(totalselect&(~info[j]['isTrigger'])))
     ## 限制拟合区间
     limits_mu, limits_sigma = np.mean(info[j]['begin10'][(totalselect)]), np.std(info[j]['begin10'][totalselect])
@@ -305,15 +306,16 @@ for j in range(len(args.channel)):
     tts_pi = np.where(tts_mu<=tts_edges)[0][0]
     t_n = int(10/binwidth)# Fit interval 20ns
     # MCP PMT
+    offset_n = 3
     if ismcp[j]:
-        rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2) + (x>([2]+2*[3]) ? [7]*TMath::Exp(-(x-[2]-2*[3])/[8])+[9] : 0.0)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], result.x[2], N/100, result.x[1]-4, result.x[2]*5, 100, 10, max(1,estimateB2-estimateB)]))
+        rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2) + (x>([2]+{}*[3]) ? [7]*TMath::Exp(-(x-[2]-{}*[3])/[8])+[9] : 0.0)".format(offset_n, offset_n), tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N*1.25, result.x[1], max(1,result.x[2]), N/100, result.x[1]-4, result.x[2]*5, 100, 10, max(1,estimateB2-estimateB)]))
         # rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2) + [7]*(1-TMath::Erf(([3]^2/[8]-(x-[2]-2*[3]))/[3]/2^0.5))*exp(-(x-[2]-2*[3])/[8]) + (x>([2]+2*[3]) ? [9] : 0.0)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], result.x[2], N/100, result.x[1]-4, result.x[2]*5, 100, 10, max(1,estimateB2-estimateB)]))
         rootfit.func.SetParLimits(0, max(0, estimateB-0.1), estimateB+0.1)
         rootfit.func.SetParLimits(1, 1, len(info[j]))
         rootfit.func.SetParLimits(2, result.x[1]-5, result.x[1]+5)
-        rootfit.func.SetParLimits(3, 0.5, 1.5)
+        rootfit.func.SetParLimits(3, 0.65, 2)
         rootfit.func.SetParLimits(4, 1, len(info[j])/10)
-        rootfit.func.SetParLimits(5, result.x[1]-6, result.x[1]-3)
+        rootfit.func.SetParLimits(5, result.x[1]-6, result.x[1]-2.5)
         rootfit.func.SetParLimits(6, 1, 2)
         rootfit.func.SetParLimits(7, 1, len(info[j])/100)
         rootfit.func.SetParLimits(8, 1, 10)
@@ -332,16 +334,19 @@ for j in range(len(args.channel)):
     # # rootfit.setParLimits(9, 1, 10)
     # rootfit.setParLimits(7, 50, 1000)
     else:
-        rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], result.x[2], N/100, result.x[1]-4, result.x[2]*5]))
+        rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2)", tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], max(1.5,result.x[2]), N/100, result.x[1]-4, result.x[2]*5]))
+        # rootfit.setFunc(ROOT.TF1("", "[0] + [1]*exp(-0.5*((x-[2])/[3])^2) + [4]*exp(-0.5*((x-[5])/[6])^2)+ (x>([2]+{}*[3]) ? [7]*TMath::Exp(-(x-[2]-{}*[3])/[8]) : 0.0)".format(offset_n, offset_n), tts_edges[tts_pi-t_n], tts_edges[tts_pi+t_n]), np.array([estimateB, N, result.x[1], max(1.5,result.x[2]), N/100, result.x[1]-4, result.x[2]*5, 100, 10]))
         rootfit.func.SetParLimits(0, max(0, estimateB-0.1), estimateB+0.1)
         rootfit.func.SetParLimits(1, 1, 1E7)
         rootfit.func.SetParLimits(2, result.x[1]-5, result.x[1]+5)
-        rootfit.func.SetParLimits(3, 0.5, 1.5)
+        rootfit.func.SetParLimits(3, 0.75, 2)
         rootfit.func.SetParLimits(4, 1, 1E4)
         rootfit.func.SetParLimits(5, result.x[1]-6, result.x[1]-3)
         rootfit.func.SetParLimits(6, 1, 3)
+        # rootfit.func.SetParLimits(7, 1, len(info[j])/100)
+        # rootfit.func.SetParLimits(8, 1, 10)
     paraRoot, errorRoot = rootfit.Fit()
-    if paraRoot[3]<paraRoot[6]:
+    if paraRoot[4]<paraRoot[1]:
         tts_para1, tts_para2 = (paraRoot[1], paraRoot[2], paraRoot[3]), (paraRoot[4], paraRoot[5], paraRoot[6])
         tts_error1, tts_error2 = (errorRoot[1], errorRoot[2], errorRoot[3]), (errorRoot[4], errorRoot[5], errorRoot[6])
     else:
@@ -351,22 +356,31 @@ for j in range(len(args.channel)):
     paraSigma2[['TTS', 'TTS2', 'TT', 'TT2', 'TTA', 'TTA2']][j] = (tts_error1[2]**2 * 2 * np.log(2) * 4, tts_error2[2]**2 * 2 * np.log(2) * 4, tts_error1[1]**2, tts_error2[1]**2, tts_error1[0]**2, tts_error2[0]**2)
     probf1 = tts_para1[0] * np.exp(-(np.arange(limits[0], limits[1], 0.1) - tts_para1[1])**2/2/tts_para1[2]**2)
     probf2 = tts_para2[0] * np.exp(-(np.arange(limits[0], limits[1], 0.1) - tts_para2[1])**2/2/tts_para2[2]**2)
-    results[['DCR', 'TTSinterval']][j] = (estimateDCR, 2*limits_sigma)
+    results[['DCR', 'TTSinterval']][j] = (paraRoot[0]/(binwidth*results[j]['TriggerNum'])*1E6, 2*limits_sigma)
 
-    results['DCR'][j] = paraRoot[0]/(binwidth*results[j]['TriggerNum'])*1E6
     if ismcp[j]:
-        probf3 = paraRoot[9]+paraRoot[7]*np.exp(-(np.arange(limits[0], limits[1], 0.1)-paraRoot[2]-2*paraRoot[3])/paraRoot[8])
+        probf3 = paraRoot[9]+paraRoot[7]*np.exp(-(np.arange(limits[0], limits[1], 0.1)-paraRoot[2]-offset_n * paraRoot[3])/paraRoot[8])
         # probf3 = paraRoot[7] * (1-erf((paraRoot[3]**2/paraRoot[8]-np.arange(limits[0], limits[1], 0.1)+paraRoot[2]+2*para)/np.sqrt(2)/paraRoot[8])) * np.exp(-(np.arange(limits[0], limits[1], 0.1)-paraRoot[2])/paraRoot[9])+paraRoot[9]
-        probf3[np.arange(limits[0], limits[1], 0.1)<(paraRoot[2]+2*paraRoot[3])] = 0
+        probf3[np.arange(limits[0], limits[1], 0.1)<(paraRoot[2]+ offset_n * paraRoot[3])] = 0
         results[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = paraRoot[8], paraRoot[7], paraRoot[9]
+        paraSigma2[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = errorRoot[8], errorRoot[7], errorRoot[9]
     else:
+        # probf3 = paraRoot[7]*np.exp(-(np.arange(limits[0], limits[1], 0.1)-paraRoot[2]-offset_n * paraRoot[3])/paraRoot[8])
+        # probf3[np.arange(limits[0], limits[1], 0.1)<(paraRoot[2]+ offset_n * paraRoot[3])] = 0
+        # results[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = paraRoot[8], paraRoot[7], 0
+        # paraSigma2[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = errorRoot[8], errorRoot[7], 0
         probf3 = np.zeros(np.arange(limits[0], limits[1], 0.1).shape)
+        results[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = 0, 0, 0
+        paraSigma2[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = 0, 0, 0
     
     ax.plot(np.arange(limits[0], limits[1], 0.1), probf1 + probf2 + probf3+ paraRoot[0], label='Fit')
     ax.plot(np.arange(limits[0], limits[1], 0.1), probf1 + paraRoot[0], linestyle='--', color='k', alpha=0.8, label='{:.3f} {:.3f} {:.3f}$\pm${:.3f}'.format(paraRoot[1], paraRoot[2], paraRoot[3], errorRoot[3]))
     ax.plot(np.arange(limits[0], limits[1], 0.1), probf2 + paraRoot[0], linestyle='--', color='k', alpha=0.8, label='{:.3f} {:.3f} {:.3f}$\pm${:.3f}'.format(paraRoot[4], paraRoot[5], paraRoot[6], errorRoot[6]))
     if ismcp[j]:
         ax.plot(np.arange(limits[0], limits[1], 0.1), probf3 + paraRoot[0], linestyle='--', color='k', alpha=0.8)
+    residuals = h[0] - (probf1 + probf2 + probf3+ paraRoot[0])[2::5][:len(h[0])]
+    ax2.scatter((h[1][:-1]+h[1][1:])/2, residuals, s=5)
+    ax2.axhline(0, ls='--')
     ax.set_xlabel('TT/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim(limits)
@@ -446,7 +460,7 @@ for j in range(len(args.channel)):
     fig, ax = plt.subplots()
     h = ax.hist2d(info[j]['begin10'][totalselect], info[j]['minPeakCharge'][totalselect], range=[[l_range, r_range], [0, 600]], bins=[(r_range-l_range)*int(1/binwidth), 600], cmap=cmap)
     fig.colorbar(h[3], ax=ax)
-    ax.set_ylabel('Equivalent Charge/ADC$\cdot$ns')
+    ax.set_ylabel('Charge/ADC$\cdot$ns')
     ax.set_xlabel('TT/ns')
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.yaxis.set_minor_locator(MultipleLocator(10))
@@ -456,7 +470,7 @@ for j in range(len(args.channel)):
     h = ax.hist2d(info[j]['begin10'][totalselect], info[j]['minPeakCharge'][totalselect],
         range=[limits, [0, 600]], bins=[int(limits[1]-limits[0])*2, 120], norm=colors.LogNorm(), cmap=cmap)
     fig.colorbar(h[3], ax=ax)
-    ax.set_ylabel('Equivalent Charge/ADC$\cdot$ns')
+    ax.set_ylabel('Charge/ADC$\cdot$ns')
     ax.set_xlabel('TT/ns')
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.yaxis.set_minor_locator(MultipleLocator(10))
