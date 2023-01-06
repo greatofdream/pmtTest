@@ -1,0 +1,77 @@
+\section{Baseline}
+Due to the offset mentioned in sec.~\ref{sec:setup}, the value of baseline is not zero. A procedure to determine the baseline is developed, which comprised 4 steps as follows
+
+1. An interval of the time window $[-t_s,-10]$\,ns ($t_s\in[110,200]$) relative to pulse peak $t_p$ is selected for calculation of baseline. If the peak is close to the start of waveform and therefore $t_s < 110$, another interval $[t_p+100,t_p+200]$\,ns is append to the total interval, as shown in Fig.~\ref{fig:baseline1}. Average $\mu_{\mathrm{b0}}$ and standard deviation $\sigma_{\mathrm{b0}}$ of amplitudes in the interval are calculated.
+
+2. An baseline threshold filter $[\mu_{\mathrm{b0}}-\max(\min(5\sigma_{\mathrm{b0}},3),1)]$ is used to remove potential signal and reserves the baseline when $\sigma_{\mathrm{b0}}$ is small.
+
+3. The rest amplitudes are fitted with a gaussian function G$(\mu_{\mathrm{bf}},\sigma_{\mathrm{bf}})$ using unbinned likelihood.
+ $\mu_{\mathrm{bf}}$ and $\sigma_{\mathrm{bf}}$ are accurate at most time. However, when there exists a large wave in the time interval selected in step 1, a bias will be introduced for $\sigma_{\mathrm{bf}}$.
+
+4. Another amplitude filter $[\mu_{\mathrm{bf}}-\min(5\sigma_{\mathrm{bf}},3)]$ is used to reselect the signal area and those areas are padding \SI{10}{ns} at both ends to remove rising edge and falling edge. The rest wave is used to estimate baseline $\mu_b$ and the standard deviation of baseline $\sigma_b$.
+
+\section{Peak and charge}
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\MF\textwidth]{figures/method/charge697.pdf}
+    \caption{Charge distribution of an example MCP-PMT in the noise stage. The vertical blue dash line is the threshold cut for the charge. The orange histogram is entries with peak selection. The red line is the fitting Gaussian function for the peak. The green line is the fitting parabolic function for the valley.}
+    \label{fig:charge}
+\end{figure}
+
+Because the statistics are far larger than that of the noise stage and the ratio of fluctuation noise is smaller, the P/V ratio is better than the noise stage and the position of the valley is more close to zero. 
+
+Due that the weight of the pedestal in the noise stage is larger than that in the laser stage, the pedestal is more likely to leak into the selected pulses, which has an obvious influence on $\mu_{C}$. $s^2_{C}$ and $\mu_{C}$ in the laser stage is more reliable than that in the noise stage. Fig.~\ref{fig:totalchargeCompare} shows the 2d distribution of gain and resolution.
+% \footnote{The errors of $Res$ and $G$ are estimated using point estimation while errors of $Res$ and $G$ are acquired from ROOT fitting.}.
+\sectino{PV ratio}
+The different ratios of the pedestal also lead to the P/V ratio in the laser stage being better than that in the noise stage, as shown in Fig.~\ref{fig:PVCompare}.
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\MF\textwidth]{figures/result/PV.pdf}
+    \caption{P/V ratio in the noise stage and laser stage. The green point is the reference PMT and red points are MCP-PMTs.} 
+    \label{fig:PVCompare}
+\end{figure}
+
+\section{Time characterizations}
+Due to some pulses being close to the edge of waveforms in the noise stage, the rising or falling edge of those pulses are cut by the time window. Therefore only pulses of which peak positions in $[15, T_{\mathrm{wave}}-75]$\,ns are selected in the noise stage, while there is the only time interval cut described in sec.\ref{sec:laserstage} for the laser stage.
+
+% Fig.~\ref{fig:triggerFWHM} shows the distribution of rise time, fall time and FWHM of an example MCP-PMT.
+% The mean and sample variance are calculated in condition of criteria described in sec.\ref{sec:noisepeak}.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\MF\textwidth]{figures/result/FWHM.pdf}
+    \caption{Rise time, Fall time, and FWHM in the noise stage and laser stage. Green points, red points, and black points are results of rise time, fall time, and FWHM.}
+    \label{fig:RiseCompare}
+\end{figure}
+The rise time, fall time, and FWHM are consistent between the noise stage and laser stage as shown in Fig.~\ref{fig:RiseCompare}. 
+
+\section{TTS}
+The histogram of $\mathrm{TT}_r$ with \SI{0.5}{ns} bin width is binned fitted using a Gaussian function G$(\mu_{\mathrm{TT}},\sigma_{\mathrm{TT}}^2)$ in the interval $[-2,+2]$\,ns relative to the maximum bin using MLS method as shown in Fig.~\ref{fig:triggerTTS}.
+% Due to the time precision and voltage precison of FADC are \SI{1}{ns} and \SI{1}{ADC}, the intepolation method TT distribution contains two peak when bin width is smaller than \SI{1}{ns}. 
+
+% The TTS of different MCP-PMTs are show in Fig.~\ref{fig:TTSCompare}. The mean TTS is \SI{1.78}{ns}.
+% The mean and standard deviation of measured TTS of 9 PMTs is $\pm$\,ns.
+% \begin{figure}[!htbp]
+%     \centering
+%     \includegraphics[width=0.4\textwidth,page=9]{figures/result/compare.pdf}
+%     \caption{TTS versus }
+%     \label{fig:TTSCompare}
+% \end{figure}
+
+in CST studio \cite{CST}
+
+
+There exist a pedestal around the peak of TTS distribution. The root mean square of TT distribution between
+
+\footnote{The velocity of ions is about \SI{1000}{km/s} and size of PMT is about \SI{0.1}{m}, thus the transit time is in the scale of about \SI{0.1}{us}.}
+
+Besides, the peak at about \SI{100}{ns} is influenced by the main pulse.
+
+% \begin{figure}[!htbp]
+%     \centering
+%     \includegraphics[width=0.4\textwidth]{figures/method/triggerFWHM.pdf}
+%     \caption{An example of time characteristics in the laser stage.}
+%     \label{fig:triggerFWHM}
+% \end{figure}
+
+The equivalent charge of selected pulses $C_{\mathrm{equ}}^{\mathrm{sel}}$. Mean $\mu_{C}=\mathrm{E}(C_{\mathrm{sel}})$ and sample variance $s^2_{C}=\mathrm{Var}[C_{\mathrm{sel}}]$ of $C_{\mathrm{equ}}$ of selected pulses are calculated to represent the characteristics of the total charge distribution of MCP-PMTs. Due to the influence of long tail, the $\mu_{C}$ is larger than $C_1$. The physical model and solution of the long tail in charge distribution will be discussed in the future work.
