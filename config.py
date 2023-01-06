@@ -1,5 +1,5 @@
 # 积分charge时peak前后区间延展范围
-baselength = 15
+baselength = 10
 afterlength = 75
 # 拟合时的区间范围，按照PE记录
 peakspanl, peakspanr = 0.35, 0.35
@@ -21,13 +21,13 @@ elasticE = 80
 # 前后脉冲时间区间,analyze start and end are 0,wavelength
 anapromptE = 5
 anadelay1B = 35
-promptB = 150
+promptB = 100
 promptE = 10
 delay1B = 200
 delay1E = 1000
 delay10B = 1000
 delay10E = 9800
-DCRB = -200
+DCRB = -300
 DCRE = -150
 # database
 databaseDir = '/tarski/JNE/JinpingData/Jinping_1ton_Data/pmtTest'
@@ -35,6 +35,9 @@ PMTResultDir = 'ExPMT'
 TestResultDir = 'ExResult'
 TestSummaryPath = TestResultDir + '/TestSummary.csv'
 # 后脉冲
-searchwindowsMCP = [[200, 400], [550, 650], [1100,1300], [1700,2000]]
-
-searchwindowsHama = [[200, 400], [1600,1900], [6000, 8000]]
+searchwindowsMCP = [[250, 350], [400, 500], [550, 650], [1100,1300], [1600,2000]]
+boundsMCP = [[5,30], [5,50], [5,40], [10,100], [10,100]]
+searchwindowsHama = [[200, 700], [1600,1900], [6000, 9000]]
+boundsHama = [[5,800], [5, 1000], [5, 2000]]
+additionWindowMCP = [[4000, 8000]]
+additionBoundsMCP = [[100, 500]]
