@@ -56,21 +56,22 @@ if __name__=="__main__":
         # 绘制原始波形切分范围
         fig, ax = plt.subplots(figsize=(12,6))
         # ax.plot(chwave, label='PMT waveform')
-        ax.axhline(baseline1, linestyle='--', color='k', alpha=0.5)
-        ax.axhline(baseline2, linestyle='--', color='k', alpha=0.5)
+        # ax.axhline(baseline1, linestyle='--', color='k', alpha=0.5)
+        # ax.axhline(baseline2, linestyle='--', color='k', alpha=0.5)
         ax.plot(triggerWave, color='orange', label='trigger waveform')
-        ax.scatter(trigger[eid]['triggerTime'], (baseline1 + baseline2)/2, marker='x', s=200, c='g', label='$t_{\mathrm{trig}}$')
+        ax.scatter(trigger[eid]['triggerTime'], (baseline1 + baseline2)/2, marker='x', s=300, c='g', label='$t_{\mathrm{trig}}$')
         ax.set_xlabel('t/ns')
         ax.set_ylabel('Trigger voltage/ADC')
-        ax.set_xlim([150, waveCut])
+        starttime = 200
+        ax.set_xlim([starttime, waveCut])
         ## 绘制放大波形在第二个坐标轴
         axins = ax.twinx()
         # axins = inset_axes(ax, width="50%", height="30%", loc='lower left',
         #            bbox_to_anchor=(0.47, 0.2, 1, 2),
         #            bbox_transform=ax.transAxes)
-        axins.plot(range(int(trigger[eid]['triggerTime']), waveCut), chwave[(int(trigger[eid]['triggerTime'])):waveCut], label='PMT waveform')
+        axins.plot(range(starttime, waveCut), chwave[starttime:waveCut], label='PMT waveform')
         axins.axhline(info[eid]['baseline'], linestyle='--')
-        axins.plot([int(trigger[eid]['triggerTime']), waveCut], [info[eid]['baseline']-min(5,5*info[eid]['std']), info[eid]['baseline']-min(5,5*info[eid]['std'])], linestyle='dotted', color='violet', label='voltage threshold')
+        axins.plot([starttime, waveCut], [info[eid]['baseline']-min(5,5*info[eid]['std']), info[eid]['baseline']-min(5,5*info[eid]['std'])], linestyle='dotted', color='violet', label='voltage threshold')
         axins.axvline(info[eid]['begin10'], linestyle='--', color='r', label='$t^r_{10}$')
         print(info[eid]['begin10'])
         axins.axvline(info[eid]['minPeakPos'], linestyle='--', color='y', label='$t_{p}$')
@@ -79,15 +80,15 @@ if __name__=="__main__":
         begin10, begin50, begin90 = info[eid]['begin10'], info[eid]['begin50'], info[eid]['begin90']
         end10, end50, end90 = info[eid]['end10'], info[eid]['end50'], info[eid]['end90']
         baseline, minpeak = info[eid]['baseline'], info[eid]['minPeak']
-        axins.plot([begin10, end10], [baseline-0.1*minpeak, baseline-0.1*minpeak], linestyle='dotted', color='r')
-        axins.plot([begin90, end90], [baseline-0.9*minpeak, baseline-0.9*minpeak], linestyle='dotted', color='r')
-        axins.plot([begin50, end50], [baseline-0.5*minpeak, baseline-0.5*minpeak], linestyle='dotted', color='r')
-        axins.annotate("baseline-0.1$V_p$", (end10+5, baseline-0.2*minpeak), color='r')
-        axins.annotate("baseline-0.5$V_p$", (end10+5, baseline-0.5*minpeak), color='r')
-        axins.annotate("baseline-0.9$V_p$", (end10+5, baseline-0.9*minpeak), color='r')
+        axins.plot([begin10, end10], [baseline-0.1*minpeak, baseline-0.1*minpeak], linestyle='dotted', color='k')
+        axins.plot([begin10, end10], [baseline-0.9*minpeak, baseline-0.9*minpeak], linestyle='dotted', color='k')
+        axins.plot([begin10, end10], [baseline-0.5*minpeak, baseline-0.5*minpeak], linestyle='dotted', color='k')
+        axins.annotate("$\mu_b$-0.1$V_p$", (end10+5, baseline-0.15*minpeak), color='k')
+        axins.annotate("$\mu_b$-0.5$V_p$", (end10+5, baseline-0.5*minpeak), color='k')
+        axins.annotate("$\mu_b$-0.9$V_p$", (end10+5, baseline-0.9*minpeak), color='k')
         ### 绘制矩形区域
-        axins.fill_between([begin10, begin90], [baseline-0.1*minpeak, baseline-0.1*minpeak], [baseline-0.9*minpeak, baseline-0.9*minpeak], color='g', alpha=0.5, label='risetime')
-        axins.fill_between([end10, end90], [baseline-0.1*minpeak, baseline-0.1*minpeak], [baseline-0.9*minpeak, baseline-0.9*minpeak], color='c', alpha=0.5, label='falltime')
+        # axins.fill_between([begin10, begin90], [baseline-0.1*minpeak, baseline-0.1*minpeak], [baseline-0.9*minpeak, baseline-0.9*minpeak], color='g', alpha=0.5, label='risetime')
+        # axins.fill_between([end10, end90], [baseline-0.1*minpeak, baseline-0.1*minpeak], [baseline-0.9*minpeak, baseline-0.9*minpeak], color='c', alpha=0.5, label='falltime')
         # axins.set_xlim([200, waveCut])
         axins.set_ylabel('PMT voltage/ADC')
         # axins.set_xlim([int(trigger[eid]['triggerTime']) + 100, waveCut])
