@@ -245,8 +245,8 @@ if args.run == -1:
         plt.close()
 
         fig, ax = plt.subplots()
-        ax.scatter(pmtcsv[selectHama]['chargeMu']/50/1.6*ADC2mV/pmtcsv[selectHama]['Gain'], pmtcsv[selectHama]['chargeRes']/pmtcsv[selectHama]['Res'], marker='x', color='g', label='Reference PMT')
-        ax.scatter(pmtcsv[selectMCP]['chargeMu']/50/1.6*ADC2mV/pmtcsv[selectMCP]['Gain'], pmtcsv[selectMCP]['chargeRes']/pmtcsv[selectMCP]['Res'], marker='x', color='r', label='MCP PMT')
+        ax.scatter(pmtcsv[selectHama]['chargeMu']/50/1.6*ADC2mV/pmtcsv[selectHama]['Gain'], pmtcsv[selectHama]['chargeRes']/pmtcsv[selectHama]['Res'], marker='o', color='k', label='Reference PMT')
+        ax.scatter(pmtcsv[selectMCP]['chargeMu']/50/1.6*ADC2mV/pmtcsv[selectMCP]['Gain'], pmtcsv[selectMCP]['chargeRes']/pmtcsv[selectMCP]['Res'], marker='x', color='k', label='MCP PMT')
         ax.set_xlabel(r'$\overline{Q}/Q_0$')
         ax.set_ylabel(r'$\nu$/$\nu_0$')
         ax.legend()
