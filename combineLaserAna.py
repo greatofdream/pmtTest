@@ -30,7 +30,18 @@ def loadh5(f, channel, run):
 def loadPulse(f, channel):
     with h5py.File(f, 'r') as ipt:
         res = ipt['ch{}'.format(channel)][:]
-    return pd.DataFrame(res)
+    df = pd.DataFrame(res)
+    mainpulseLargeQ = df.loc[df['t']>config.delay1E].groupby('EventID').apply(lambda x: x.sort_values('Q', ascending=False)).first()
+    return df, mainpulseLargeQ
+def loadMainPulse(fm, fp, channel):
+    with h5py.File(fm, 'r') as ipt:
+        mainRes = ipt['ch{}'.format(channel)][:]
+    with h5py.File(fp, 'r') as ipt:
+        pulseRes = ipt['ch{}'.format(channel)][:]
+    with h5py.File(args.summary, 'r') as sum_ipt:
+        summary = sum_ipt['res'][:]
+    peakC = summary[summary['Channel']==int(channel)]['peakC']
+    mainDtype = [('EventID', '<i4'), ('isTrigger', bool), ('mainBegin10', '<f4'), ('minPeakCharge', '<f4'), ('FWHM', '<f4'), ('peakC', '<f4')]
 def loadRatio(f, channel, run):
     with h5py.File(f, 'r') as ipt:
         res = ipt['ratio'][:]
@@ -196,9 +207,13 @@ mergeresultsA[1] = (
     )
 
 # 统计多批数据的afterpulse
-pulseResults_Total = pd.concat([loadPulse(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL']) for run in selectruns])
+pulseResultsData = [loadPulse(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL']) for run in selectruns]
+pulseResults_Total = pd.concat([pr[0] for pr in pulseResultsData])
+mainpulseResults = pd.concat([pr[1] for pr in pulseResultsData])
 selectEvent = pulseResults_Total['isTrigger'] & (pulseResults_Total['minPeakCharge'] > 0.25 * pulseResults_Total['peakC']) & (pulseResults_Total['FWHM']>2)
 pulseResults = pulseResults_Total[selectEvent]
+print('Num of mainpulse with afterpulse: {}, afterpulse: {}'.format(len(mainpulseResults), np.sum(pulseResults['t']>config.delay1E)))
+
 infos = [loadRatio(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL'], run['RUNNO']) for run in selectruns]
 pulseratioResults = pd.concat([i[0] for i in infos])
 pulseratioResultsSigma2 = pd.concat([i[1] for i in infos])
@@ -587,6 +602,15 @@ with PdfPages(args.opt + '.pdf') as pdf:
     ax.legend()
     pdf.savefig(fig)
 
+    # main pulse charge和afterpulse之间电荷关系
+    fig, ax = plt.subplots()
+    selectAfter = pulseResults['t']>config.delay1E
+    h = ax.hist2d(pulseResults[selectAfter]['Q'], pulseResults[selectAfter]['minPeakCharge'], range=[[0, 6000], [0, 1500]], bins=[300, 75], cmap=cmap)
+    fig.colorbar(h[3], ax=ax)
+    ax.set_xlabel('After-pulse Charge/ADC$\cdot$ns')
+    ax.set_ylabel('Main-pulse Charge/ADC$\cdot$ns')
+    ax.xaxis.set_minor_locator(MultipleLocator(100))
+    pdf.savefig(fig)
 # 统计结果并合并存储
 with h5py.File(args.opt, 'w') as opt:
     opt.create_dataset('concat', data=results.to_records(), compression='gzip')
