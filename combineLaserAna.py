@@ -437,7 +437,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
     else:
         searchwindows = config.searchwindowsHama
     expectPrompt = mergePulseResults[0]['meanDCR'] * binwidth_large / 1E6 #np.sum((pulseResults['t']>config.DCRB)&(pulseResults['t']<config.DCRE))/(config.DCRE-config.DCRB) * binwidth_large
-    MCPPeakNum = np.zeros(len(searchwindows), dtype=[('Group', '<i2'), ('t', '<f4'), ('N', '<i4'), ('pv', '<i4'), ('left', '<f4'), ('right', '<f4'), ('sigma', '<f4'), ('ratio', '<f4'), ('charge', '<f4'), ('chargeSigma', '<f4'), ('chargeSample', '<f4'), ('chargeSigmaSample', '<f4'), ('chargeDirect', '<f4'), ('A', '<f4')])
+    MCPPeakNum = np.zeros((len(searchwindows), 2), dtype=[('Group', '<i2'), ('t', '<f4'), ('N', '<i4'), ('pv', '<i4'), ('left', '<f4'), ('right', '<f4'), ('sigma', '<f4'), ('ratio', '<f4'), ('charge', '<f4'), ('chargeSigma', '<f4'), ('chargeSample', '<f4'), ('chargeSigmaSample', '<f4'), ('chargeDirect', '<f4'), ('A', '<f4')])
     
     fig, ax = plt.subplots(figsize=(15,6))
     h_a = ax.hist(pulseResults['t'], bins=int(delay10E/binwidth_large), range=[0, delay10E], histtype='step', label='After-pulse')
@@ -445,27 +445,27 @@ with PdfPages(args.opt + '.pdf') as pdf:
     h_p = ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE+10)/binwidth_large), range=[config.DCRB-10, -promptE], histtype='step', label='Pre-pulse')
     # 改变搜索算法为拟合算法
     for i, w in enumerate(searchwindows):
-        MCPPeakNum['Group'][i] = i
+        MCPPeakNum['Group'][i, 0] = i
         area = (edges<w[1]) & (edges>w[0])
         selectCounts = counts[area]
         pi = np.argmax(selectCounts)
         pv = selectCounts[pi]
-        MCPPeakNum['t'][i] = edges[area][pi]
-        MCPPeakNum['pv'][i] = pv
+        MCPPeakNum['t'][i, 0] = edges[area][pi]
+        MCPPeakNum['pv'][i, 0] = pv
         selectArea = selectCounts>(0.5*pv)
         if np.sum(selectArea)>1:
-            MCPPeakNum['N'][i] = np.sum(selectCounts[selectArea])
-            MCPPeakNum['left'][i] = edges[area][selectArea][0]
-            MCPPeakNum['right'][i] = edges[area][selectArea][-1]
+            MCPPeakNum['N'][i, 0] = np.sum(selectCounts[selectArea])
+            MCPPeakNum['left'][i, 0] = edges[area][selectArea][0]
+            MCPPeakNum['right'][i, 0] = edges[area][selectArea][-1]
         else:
-            MCPPeakNum['left'][i] = w[0]
-            MCPPeakNum['right'][i] = w[1]
+            MCPPeakNum['left'][i, 0] = w[0]
+            MCPPeakNum['right'][i, 0] = w[1]
         # ax.fill_between(edges[area][selectArea], selectCounts[selectArea] + expectPrompt, np.ones(np.sum(selectArea)) * expectPrompt)
         print(edges[area][selectArea], selectCounts[selectArea], np.sum(selectArea))
-    x0 = np.vstack([MCPPeakNum['pv']*2, MCPPeakNum['t'], (MCPPeakNum['right'] - MCPPeakNum['left'])/2+10]).T.reshape(-1)
+    x0 = np.vstack([MCPPeakNum['pv'][:,0]*2, MCPPeakNum['t'][:,0], (MCPPeakNum['right'][:,0] - MCPPeakNum['left'][:,0])/2+10]).T.reshape(-1)
     bounds = []
     for idx, sw in enumerate(searchwindows):
-        bounds.append((10, 1000*MCPPeakNum['pv'][i]))
+        bounds.append((10, 1000*MCPPeakNum['pv'][i, 0]))
         bounds.append(sw)
         if len(boundsSigma)>0:
             bounds.append(boundsSigma[idx])
@@ -499,10 +499,14 @@ with PdfPages(args.opt + '.pdf') as pdf:
     #     options={'eps':0.0001}
     #     )
     # aftergroupsX = aftergroups.x.reshape((-1,3))
-    MCPPeakNum['t'] = aftergroupsX[:, 1]
-    MCPPeakNum['pv'] = aftergroupsX[:, 0]*np.sqrt(2*np.pi)*aftergroupsX[:, 2]/binwidth_large
-    MCPPeakNum['sigma'] = aftergroupsX[:, 2]
-    MCPPeakNum['ratio'] = MCPPeakNum['pv']/totalTriggerNum
+    MCPPeakNum['t'][:, 0] = aftergroupsX[:, 1]
+    MCPPeakNum['pv'][:, 0] = aftergroupsX[:, 0]*np.sqrt(2*np.pi)*aftergroupsX[:, 2]/binwidth_large
+    MCPPeakNum['sigma'][:, 0] = aftergroupsX[:, 2]
+    MCPPeakNum['ratio'][:, 0] = MCPPeakNum['pv'][:, 0]/totalTriggerNum
+    MCPPeakNum['t'][:, 1] = aftergroupsXErrors[:, 1]**2
+    MCPPeakNum['pv'][:, 1] = (aftergroupsXErrors[:, 0]**2 + aftergroupsXErrors[:, 2]**2) * 2*np.pi/binwidth_large**2
+    MCPPeakNum['sigma'][:, 1] = aftergroupsXErrors[:, 2]**2
+    MCPPeakNum['ratio'][:, 1] = MCPPeakNum['pv'][:, 1]/totalTriggerNum**2
 
     eys = Afterpulse(aftergroupsX.reshape(-1), edges[startEdges:endEdges])
     ax.plot(edges[startEdges:endEdges], eys+expectPrompt, linewidth=1, alpha=0.9, label='fit')
@@ -559,9 +563,11 @@ with PdfPages(args.opt + '.pdf') as pdf:
             scaledDCRNum = DCRNum / (config.DCRE-config.DCRB) * mcpr['sigma']*6
             h = ax.hist(selectQ, weights=np.repeat((config.DCRE-config.DCRB)/mcpr['sigma']/6, np.sum(selectT)), histtype='step', bins=bins, color=colors[im+1], label='{}-th Peak'.format(mcpr['Group']+1))
             if np.sum(selectQ>700)==0:
-                mu_c, sigma_c = 0, 0
+                mu_c, sigma_c, mu_4 = 0, 0, 0
             else:
+                muN = np.sum(selectQ>700)
                 mu_c, sigma_c = np.average(selectQ[selectQ>700]), np.std(selectQ[selectQ>700])
+                mu_4 = np.sum((selectQ[selectQ>700]-mu_c)**4)/(muN-1)
                 # Fit
                 begin, end = np.max([700,mu_c-2*sigma_c]), np.min([mu_c+2*min(sigma_c,1000), 6000])
                 f1 = ROOT.TF1("", "gaus", begin, end)
@@ -573,8 +579,9 @@ with PdfPages(args.opt + '.pdf') as pdf:
                 hists.Fit(f1, 'R')
                 pars, parErrors = f1.GetParameters(), f1.GetParErrors()
                 ax.plot(np.arange(begin, end, 10), pars[0]*np.exp(-0.5*(np.arange(begin, end, 10)-pars[1])**2/pars[2]**2), color=colors[im+1], alpha=0.8)
-                MCPPeakNum[['charge', 'chargeSigma', 'A', 'chargeSample', 'chargeSigmaSample']][mcpr['Group']] = pars[1], pars[2], pars[0], mu_c, sigma_c
-                MCPPeakNum['chargeDirect'][mcpr['Group']] = (np.sum(selectQ)-mergeresultsA['chargeMu'][0]*scaledDCRNum)/(np.sum(selectT)-scaledDCRNum)
+                MCPPeakNum[['charge', 'chargeSigma', 'A', 'chargeSample', 'chargeSigmaSample']][mcpr['Group'], 0] = pars[1], pars[2], pars[0], mu_c, sigma_c
+                MCPPeakNum['chargeDirect'][mcpr['Group'], 0] = (np.sum(selectQ)-mergeresultsA['chargeMu'][0]*scaledDCRNum)/(np.sum(selectT)-scaledDCRNum)
+                MCPPeakNum[['charge', 'chargeSigma', 'A', 'chargeSample', 'chargeSigmaSample']][mcpr['Group'], 1] = parErrors[1]**2, parErrors[2]**2, parErrors[0]**2, sigma_c**2/np.sum(selectQ>700), (mu_4-(muN-3)/(muN-1)*sigma_c**4)/muN/sigma_c**2
                 print(mcpr['Group'], mu_c, sigma_c, pars[1], pars[2], MCPPeakNum['chargeDirect'][mcpr['Group']])
             im += 1
 

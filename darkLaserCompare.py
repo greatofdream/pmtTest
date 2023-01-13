@@ -190,23 +190,30 @@ if args.run == -1:
             if pmt.startswith('PM'):
                 with h5py.File(args.dir+'/'+pmt+'/laser.h5', 'r') as ipt:
                     afterpulse = ipt['AfterPulse'][:]
-                ax.plot(afterpulse['t'], afterpulse['ratio'], marker='o', label=pmt)
+                ax.plot(afterpulse['t'][:, 0], afterpulse['ratio'][:, 0], marker='o', label=pmt)
                 chargeTemp = afterpulse['charge']
                 chargeSigmaTemp = afterpulse['chargeSigma']
-                if (afterpulse['pv'][2]<100) and chargeSigmaTemp[2]>chargeTemp[2]:
+                if (afterpulse['pv'][2, 0]<100) and chargeSigmaTemp[2]>chargeTemp[2]:
                     print('{} low statistic for 3th peak'.format(pmt))
                     # remove low statistic for 3th peak
                     chargeTemp[2] = afterpulse['chargeSample'][2]
                     chargeSigmaTemp[2] = afterpulse['chargeSigmaSample'][2]
                 if pmt not in lowStatisticPMT:
-                    ax2.plot(afterpulse['t'][[0,2,3,4]], chargeTemp[[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)#, afterpulse['chargeSigma'][[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain']
-                    ax3.plot(afterpulse['t'][[0,2,3,4]], afterpulse['chargeDirect'][[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)
+                    ax2.plot(afterpulse['t'][[0,2,3,4],0], chargeTemp[[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)#, afterpulse['chargeSigma'][[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain']
+                    ax3.plot(afterpulse['t'][[0,2,3,4], 0], afterpulse['chargeDirect'][[0,2,3,4], 0]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)
                 afterratios.append(afterpulse['ratio'])
                 afterPeaks.append(afterpulse['t'])
                 afterSigmas.append(afterpulse['sigma'])
-                afterCharges.append(chargeTemp/50/1.6*ADC2mV/pmtC['Gain'])
-                afterChargeSigmas.append(chargeSigmaTemp/50/1.6*ADC2mV/pmtC['Gain'])
-                afterChargeDirects.append(afterpulse['chargeDirect']/50/1.6*ADC2mV/pmtC['Gain'])
+                chargeTemp[:, 0] = chargeTemp[:, 0]/50/1.6*ADC2mV/pmtC['Gain']
+                chargeTemp[:, 1] = chargeTemp[:, 1]/(50*1.6/ADC2mV*pmtC['Gain'])**2
+                afterCharges.append(chargeTemp)
+                chargeSigmaTemp[:, 0] = chargeSigmaTemp[:, 0]/50/1.6*ADC2mV/pmtC['Gain']
+                chargeSigmaTemp[:, 1] = chargeSigmaTemp[:, 1]/(50*1.6/ADC2mV*pmtC['Gain'])**2
+                afterChargeSigmas.append(chargeSigmaTemp)
+                chargeDirectTemp = afterpulse['chargeDirect']
+                chargeDirectTemp[:, 0] = chargeDirectTemp[:, 0]/50/1.6*ADC2mV/pmtC['Gain']
+                chargeDirectTemp[:, 1] = chargeDirectTemp[:, 1]/(50*1.6/ADC2mV*pmtC['Gain'])**2
+                afterChargeDirects.append(chargeDirectTemp)
                 print(pmt, afterpulse['t'], afterpulse['ratio'])
         ax.set_xlabel('Delay time/ns of peaks')
         ax.set_ylabel(r'$A_i/N_{\mathrm{hit}}$')
@@ -265,19 +272,19 @@ if args.run == -1:
             if pmt.startswith('PM'):
                 with h5py.File(args.dir+'/'+pmt+'/laser.h5', 'r') as ipt:
                     chargeMerge = ipt['merge'][:]
-                TT_kToTTs.append(chargeMerge['TT_kToTT'][0])
-                TT_expToTTs.append(chargeMerge['TT_expToTT'][0])
-                TT_DCRToTTs.append(chargeMerge['TT_DCRToTT'][0])
-                TT2_1s.append(chargeMerge['TT2_1'][0])
-                TTS2s.append(chargeMerge['TTS2'][0])
-                TTS_exps.append(chargeMerge['TTS_exp'][0])
+                TT_kToTTs.append(chargeMerge['TT_kToTT'])
+                TT_expToTTs.append(chargeMerge['TT_expToTT'])
+                TT_DCRToTTs.append(chargeMerge['TT_DCRToTT'])
+                TT2_1s.append(chargeMerge['TT2_1'])
+                TTS2s.append(chargeMerge['TTS2'])
+                TTS_exps.append(chargeMerge['TTS_exp'])
         TT_kToTTs, TT_expToTTs, TT2_1s, TTS2s, TTS_exps, DCR_exps = np.array(TT_kToTTs), np.array(TT_expToTTs), np.array(TT2_1s), np.array(TTS2s), np.array(TTS_exps), np.array(DCR_exps)
-        print('TT_kToTTs: {}, {:.3f}, {:.3f}'.format(TT_kToTTs, np.mean(TT_kToTTs), np.std(TT_kToTTs)))
-        print('TT_expToTTs: {}, {:.3f}, {:.3f}'.format(TT_expToTTs, np.mean(TT_expToTTs), np.std(TT_expToTTs)))
-        print('TT_DCRToTTs: {}, {:.5f}, {:.5f}'.format(TT_DCRToTTs, np.mean(TT_DCRToTTs), np.std(TT_DCRToTTs)))
-        print('TT2_1s: {}, {:.3f}, {:.3f}'.format(TT2_1s, np.mean(TT2_1s), np.std(TT2_1s)))
-        print('TTS2s: {}, {:.3f}, {:.3f}'.format(TTS2s, np.mean(TTS2s), np.std(TTS2s)))
-        print('TTS_exps: {}, {:.3f}, {:.3f}'.format(TTS_exps, np.mean(TTS_exps), np.std(TTS_exps)))
+        print('TT_kToTTs: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT_kToTTs[:,0], np.sum(TT_kToTTs[:,0]/TT_kToTTs[:,1])/np.sum(1/TT_kToTTs[:,1]), 1/np.sum(1/TT_kToTTs[:,1]), np.mean(TT_kToTTs), np.std(TT_kToTTs)))
+        print('TT_expToTTs: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT_expToTTs[:,0], np.sum(TT_expToTTs[:,0]/TT_expToTTs[:,1])/np.sum(1/TT_expToTTs[:,1]), 1/np.sum(1/TT_expToTTs[:,1]), np.mean(TT_expToTTs), np.std(TT_expToTTs)))
+        print('TT_DCRToTTs: {}, {:.3f}, {:.3f}, {:.5f}, {:.5f}'.format(TT_DCRToTTs[:,0], np.sum(TT_DCRToTTs[:,0]/TT_DCRToTTs[:,1])/np.sum(1/TT_DCRToTTs[:,1]), 1/np.sum(1/TT_DCRToTTs[:,1]), np.mean(TT_DCRToTTs), np.std(TT_DCRToTTs)))
+        print('TT2_1s: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT2_1s[:,0], np.sum(TT2_1s[:,0]/TT2_1s[:,1])/np.sum(1/TT2_1s[:,1]), 1/np.sum(1/TT2_1s[:,1]), np.mean(TT2_1s), np.std(TT2_1s)))
+        print('TTS2s: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TTS2s[:,0], np.sum(TTS2s[:,0]/TTS2s[:,1])/np.sum(1/TTS2s[:,1]), 1/np.sum(1/TTS2s[:,1]), np.mean(TTS2s), np.std(TTS2s)))
+        print('TTS_exps: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TTS_exps[:,0], np.sum(TTS_exps[:,0]/TTS_exps[:,1])/np.sum(1/TTS_exps[:,1]), 1/np.sum(1/TTS_exps[:,1]), np.mean(TTS_exps), np.std(TTS_exps)))
 
         print('DCR {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['DCR']/pmtcsv[selectMCP]['DCRVar'])/np.sum(1/pmtcsv[selectMCP]['DCRVar']),
@@ -317,12 +324,12 @@ if args.run == -1:
             np.mean(pmtcsv[selectMCP]['chargeRes']), np.std(pmtcsv[selectMCP]['chargeRes'])
             ))
         print('Gain1 {:.3f} {:.3f} {:.3f} {:.3f}'.format(
-            np.sum(pmtcsv[selectMCP]['Gain']/pmtcsv[selectMCP]['GainVar'])/np.sum(1//pmtcsv[selectMCP]['GainVar']),
+            np.sum(pmtcsv[selectMCP]['Gain']/pmtcsv[selectMCP]['GainVar'])/np.sum(1/pmtcsv[selectMCP]['GainVar']),
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['GainVar'])),
             np.mean(pmtcsv[selectMCP]['Gain']), np.std(pmtcsv[selectMCP]['Gain'])
             ))
         print('Gain {:.3f} {:.3f} {:.3f} {:.3f}'.format(
-            np.sum(pmtcsv[selectMCP]['chargeMu']/pmtcsv[selectMCP]['chargeMuVar'])/np.sum(1//pmtcsv[selectMCP]['chargeMuVar'])/50/1.6*ADC2mV,
+            np.sum(pmtcsv[selectMCP]['chargeMu']/pmtcsv[selectMCP]['chargeMuVar'])/np.sum(1/pmtcsv[selectMCP]['chargeMuVar'])/50/1.6*ADC2mV,
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['chargeMuVar']))/50/1.6*ADC2mV,
             np.mean(pmtcsv[selectMCP]['chargeMu'])/50/1.6*ADC2mV, np.std(pmtcsv[selectMCP]['chargeMu'])/50/1.6*ADC2mV
             ))
@@ -355,27 +362,39 @@ if args.run == -1:
             np.sqrt(1/np.sum(1/(pmtcsv[selectMCP]['After1Var']+pmtcsv[selectMCP]['After2Var']))),
             np.mean(pmtcsv[selectMCP]['After1']+pmtcsv[selectMCP]['After2']), np.std(pmtcsv[selectMCP]['After1']+pmtcsv[selectMCP]['After2'])
             ))
-        print('After ratio {} {}'.format(
-            np.mean(afterratios, axis=0),
-            np.std(afterratios, axis=0)
+        print('After ratio {:.3f} {:.3f} {} {}'.format(
+            np.sum(afterratios[:,0]/afterratios[:,1])/np.sum(1/afterratios[:,1]),
+            np.sqrt(1/np.sum(1/afterratios[:,1])),
+            np.mean(afterratios[:,0], axis=0),
+            np.std(afterratios[:, 0], axis=0)
             ))
-        print('After peak time {} {}'.format(
-            np.mean(afterPeaks, axis=0),
-            np.std(afterPeaks, axis=0)
+        print('After peak time {:.3f} {:.3f} {} {}'.format(
+            np.sum(afterPeaks[:,0]/afterPeaks[:,1])/np.sum(1/afterPeaks[:,1]),
+            np.sqrt(1/np.sum(1/afterPeaks[:,1])),
+            np.mean(afterPeaks[:,0], axis=0),
+            np.std(afterPeaks[:,0], axis=0)
             ))
-        print('After peak sigma {} {}'.format(
-            np.mean(afterSigmas, axis=0),
-            np.std(afterSigmas, axis=0)
+        print('After peak sigma {:.3f} {:.3f} {} {}'.format(
+            np.sum(afterSigmas[:,0]/afterSigmas[:,1])/np.sum(1/afterSigmas[:,1]),
+            np.sqrt(1/np.sum(1/afterSigmas[:,1])),
+            np.mean(afterSigmas[:,0], axis=0),
+            np.std(afterSigmas[:,0], axis=0)
             ))
-        print('After peak charge {} {}'.format(
-            np.mean(afterCharges[ishighstatistics], axis=0),
-            np.std(afterCharges[ishighstatistics], axis=0)
+        print('After peak charge {:.3f} {:.3f} {} {}'.format(
+            np.sum(afterCharges[ishighstatistics,0]/afterCharges[ishighstatistics,1])/np.sum(1/afterCharges[ishighstatistics,1]),
+            np.sqrt(1/np.sum(1/afterCharges[ishighstatistics,1])),
+            np.mean(afterCharges[ishighstatistics, 0], axis=0),
+            np.std(afterCharges[ishighstatistics, 0], axis=0)
             ))
-        print('After peak charge sigma {} {}'.format(
-            np.mean(afterChargeSigmas[ishighstatistics], axis=0),
-            np.std(afterChargeSigmas[ishighstatistics], axis=0)
+        print('After peak charge sigma {:.3f} {:.3f} {} {}'.format(
+            np.sum(afterChargeSigmas[ishighstatistics,0]/afterChargeSigmas[ishighstatistics,1])/np.sum(1/afterChargeSigmas[ishighstatistics,1]),
+            np.sqrt(1/np.sum(1/afterChargeSigmas[ishighstatistics,1])),
+            np.mean(afterChargeSigmas[ishighstatistics, 0], axis=0),
+            np.std(afterChargeSigmas[ishighstatistics, 0], axis=0)
             ))
-        print('After peak charge Direct {} {}'.format(
+        print('After peak charge Direct {:.3f} {:.3f} {} {}'.format(
+            np.sum(afterChargeDirects[ishighstatistics,0]/afterChargeDirects[ishighstatistics,1])/np.sum(1/afterChargeDirects[ishighstatistics,1]),
+            np.sqrt(1/np.sum(1/afterChargeDirects[ishighstatistics,1])),
             np.mean(afterChargeDirects[ishighstatistics], axis=0),
             np.std(afterChargeDirects[ishighstatistics], axis=0)
             ))
