@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 plt.style.use('./journal.mplstyle')
 from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.ticker import MultipleLocator
+from matplotlib.ticker import MultipleLocator, FuncFormatter
 from matplotlib.colors import ListedColormap
 from scipy.optimize import minimize
 import config
@@ -126,7 +126,12 @@ chargeress_weights = chargeress**2 * (resultsSigma2['chargeSigma2']/results['cha
 sig_TTS = results['TTS']/np.sqrt(2 * np.log(2))/2
 TT_kToTT = results['TTA2']*results['TTS2']/(results['TTA']*results['TTS'])
 TT_expToTT = (results['TTA_exp']*results['TTS_exp'])/(results['TTA']*sig_TTS*np.sqrt(2*np.pi))
-TT_DCRToTT = sig_TTS*2*results['DCR_exp']/(results['TTA']*sig_TTS*np.sqrt(2*np.pi))
+TT_DCRToTT = 2*results['DCR_exp'] / (results['TTA']*np.sqrt(2*np.pi))#sig_TTS*2*results['DCR_exp']/(results['TTA']*sig_TTS*np.sqrt(2*np.pi))
+deltaTT = results['TT'] - results['TT2']
+TT_kToTT_Sigma2 = TT_kToTT**2 * (resultsSigma2['TTA2']/results['TTA2']**2 + resultsSigma2['TTS2']/results['TTS2']**2 + resultsSigma2['TTA']/results['TTA']**2 + resultsSigma2['TTS']/results['TTS']**2)
+TT_expToTT_Sigma2 = TT_expToTT**2 * (resultsSigma2['TTA_exp']/results['TTA_exp']**2 + resultsSigma2['TTS_exp']/results['TTS_exp']**2 + resultsSigma2['TTA']/results['TTA']**2 + resultsSigma2['TTS']/results['TTS']**2)
+TT_DCRToTT_Sigma2 = TT_DCRToTT**2 * (resultsSigma2['DCR_exp']/results['DCR_exp']**2 + resultsSigma2['TTA']/results['TTA']**2)
+deltaTT_Sigma2 = resultsSigma2['TT'] + resultsSigma2['TT2']
 
 mergeresultsA[0] = (
     np.sum(results['peakC']/resultsSigma2['peakC']) / np.sum(1/resultsSigma2['peakC']),
@@ -153,10 +158,10 @@ mergeresultsA[0] = (
     np.sum(results['chargeMu'] / resultsSigma2['chargeMu']) / np.sum(1 / resultsSigma2['chargeMu']),
     np.sum(results['chargeSigma2']/resultsSigma2['chargeSigma2']) / np.sum(1/resultsSigma2['chargeSigma2']),
     pde,
-    np.mean(TT_kToTT),
-    np.mean(TT_expToTT),
-    np.mean(TT_DCRToTT),
-    np.mean(results['TT']-results['TT2'])
+    np.sum(TT_kToTT / TT_kToTT_Sigma2) / np.sum(1 / TT_kToTT_Sigma2),
+    np.sum(TT_expToTT / TT_expToTT_Sigma2) / np.sum(1 / TT_expToTT_Sigma2),
+    np.sum(TT_DCRToTT / TT_DCRToTT_Sigma2) / np.sum(1 / TT_DCRToTT_Sigma2),
+    np.sum(deltaTT / deltaTT_Sigma2) / np.sum(1 / deltaTT_Sigma2)
     )
 # 误差使用最小二乘法
 mergeresultsA[1] = (
@@ -184,20 +189,25 @@ mergeresultsA[1] = (
     1 / np.sum(1/resultsSigma2['chargeMu']),
     1 / np.sum(1/resultsSigma2['chargeSigma2']),
     pde_sigma2,
-    0,
-    0,
-    0,
-    0
+    1 / np.sum(1 / TT_kToTT_Sigma2),
+    1 / np.sum(1 / TT_expToTT_Sigma2),
+    1 / np.sum(1 / TT_DCRToTT_Sigma2),
+    1 / np.sum(1 / deltaTT_Sigma2)
     )
 
 # 统计多批数据的afterpulse
-pulseResults = pd.concat([loadPulse(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL']) for run in selectruns])
+pulseResults_Total = pd.concat([loadPulse(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL']) for run in selectruns])
+selectEvent = pulseResults_Total['isTrigger'] & (pulseResults_Total['minPeakCharge'] > 0.25 * pulseResults_Total['peakC']) & (pulseResults_Total['FWHM']>2)
+pulseResults = pulseResults_Total[selectEvent]
 infos = [loadRatio(args.dir.format(run['RUNNO']) + '/pulseRatio.h5', run['CHANNEL'], run['RUNNO']) for run in selectruns]
 pulseratioResults = pd.concat([i[0] for i in infos])
 pulseratioResultsSigma2 = pd.concat([i[1] for i in infos])
 promptwindow, delay1window, delay10window, DCRwindow = promptB - promptE, delay1E - delay1B, delay10E - delay10B, config.DCRE-config.DCRB
-
-
+promptAll_index = selectEvent & (pulseResults_Total['begin10']>-promptB) & (pulseResults_Total['begin10']<-promptE)
+totalTriggerNum = np.sum(pulseratioResults['TriggerNum'])
+totalNum = np.sum(pulseratioResults['TotalNum'])
+DCR_total = np.sum(pulseratioResults['DCR']*pulseratioResults['TotalNum'])/np.sum(pulseratioResults['TotalNum'])/DCRwindow
+DCR_totalSigma2 = DCR_total/np.sum(pulseratioResults['TotalNum'])/DCRwindow
 # use pre pulse ratio to estimate the DCR
 pulseratioResults['DCR_laser'] = pulseratioResults['DCR']/DCRwindow*1E6
 pulseratioResults['promptWODCR'] = pulseratioResults['prompt'] - pulseratioResults['DCR']/DCRwindow * promptwindow
@@ -211,9 +221,10 @@ promptwodcr = np.sum(pulseratioResults['promptWODCR']/promptwodcrSigma2s) / np.s
 delay1wodcr = np.sum(pulseratioResults['delay1WODCR']/delay1wodcrSigma2s) / np.sum(1/delay1wodcrSigma2s)
 delay10wodcr = np.sum(pulseratioResults['delay10WODCR']/delay10wodcrSigma2s) / np.sum(1/delay10wodcrSigma2s)
 
+# promptAllWODCR use all dataset estimate the prompt, all dataset estimate DCR
+# delayAllWODCR use main pulse dataset estimate the delay, all dataset estimate DCR
+mergePulseResults = np.zeros((2,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4'), ('DCR', '<f4'), ('meanDCR', '<f4'), ('meanprompt', '<f4'), ('meandelay1', '<f4'), ('meandelay10', '<f4'), ('promptAllWODCR', '<f4'), ('delayAllWODCR', '<f4')])
 
-mergePulseResults = np.zeros((2,), dtype=[('prompt', '<f4'), ('delay1', '<f4'), ('delay10', '<f4'), ('promptWODCR', '<f4'), ('delay1WODCR', '<f4'), ('delay10WODCR', '<f4'), ('DCR', '<f4'), ('meanDCR', '<f4'), ('meanprompt', '<f4'), ('meandelay1', '<f4'), ('meandelay10', '<f4')])
-totalTriggerNum = np.sum(pulseratioResults['TriggerNum'])
 mergePulseResults[0] = (
     np.sum(pulseratioResults['prompt'] / pulseratioResultsSigma2['prompt'])/np.sum(1 / pulseratioResultsSigma2['prompt']),
     np.sum(pulseratioResults['delay1'] / pulseratioResultsSigma2['delay1'])/np.sum(1 / pulseratioResultsSigma2['delay1']),
@@ -222,10 +233,12 @@ mergePulseResults[0] = (
     delay1wodcr,
     delay10wodcr,
     np.sum(pulseratioResults['DCR']/pulseratioResultsSigma2['DCR']) / np.sum(1/pulseratioResultsSigma2['DCR'])/DCRwindow*1E6,
-    np.sum(pulseratioResults['DCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum'])/DCRwindow*1E6,
+    DCR_total*1E6,
     np.sum(pulseratioResults['promptWODCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum']),
     np.sum(pulseratioResults['delay1WODCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum']),
     np.sum(pulseratioResults['delay10WODCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum']),
+    np.sum(promptAll_index)/np.sum(pulseratioResults['TotalNum']) - DCR_total * promptwindow,
+    np.sum((pulseratioResults['delay1'] + pulseratioResults['delay10']) * pulseratioResults['TriggerNum']) / np.sum(pulseratioResults['TriggerNum']) - DCR_total * (delay1window + delay10window)
 )
 mergePulseResults[1] = (
     1 / np.sum(1 / pulseratioResultsSigma2['prompt']),
@@ -235,10 +248,12 @@ mergePulseResults[1] = (
     1 / np.sum(1/delay1wodcrSigma2s),
     1 / np.sum(1/delay10wodcrSigma2s),
     1 / np.sum(1/pulseratioResultsSigma2['DCR'])*(1E6/DCRwindow)**2,
-    np.sum(pulseratioResults['DCR']*pulseratioResults['TriggerNum'])/np.sum(pulseratioResults['TriggerNum'])**2*(1E6/DCRwindow)**2,
+    DCR_totalSigma2*(1E6)**2,
     np.sum(promptwodcrSigma2s*pulseratioResults['TriggerNum']**2)/np.sum(pulseratioResults['TriggerNum'])**2,
     np.sum(delay1wodcrSigma2s*pulseratioResults['TriggerNum']**2)/np.sum(pulseratioResults['TriggerNum'])**2,
     np.sum(delay10wodcrSigma2s*pulseratioResults['TriggerNum']**2)/np.sum(pulseratioResults['TriggerNum'])**2,
+    np.sum(promptAll_index)/np.sum(pulseratioResults['TotalNum'])**2 + DCR_totalSigma2 * promptwindow**2,
+    np.sum((pulseratioResults['delay1'] + pulseratioResults['delay10']) * pulseratioResults['TriggerNum']) / np.sum(pulseratioResults['TriggerNum'])**2 + DCR_totalSigma2 * (delay1window + delay10window)
 )
 # 统计ser参数
 ## tau, sigma考虑的误差为统计误差，未考虑拟合误差, tau_total, sigma_total未考虑拟合误差
@@ -253,8 +268,8 @@ mergeSERResults[0] = (
 mergeSERResults[1] = (
     1/np.sum(1/serResults['tau_sigma']**2),
     1/np.sum(1/serResults['sigma_sigma']**2),
-    np.std(serResults['tau_total']),
-    np.std(serResults['sigma_total'])
+    np.var(serResults['tau_total']),
+    np.var(serResults['sigma_total'])
 )
 # 绘制变化曲线
 jet = plt.cm.jet
@@ -354,7 +369,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
     ax.set_ylabel('Charge/ADC$\cdot$ns')
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     pdf.savefig(fig)
-    
+    # charge distribution and mean charge line plot
     fig, ax = plt.subplots(figsize=(15,6))
     selectT = (pulseResults['t']<config.laserE)|(pulseResults['t']>config.delay1B)
     h = ax.hist2d(pulseResults['t'][selectT], pulseResults['Q'][selectT], bins=[int((delay10E - config.DCRB)/binwidth/2), 300], range=[[config.DCRB, delay10E], [0, 6000]], cmap=cmap)
@@ -406,7 +421,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
         searchwindows = config.searchwindowsMCP
     else:
         searchwindows = config.searchwindowsHama
-    expectPrompt = np.sum((pulseResults['t']>config.DCRB)&(pulseResults['t']<config.DCRE))/(config.DCRE-config.DCRB) * binwidth_large
+    expectPrompt = mergePulseResults[0]['meanDCR'] * binwidth_large / 1E6 #np.sum((pulseResults['t']>config.DCRB)&(pulseResults['t']<config.DCRE))/(config.DCRE-config.DCRB) * binwidth_large
     MCPPeakNum = np.zeros(len(searchwindows), dtype=[('Group', '<i2'), ('t', '<f4'), ('N', '<i4'), ('pv', '<i4'), ('left', '<f4'), ('right', '<f4'), ('sigma', '<f4'), ('ratio', '<f4'), ('charge', '<f4'), ('chargeSigma', '<f4'), ('chargeSample', '<f4'), ('chargeSigmaSample', '<f4'), ('chargeDirect', '<f4'), ('A', '<f4')])
     
     fig, ax = plt.subplots(figsize=(15,6))
@@ -498,6 +513,7 @@ with PdfPages(args.opt + '.pdf') as pdf:
     ax.hist(pulseResults['t'], bins=int((-config.DCRB - promptE)/binwidth_large), range=[config.DCRB, -promptE], histtype='step', label='Pre-pulse')
     ax.plot(edges[startEdges:endEdges], eys+expectPrompt, linewidth=1, alpha=0.9, label='Fit')
     ax.axhline(expectPrompt, linewidth=1, linestyle='--', label='DCR')
+    ax.scatter([0], [totalTriggerNum], marker='o', label='$N_{\mathrm{hit}}$')
     ax.set_xlabel('Delay time/ns')
     ax.set_ylabel('Entries')
     ax.set_xlim([config.DCRB, delay10E])
@@ -507,8 +523,11 @@ with PdfPages(args.opt + '.pdf') as pdf:
     pdf.savefig(fig)
     ax.set_yscale('log')
     pdf.savefig(fig)
-    ax.set_yscale('function', functions=(lambda x: x/binwidth_large/totalTriggerNum, lambda x: x*binwidth_large*totalTriggerNum))
-    ax.set_ylabel('Rate')
+    # ax.set_yscale('function', functions=(lambda x: x/binwidth_large/totalTriggerNum, lambda x: x*binwidth_large*totalTriggerNum))
+    ticks = FuncFormatter(lambda x, pos: '{0:.1E}'.format(x/binwidth_large/totalTriggerNum))
+    ax.yaxis.set_major_formatter(ticks)
+    ax.yaxis.set_minor_formatter(ticks)
+    ax.set_ylabel('Entries/$N_{\mathrm{hit}}$/{}ns'.format(binwidth_large))
     pdf.savefig(fig)
 
     ## 各个After-pulse峰的charge分布,宽DCRE-DCRB
