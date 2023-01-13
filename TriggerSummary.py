@@ -363,7 +363,7 @@ for j in range(len(args.channel)):
         # probf3 = paraRoot[7] * (1-erf((paraRoot[3]**2/paraRoot[8]-np.arange(limits[0], limits[1], 0.1)+paraRoot[2]+2*para)/np.sqrt(2)/paraRoot[8])) * np.exp(-(np.arange(limits[0], limits[1], 0.1)-paraRoot[2])/paraRoot[9])+paraRoot[9]
         probf3[np.arange(limits[0], limits[1], 0.1)<(paraRoot[2]+ offset_n * paraRoot[3])] = 0
         results[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = paraRoot[8], paraRoot[7], paraRoot[9]
-        paraSigma2[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = errorRoot[8], errorRoot[7], errorRoot[9]
+        paraSigma2[['TTS_exp', 'TTA_exp', 'DCR_exp']][j] = errorRoot[8]**2, errorRoot[7]**2, errorRoot[9]**2
     else:
         # probf3 = paraRoot[7]*np.exp(-(np.arange(limits[0], limits[1], 0.1)-paraRoot[2]-offset_n * paraRoot[3])/paraRoot[8])
         # probf3[np.arange(limits[0], limits[1], 0.1)<(paraRoot[2]+ offset_n * paraRoot[3])] = 0
