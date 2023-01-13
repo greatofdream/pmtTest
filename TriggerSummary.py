@@ -270,7 +270,7 @@ for j in range(len(args.channel)):
 
     # TTS 分布与unbinned拟合
     binwidth = 0.5
-    fig, (ax2, ax) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [1, 5]})
+    fig, (ax, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
     fig.subplots_adjust(hspace=0)
     print(np.sum(totalselect&(~info[j]['isTrigger'])))
     ## 限制拟合区间
@@ -381,7 +381,9 @@ for j in range(len(args.channel)):
     residuals = h[0] - (probf1 + probf2 + probf3+ paraRoot[0])[2::5][:len(h[0])]
     ax2.scatter((h[1][:-1]+h[1][1:])/2, residuals, s=5)
     ax2.axhline(0, ls='--')
-    ax.set_xlabel('TT/ns')
+    ax2.set_xlabel('TT/ns')
+    ax2.set_ylabel('Residual')
+    ax2.ticklabel_format(style='sci', scilimits=(0,0), axis='y')
     ax.set_ylabel('Entries')
     ax.set_xlim(limits)
     ax.xaxis.set_minor_locator(MultipleLocator(1))
