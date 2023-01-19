@@ -100,7 +100,6 @@ if __name__=="__main__":
                 arrowprops=dict(arrowstyle="|-|, widthA=0.5, widthB=0.5",
                 connectionstyle="arc3"),)
         ax.annotate("+100~+200", (x1 + 10, y1 - 15))
-        
         ## 绘制rise time, falling time
         ax.plot([begin10, end10], [baseline-0.1*minpeak, baseline-0.1*minpeak], linestyle='dotted', color='r')
         ax.plot([begin90, end90], [baseline-0.9*minpeak, baseline-0.9*minpeak], linestyle='dotted', color='r')
