@@ -41,9 +41,10 @@ if __name__=="__main__":
     # read the threshold
     with h5py.File(args.summary, 'r') as sum_ipt:
         peakCs = sum_ipt['res']['peakC']
+        peakTs = sum_ipt['res']['TT']
 
     # initialize the storerage
-    storedtype = [('EventID', '<i4'), ('t', '<f4'), ('Q', '<f4'), ('peak', '<f4'), ('begin10', '<f4'), ('down10', '<f4'), ('begin50', '<f4'), ('down50', '<f4'), ('begin90', '<f4'), ('down90', '<f4'), ('isTrigger', bool), ('mainBegin10', '<f4'), ('minPeakCharge', '<f4'), ('FWHM', '<f4'), ('peakC', '<f4')]
+    storedtype = [('EventID', '<i4'), ('t', '<f4'), ('Q', '<f4'), ('peak', '<f4'), ('begin10', '<f4'), ('down10', '<f4'), ('begin50', '<f4'), ('down50', '<f4'), ('begin90', '<f4'), ('down90', '<f4'), ('isTrigger', bool), ('mainBegin10', '<f4'), ('minPeakCharge', '<f4'), ('FWHM', '<f4'), ('peakC', '<f4'), ('peakT', '<f4'), ('isAfter', bool)]
     ## suppose the ratio of trigger is 0.1 and average pulse number not exceed 10.
     pulse = np.zeros((entries*2, len(args.channel)), dtype=storedtype)
     nums = np.zeros((len(args.channel)), dtype=int)
@@ -58,7 +59,11 @@ if __name__=="__main__":
             # if not anar['isTrigger'] or anar['minPeakCharge']< 0.25 * peakCs[j] or anar['FWHM']<2:
             #     continue
             baseline, std = anar['baseline'], anar['std']
+            triggerExpectT = int(trigger[i]['triggerTime'] + peakTs[j])
             triggerPulseT = int(trigger[i]['triggerTime'] + anar['begin10'])
+            if anar['FWHM'] == 0 and anar['riseTime']==0:
+                # 确定没有脉冲
+                triggerPulseT = triggerExpectT
             threshold = np.max([args.nsigma * std, 3])
             # 避免在delay1B的位置出现奇怪的异常峰，~将搜寻范围扩大至delayB-speend~,直接在delayB中调整数值为anadelay1B
             start = triggerPulseT + config.anadelay1B
@@ -70,10 +75,10 @@ if __name__=="__main__":
                     up10, up50, up90 = Qb(w-baseline, t, 0)
                     down10, down50, down90 = Qe(w-baseline, t, 0)
                     # store the relative time ot begin10
-                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT, anar['isTrigger'], anar['begin10'], anar['minPeakCharge'], anar['FWHM'], peakCs[j])
+                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT, anar['isTrigger'], anar['begin10'], anar['minPeakCharge'], anar['FWHM'], peakCs[j], peakTs[j], True)
                     nums[j] += 1
             ## 检查前脉冲
-            end = triggerPulseT - config.anapromptE
+            end = triggerExpectT - config.anapromptE
             if np.max(baseline - w[:end]) > threshold:
                 intervals = getIntervals(np.arange(end), baseline - w[:end], threshold, spestart, speend)
                 for interval in intervals:
@@ -81,7 +86,7 @@ if __name__=="__main__":
                     up10, up50, up90 = Qb(w-baseline, t, 0)
                     down10, down50, down90 = Qe(w-baseline, t, 0)
                     # store the relative time ot begin10
-                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT, anar['isTrigger'], anar['begin10'], anar['minPeakCharge'], anar['FWHM'], peakCs[j])
+                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT, anar['isTrigger'], anar['begin10'], anar['minPeakCharge'], anar['FWHM'], peakCs[j], peakTs[j], False)
                     nums[j] += 1
     totalNums = np.zeros(len(args.channel), dtype=[('HitNum', '<i4'), ('TrigNum', '<i4')])
     for j in range(len(args.channel)):
