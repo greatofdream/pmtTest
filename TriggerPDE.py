@@ -134,6 +134,8 @@ if __name__=="__main__":
         opt.create_dataset('logerr', data=res.bse[-(len(pmts)-1):], compression='gzip')
         opt.create_dataset('I', data=I_t, compression='gzip')
         opt.create_dataset('splitter', data=splitterRatio, compression='gzip')
+        measuredRates['runno'] = measuredRates['runno'].astype('int')
+        opt.create_dataset('measuredRates', data=measuredRates.drop(columns=['pmt']).to_records(), compression='gzip')
     with PdfPages(args.opt+'.pdf') as pdf:
         fig, ax = plt.subplots()
         ax.errorbar(x=range(num_run), y=np.exp(res.params[:num_run]), yerr=np.exp(res.params[:num_run])*res.bse[:num_run])
@@ -160,7 +162,7 @@ if __name__=="__main__":
 
         I_total = np.zeros(measuredRates.shape[0])
         for i, run in enumerate(args.runs):
-            I_total[measuredRates['runno'].values==run] = I_t[i]
+            I_total[measuredRates['runno'].values==int(run)] = I_t[i]
         
         # 为了避免测试管没有完全经过所有位置，refRates使用预测值
         # refRates = groupRates.get_group(0).sort_values('splitter')
@@ -207,7 +209,7 @@ if __name__=="__main__":
         fig, ax = plt.subplots()
         for i in range(1, len(pmts)):
             tmpDf = groupRates.get_group(i).sort_values('splitter')
-            ax.plot(tmpDf['splitter'], tmpDf['TriggerRate_adj'].values/refRates[tmpDf['splitter'].values]*I_t[0], label=pmtmap.loc[i])
+            ax.scatter(tmpDf['splitter'], tmpDf['TriggerRate_adj'].values/refRates[tmpDf['splitter'].values]*I_t[0], label=pmtmap.loc[i])
         ax.set_xlabel('splitter')
         ax.set_ylabel('Adjusted Relative PDE')
         ax.legend()
@@ -232,6 +234,32 @@ if __name__=="__main__":
         ax.legend()
         pdf.savefig(fig)
 
+        fig, ax = plt.subplots()
+        ax.errorbar(xlabels, measuredRates['TriggerNum']-predictRates*measuredRates['TotalNum'].values, yerr=np.sqrt(predictRates*measuredRates['TotalNum']*(1-predictRates)), fmt='.', color='orange', label='observe')
+        ax.set_xticklabels(xlabels, rotation=45)
+        ax.set_xlabel('pmt-splitter-run')
+        ax.set_ylabel('Residual')
+        ax.legend()
+        pdf.savefig(fig)
+
+        fig, ax = plt.subplots()
+        # refernce Rate
+        refDf = groupRates.get_group(0).sort_values('splitter')
+        for i in range(1, len(pmts)):
+            tmpDf = groupRates.get_group(i).sort_values('splitter')
+            x_splitter = []
+            y_pde = []
+            for j, i_s in enumerate(tmpDf['splitter'].values):
+                i_f = np.argwhere(i_s == refDf['splitter'].values)
+                if len(i_f)>0:
+                    x_splitter.append(tmpDf.iloc[j]['splitter'])
+                    y_pde.append(tmpDf.iloc[j]['TriggerRate']/refDf.iloc[i_f[0]]['TriggerRate'])
+            print(x_splitter, y_pde)
+            ax.scatter(x_splitter, y_pde, label=pmtmap.loc[i])
+        ax.set_xlabel('splitter')
+        ax.set_ylabel('Direct Relative PDE')
+        ax.legend()
+        pdf.savefig(fig)
 
     for r in zip(splitterRatio[0], splitterRatio[1]):
         print('{:.2f}+-{:.2f}'.format(r[0], r[1]))
