@@ -141,7 +141,7 @@ if __name__=="__main__":
                 if r_min<=0 or r_min>=(interval_j[1]-interval_j[0]) or w[rminIndex + int(trigger[i]['triggerTime'])]>=baseline:
                     isTrigger = False
                     pulse[j][i] = (eid, isTrigger, baseline, std, 0, 0, 0,
-                        0, 0, 0, 0, 0, 0,
+                        rminIndex, 0, 0, 0, 0, 0,
                         baseline - min(w[interval_j[0]:interval_j[1]]), rminIndex, np.sum(baseline - w[interval_j[0]:interval_j[1]]),
                         anar['begin5mV'], anar['end5mV'], anar['nearPosMax'])
                 else:
