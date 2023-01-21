@@ -129,13 +129,9 @@ if __name__=="__main__":
         np.exp(res.params[num_run:(num_run+num_splitter-1)]),
         np.exp(res.params[num_run:(num_run+num_splitter-1)])*res.bse[num_run:(num_run+num_splitter-1)]
         ])
-    with h5py.File(args.opt, 'w') as opt:
-        opt.create_dataset('QE', data=PDE_t, compression='gzip')
-        opt.create_dataset('logerr', data=res.bse[-(len(pmts)-1):], compression='gzip')
-        opt.create_dataset('I', data=I_t, compression='gzip')
-        opt.create_dataset('splitter', data=splitterRatio, compression='gzip')
-        measuredRates['runno'] = measuredRates['runno'].astype('int')
-        opt.create_dataset('measuredRates', data=measuredRates.drop(columns=['pmt']).to_records(), compression='gzip')
+    # Warning: The following code will use the int dtype for column runno
+    measuredRates['runno'] = measuredRates['runno'].astype('int')
+    
     with PdfPages(args.opt+'.pdf') as pdf:
         fig, ax = plt.subplots()
         ax.errorbar(x=range(num_run), y=np.exp(res.params[:num_run]), yerr=np.exp(res.params[:num_run])*res.bse[:num_run])
@@ -263,3 +259,10 @@ if __name__=="__main__":
 
     for r in zip(splitterRatio[0], splitterRatio[1]):
         print('{:.2f}+-{:.2f}'.format(r[0], r[1]))
+    with h5py.File(args.opt, 'w') as opt:
+        opt.create_dataset('QE', data=PDE_t, compression='gzip')
+        opt.create_dataset('logerr', data=res.bse[-(len(pmts)-1):], compression='gzip')
+        opt.create_dataset('I', data=I_t, compression='gzip')
+        opt.create_dataset('splitter', data=splitterRatio, compression='gzip')
+        opt.create_dataset('measuredRates', data=measuredRates.drop(columns=['pmt']).to_records(), compression='gzip')
+        opt.create_dataset('refRates', data=refRates, compression='gzip')

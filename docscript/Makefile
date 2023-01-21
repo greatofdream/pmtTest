@@ -47,5 +47,5 @@ afterpulse761_2.pdf:
 	python3 afterpulse.py --run 761 -t 1 --cid 2 --datadir $(datadir) --ana ../ExResult/761/600ns/qe/preanalysisMerge.h5 -o $@ 
 chargeSelect.pdf: ../ExResult/786/600ns/qe/preanalysisMerge.h5 ../ExResult/786/600ns/trigger.h5
 	python3 triggercharge.py -i $< -o $@ -c 2 3 4 5 -t $(word 2,$^) --run 786
-pde.pdf: ../ExPMT/GLM/775_777_779_784.h5 ExPMT/GLM/786_790_792.h5 ExPMT/GLM/794_796_798_800
-	python3 pde.py --res $^ -o $@
+pde.pdf: ../ExPMT/GLM/775_777_779_784.h5 ../ExPMT/GLM/786_790_792.h5 ../ExPMT/GLM/794_796_798_800.h5
+	python3 PDE.py --res $^ -o $@
