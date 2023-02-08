@@ -109,13 +109,15 @@ def fitSER(xs, ys):
     return result
 
 def peakfind(ys, thresholds, padding=2):
+    # 尾部补0
     ys = smooth(ys, 3)
+    ys = np.append(ys, np.zeros(padding))
     sig = ys > thresholds
     localmax = np.zeros(ys.shape, dtype=bool)
     # 寻找不会小于其它部分的长度为5的平台
     localmax[padding:-padding] = (ys[padding:-padding] >= ys[(padding-1):(-padding-1)]) & (ys[padding:-padding] >= ys[(padding-2):(-padding-2)]) & (ys[padding:-padding] >= ys[(padding+1):(-padding+1)]) & (ys[padding:-padding] >= ys[(padding+2):])
     candidate = sig & localmax
-    return candidate
+    return candidate[:-padding]
 def vallyfind(ys, height=0.5):
     # 谷检测,当两个峰较高，且谷的位置小于峰高的x倍
     peak = np.max(ys)
@@ -147,7 +149,7 @@ def getIntervals(xs, ys, thresholds, pre_ser_length, after_ser_length, padding=2
             i = i+after_ser_length
         i += 1
     # 第一位和最后一位强制为False，避免区间不闭合
-    candidate[-1] = False
+    candidate = np.append(candidate, False)
     candidate[0] = False
     candidate = candidate.astype(int)
     # 分割波形
