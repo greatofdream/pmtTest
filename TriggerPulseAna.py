@@ -12,7 +12,7 @@ import config
 promptB, promptE = config.promptB, config.promptE
 delay1B, delay1E = config.delay1B, config.delay1E
 delay10B, delay10E = config.delay10B, config.delay10E
-spelength, spestart, speend = config.spelength, config.spestart, config.speend
+spelength, spestart, speend = config.spelength, config.baselength, config.afterlength
 
 if __name__=="__main__":
     psr = argparse.ArgumentParser()
@@ -44,7 +44,7 @@ if __name__=="__main__":
         peakTs = sum_ipt['res']['TT']
 
     # initialize the storerage
-    storedtype = [('EventID', '<i4'), ('t', '<f4'), ('Q', '<f4'), ('peak', '<f4'), ('begin10', '<f4'), ('down10', '<f4'), ('begin50', '<f4'), ('down50', '<f4'), ('begin90', '<f4'), ('down90', '<f4'), ('isTrigger', bool), ('mainBegin10', '<f4'), ('minPeakCharge', '<f4'), ('FWHM', '<f4'), ('peakC', '<f4'), ('peakT', '<f4'), ('isAfter', bool)]
+    storedtype = [('EventID', '<i4'), ('t', '<f4'), ('Q', '<f4'), ('adjustQ', '<f4'), ('peak', '<f4'), ('begin10', '<f4'), ('down10', '<f4'), ('begin50', '<f4'), ('down50', '<f4'), ('begin90', '<f4'), ('down90', '<f4'), ('isTrigger', bool), ('mainBegin10', '<f4'), ('minPeakCharge', '<f4'), ('FWHM', '<f4'), ('peakC', '<f4'), ('peakT', '<f4'), ('isAfter', bool)]
     ## suppose the ratio of trigger is 0.1 and average pulse number not exceed 10.
     pulse = np.zeros((entries*2, len(args.channel)), dtype=storedtype)
     nums = np.zeros((len(args.channel)), dtype=int)
@@ -71,23 +71,33 @@ if __name__=="__main__":
             if np.max(baseline - w[start:]) > threshold:
                 intervals = getIntervals(np.arange(start, waveformLength), baseline - w[start:], threshold, spestart, speend)
                 for interval in intervals:
-                    t, Q, pv = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
+                    t, Q, pv = getTQ(np.arange(interval[0], interval[1]+1), baseline - w[interval[0]:(interval[1]+1)], [])
                     up10, up50, up90 = Qb(w-baseline, t, 0)
-                    down10, down50, down90 = Qe(w-baseline, t, 0)
-                    # store the relative time ot begin10
-                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT, anar['isTrigger'], anar['begin10'], anar['minPeakCharge'], anar['FWHM'], peakCs[j], peakTs[j], True)
-                    nums[j] += 1
+                    if pv>threshold:
+                        down10, down50, down90 = Qe(w-baseline, t, 0)
+                        adjustQ = np.sum(baseline-w[int(up10):(int(down10)+1)])
+                        # store the relative time ot begin10
+                        pulse[nums[j],j] = (eid, t - triggerPulseT, Q, adjustQ, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT, anar['isTrigger'], anar['begin10'], anar['minPeakCharge'], anar['FWHM'], peakCs[j], peakTs[j], True)
+                        nums[j] += 1
             ## 检查前脉冲
-            end = triggerExpectT - config.anapromptE
+            end = triggerExpectT - config.anapromptE + 100
             if np.max(baseline - w[:end]) > threshold:
-                intervals = getIntervals(np.arange(end), baseline - w[:end], threshold, spestart, speend)
-                for interval in intervals:
-                    t, Q, pv = getTQ(np.arange(interval[0], interval[1]), baseline - w[interval[0]:interval[1]], [])
-                    up10, up50, up90 = Qb(w-baseline, t, 0)
-                    down10, down50, down90 = Qe(w-baseline, t, 0)
-                    # store the relative time ot begin10
-                    pulse[nums[j],j] = (eid, t - triggerPulseT, Q, pv, up10 - triggerPulseT, up50 - triggerPulseT, up90 - triggerPulseT, down10 - triggerPulseT, down50 - triggerPulseT, down90 - triggerPulseT, anar['isTrigger'], anar['begin10'], anar['minPeakCharge'], anar['FWHM'], peakCs[j], peakTs[j], False)
-                    nums[j] += 1
+                # intervals = getIntervals(np.arange(end), baseline - w[:end], threshold, spestart, speend)
+                intervals = getIntervals(np.arange(end), baseline - w[:end], threshold, int(spestart/2), int(spestart/2))
+                interval_limits = np.append([inter[0] for inter in intervals[1:]], intervals[-1][1]+speend)
+                for interval, interval_limit in zip(intervals, interval_limits):
+                    # include the edge
+                    t, Q, pv = getTQ(np.arange(interval[0], interval[1]+1), baseline - w[interval[0]:(interval[1]+1)], [])
+                    # remove the wrong region
+                    if pv>threshold:
+                        up10, up50, up90 = Qb(w-baseline, t, 0)
+                        down10, down50, down90 = Qe(w-baseline, t, 0)
+                        Q = np.sum(baseline-w[max(0, t-spestart) : min(t+speend, interval_limit)])
+                        adjustQ = np.sum(baseline-w[int(up10):(int(down10)+1)])
+                        # if up10 < triggerPulseT:
+                        # store the relative time ot begin10
+                        pulse[nums[j],j] = (eid, t - triggerExpectT, Q, adjustQ, pv, up10 - triggerExpectT, up50 - triggerExpectT, up90 - triggerExpectT, down10 - triggerExpectT, down50 - triggerExpectT, down90 - triggerExpectT, anar['isTrigger'], anar['begin10'], anar['minPeakCharge'], anar['FWHM'], peakCs[j], peakTs[j], False)
+                        nums[j] += 1
     totalNums = np.zeros(len(args.channel), dtype=[('HitNum', '<i4'), ('TrigNum', '<i4')])
     for j in range(len(args.channel)):
         totalNums[j] = (
