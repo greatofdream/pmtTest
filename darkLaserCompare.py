@@ -193,13 +193,13 @@ if args.run == -1:
                 ax.plot(afterpulse['t'][:, 0], afterpulse['ratio'][:, 0], marker='o', label=pmt)
                 chargeTemp = afterpulse['charge']
                 chargeSigmaTemp = afterpulse['chargeSigma']
-                if (afterpulse['pv'][2, 0]<100) and chargeSigmaTemp[2]>chargeTemp[2]:
+                if (afterpulse['pv'][2, 0]<100) and chargeSigmaTemp[2,0]>chargeTemp[2,0]:
                     print('{} low statistic for 3th peak'.format(pmt))
                     # remove low statistic for 3th peak
                     chargeTemp[2] = afterpulse['chargeSample'][2]
                     chargeSigmaTemp[2] = afterpulse['chargeSigmaSample'][2]
                 if pmt not in lowStatisticPMT:
-                    ax2.plot(afterpulse['t'][[0,2,3,4],0], chargeTemp[[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)#, afterpulse['chargeSigma'][[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain']
+                    ax2.plot(afterpulse['t'][[0,2,3,4],0], chargeTemp[[0,2,3,4], 0]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)#, afterpulse['chargeSigma'][[0,2,3,4]]/50/1.6*ADC2mV/pmtC['Gain']
                     ax3.plot(afterpulse['t'][[0,2,3,4], 0], afterpulse['chargeDirect'][[0,2,3,4], 0]/50/1.6*ADC2mV/pmtC['Gain'], marker='o', label=pmt)
                 afterratios.append(afterpulse['ratio'])
                 afterPeaks.append(afterpulse['t'])
@@ -214,7 +214,9 @@ if args.run == -1:
                 chargeDirectTemp[:, 0] = chargeDirectTemp[:, 0]/50/1.6*ADC2mV/pmtC['Gain']
                 chargeDirectTemp[:, 1] = chargeDirectTemp[:, 1]/(50*1.6/ADC2mV*pmtC['Gain'])**2
                 afterChargeDirects.append(chargeDirectTemp)
-                print(pmt, afterpulse['t'], afterpulse['ratio'])
+                print(pmt + 'ts; ratios')
+                print(afterpulse['t'])
+                print(afterpulse['ratio'])
         ax.set_xlabel('Delay time/ns of peaks')
         ax.set_ylabel(r'$A_i/N_{\mathrm{hit}}$')
         ax.xaxis.set_minor_locator(MultipleLocator(100))
@@ -245,7 +247,7 @@ if args.run == -1:
         print(pmtcsv[selectHama]['PDE'],  pmtcsv[selectHama]['chargeRes'])
         ax.clabel(CS, CS.levels,  # label every second level
               inline=True, fmt='%.1f', fontsize=14)
-        ax.set_xlabel('$\eta^0$')
+        ax.set_xlabel('$\epsilon^0$')
         ax.set_ylabel(r'$\nu$')
         ax.legend()
         pdf.savefig(fig)
@@ -267,6 +269,7 @@ if args.run == -1:
         TTS2s = []
         TTS_exps = []
         DCR_exps = []
+        ARatios = []
         for index, pmtC in pmtcsv.iterrows():
             pmt = pmtC['PMT']
             if pmt.startswith('PM'):
@@ -278,13 +281,39 @@ if args.run == -1:
                 TT2_1s.append(chargeMerge['TT2_1'])
                 TTS2s.append(chargeMerge['TTS2'])
                 TTS_exps.append(chargeMerge['TTS_exp'])
-        TT_kToTTs, TT_expToTTs, TT2_1s, TTS2s, TTS_exps, DCR_exps = np.array(TT_kToTTs), np.array(TT_expToTTs), np.array(TT2_1s), np.array(TTS2s), np.array(TTS_exps), np.array(DCR_exps)
-        print('TT_kToTTs: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT_kToTTs[:,0], np.sum(TT_kToTTs[:,0]/TT_kToTTs[:,1])/np.sum(1/TT_kToTTs[:,1]), 1/np.sum(1/TT_kToTTs[:,1]), np.mean(TT_kToTTs), np.std(TT_kToTTs)))
-        print('TT_expToTTs: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT_expToTTs[:,0], np.sum(TT_expToTTs[:,0]/TT_expToTTs[:,1])/np.sum(1/TT_expToTTs[:,1]), 1/np.sum(1/TT_expToTTs[:,1]), np.mean(TT_expToTTs), np.std(TT_expToTTs)))
-        print('TT_DCRToTTs: {}, {:.3f}, {:.3f}, {:.5f}, {:.5f}'.format(TT_DCRToTTs[:,0], np.sum(TT_DCRToTTs[:,0]/TT_DCRToTTs[:,1])/np.sum(1/TT_DCRToTTs[:,1]), 1/np.sum(1/TT_DCRToTTs[:,1]), np.mean(TT_DCRToTTs), np.std(TT_DCRToTTs)))
-        print('TT2_1s: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT2_1s[:,0], np.sum(TT2_1s[:,0]/TT2_1s[:,1])/np.sum(1/TT2_1s[:,1]), 1/np.sum(1/TT2_1s[:,1]), np.mean(TT2_1s), np.std(TT2_1s)))
-        print('TTS2s: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TTS2s[:,0], np.sum(TTS2s[:,0]/TTS2s[:,1])/np.sum(1/TTS2s[:,1]), 1/np.sum(1/TTS2s[:,1]), np.mean(TTS2s), np.std(TTS2s)))
-        print('TTS_exps: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TTS_exps[:,0], np.sum(TTS_exps[:,0]/TTS_exps[:,1])/np.sum(1/TTS_exps[:,1]), 1/np.sum(1/TTS_exps[:,1]), np.mean(TTS_exps), np.std(TTS_exps)))
+                ARatios.append(chargeMerge['A0'])
+        TT_kToTTs, TT_expToTTs, TT_DCRToTTs, TT2_1s, TTS2s, TTS_exps, DCR_exps = np.array(TT_kToTTs), np.array(TT_expToTTs), np.array(TT_DCRToTTs), np.array(TT2_1s), np.array(TTS2s), np.array(TTS_exps), np.array(DCR_exps)
+        ARatios = np.array(ARatios)
+        print('TT_kToTTs: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT_kToTTs[:,0], np.sum(TT_kToTTs[:,0]/TT_kToTTs[:,1])/np.sum(1/TT_kToTTs[:,1]), 1/np.sum(1/TT_kToTTs[:,1]), np.mean(TT_kToTTs[:,0]), np.std(TT_kToTTs[:,0])))
+        print('TT_expToTTs: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT_expToTTs[:,0], np.sum(TT_expToTTs[:,0]/TT_expToTTs[:,1])/np.sum(1/TT_expToTTs[:,1]), 1/np.sum(1/TT_expToTTs[:,1]), np.mean(TT_expToTTs[:,0]), np.std(TT_expToTTs[:,0])))
+        print('TT_DCRToTTs: {}, {:.3f}, {:.3f}, {:.5f}, {:.5f}'.format(TT_DCRToTTs[:,0], np.sum(TT_DCRToTTs[:,0]/TT_DCRToTTs[:,1])/np.sum(1/TT_DCRToTTs[:,1]), 1/np.sum(1/TT_DCRToTTs[:,1]), np.mean(TT_DCRToTTs[:,0]), np.std(TT_DCRToTTs[:,0])))
+        print('TT2_1s: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TT2_1s[:,0], np.sum(TT2_1s[:,0]/TT2_1s[:,1])/np.sum(1/TT2_1s[:,1]), 1/np.sum(1/TT2_1s[:,1]), np.mean(TT2_1s[:,0]), np.std(TT2_1s[:,0])))
+        print('TTS2s: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(
+            TTS2s[:,0]/2/np.sqrt(2*np.log(2)),
+            np.sum(TTS2s[:,0]/TTS2s[:,1])/np.sum(1/TTS2s[:,1])/2/np.sqrt(2*np.log(2)),
+            1/np.sum(1/TTS2s[:,1])/2/np.sqrt(2*np.log(2)),
+            np.mean(TTS2s[:,0])/2/np.sqrt(2*np.log(2)),
+            np.std(TTS2s[:,0])/2/np.sqrt(2*np.log(2))))
+        print('TTS_exps: {}, {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(TTS_exps[:,0], np.sum(TTS_exps[:,0]/TTS_exps[:,1])/np.sum(1/TTS_exps[:,1]), 1/np.sum(1/TTS_exps[:,1]), np.mean(TTS_exps[:,0]), np.std(TTS_exps[:,0])))
+        print('A0: {} {:.3f}, {:.3f}, {:.3f}, {:.3f}'.format(ARatios, np.sum(ARatios[:,0]/ARatios[:,1])/np.sum(1/ARatios[:,1]), 1/np.sum(1/ARatios[:,1]), np.mean(ARatios[:,0]), np.std(ARatios[:,0])))
+
+        fig, ax = plt.subplots()
+        preRatios = []
+        afterRatios = []
+        for index, pmtC in pmtcsv.iterrows():
+            pmt = pmtC['PMT']
+            if pmt.startswith('PM'):
+                with h5py.File(args.dir+'/'+pmt+'/laser.h5', 'r') as ipt:
+                    pulseMerge = ipt['mergepulse'][:]
+                preRatios.append(pulseMerge['promptAllWODCR'])
+                afterRatios.append(pulseMerge['delayAllWODCR'])
+        preRatios, afterRatios = np.array(preRatios), np.array(afterRatios)
+        ax.errorbar(preRatios[:,0], afterRatios[:,0], xerr=preRatios[:, 1], yerr=afterRatios[:, 1], fmt='o')
+        ax.set_xlabel('$R_{\mathrm{pre}}$')
+        ax.set_ylabel('$R_{\mathrm{after}}$')
+        ax.ticklabel_format(style='sci',scilimits=(0,0))
+        pdf.savefig(fig)
+        plt.close()
 
         print('DCR {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['DCR']/pmtcsv[selectMCP]['DCRVar'])/np.sum(1/pmtcsv[selectMCP]['DCRVar']),
@@ -351,52 +380,65 @@ if args.run == -1:
             np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['PVVar'])),
             np.mean(pmtcsv[selectMCP]['PV']), np.std(pmtcsv[selectMCP]['PV'])
             ))
-        print('Pre {:.5f} {:.5f} {:.5f} {:.5f}'.format(
-            np.sum(pmtcsv[selectMCP]['Pre']/pmtcsv[selectMCP]['PreVar'])/np.sum(1/pmtcsv[selectMCP]['PreVar']),
-            np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['PreVar'])),
-            np.mean(pmtcsv[selectMCP]['Pre']), np.std(pmtcsv[selectMCP]['Pre'])
+        # print('Pre {:.5f} {:.5f} {:.5f} {:.5f}'.format(
+        #     np.sum(pmtcsv[selectMCP]['Pre']/pmtcsv[selectMCP]['PreVar'])/np.sum(1/pmtcsv[selectMCP]['PreVar']),
+        #     np.sqrt(1/np.sum(1/pmtcsv[selectMCP]['PreVar'])),
+        #     np.mean(pmtcsv[selectMCP]['Pre']), np.std(pmtcsv[selectMCP]['Pre'])
+        #     ))
+        print('Pre Total dataset {:.7f} {:.7f} {:.7f} {:.7f}'.format(
+            np.sum(preRatios[:,0]/preRatios[:,1])/np.sum(1/preRatios[:,1]),
+            np.sqrt(1/np.sum(1/preRatios[:,1])),
+            np.mean(preRatios[:,0]), np.std(preRatios[:,0])
             ))
-        print(pmtcsv[selectMCP]['After1']+pmtcsv[selectMCP]['After2'])
+        print('Pre ratio total dataset', preRatios)
+        print('After Total dataset {:.5f} {:.5f} {:.5f} {:.5f}'.format(
+            np.sum(afterRatios[:,0]/afterRatios[:,1])/np.sum(1/afterRatios[:,1]),
+            np.sqrt(1/np.sum(1/afterRatios[:,1])),
+            np.mean(afterRatios[:,0]), np.std(afterRatios[:,0])
+            ))
+        print('After ratio total dataset', afterRatios)
+
+
         print('After {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum((pmtcsv[selectMCP]['After1']+pmtcsv[selectMCP]['After2'])/(pmtcsv[selectMCP]['After1Var']+pmtcsv[selectMCP]['After2Var']))/np.sum(1/(pmtcsv[selectMCP]['After1Var']+pmtcsv[selectMCP]['After2Var'])),
             np.sqrt(1/np.sum(1/(pmtcsv[selectMCP]['After1Var']+pmtcsv[selectMCP]['After2Var']))),
             np.mean(pmtcsv[selectMCP]['After1']+pmtcsv[selectMCP]['After2']), np.std(pmtcsv[selectMCP]['After1']+pmtcsv[selectMCP]['After2'])
             ))
-        print('After ratio {:.3f} {:.3f} {} {}'.format(
-            np.sum(afterratios[:,0]/afterratios[:,1])/np.sum(1/afterratios[:,1]),
-            np.sqrt(1/np.sum(1/afterratios[:,1])),
-            np.mean(afterratios[:,0], axis=0),
-            np.std(afterratios[:, 0], axis=0)
+        print('After ratio {} {} {} {}'.format(
+            np.sum(afterratios[:,:,0]/afterratios[:,:,1], axis=0)/np.sum(1/afterratios[:,:,1], axis=0),
+            np.sqrt(1/np.sum(1/afterratios[:,:,1], axis=0)),
+            np.mean(afterratios[:,:,0], axis=0),
+            np.std(afterratios[:,:,0], axis=0)
             ))
-        print('After peak time {:.3f} {:.3f} {} {}'.format(
-            np.sum(afterPeaks[:,0]/afterPeaks[:,1])/np.sum(1/afterPeaks[:,1]),
-            np.sqrt(1/np.sum(1/afterPeaks[:,1])),
-            np.mean(afterPeaks[:,0], axis=0),
-            np.std(afterPeaks[:,0], axis=0)
+        print('After peak time {} {} {} {}'.format(
+            np.sum(afterPeaks[:,:,0]/afterPeaks[:,:,1], axis=0)/np.sum(1/afterPeaks[:,:,1], axis=0),
+            np.sqrt(1/np.sum(1/afterPeaks[:,:,1], axis=0)),
+            np.mean(afterPeaks[:,:,0], axis=0),
+            np.std(afterPeaks[:,:,0], axis=0)
             ))
-        print('After peak sigma {:.3f} {:.3f} {} {}'.format(
-            np.sum(afterSigmas[:,0]/afterSigmas[:,1])/np.sum(1/afterSigmas[:,1]),
-            np.sqrt(1/np.sum(1/afterSigmas[:,1])),
-            np.mean(afterSigmas[:,0], axis=0),
-            np.std(afterSigmas[:,0], axis=0)
+        print('After peak sigma {} {} {} {}'.format(
+            np.sum(afterSigmas[:,:,0]/afterSigmas[:,:,1], axis=0)/np.sum(1/afterSigmas[:,:,1], axis=0),
+            np.sqrt(1/np.sum(1/afterSigmas[:,:,1], axis=0)),
+            np.mean(afterSigmas[:,:,0], axis=0),
+            np.std(afterSigmas[:,:,0], axis=0)
             ))
-        print('After peak charge {:.3f} {:.3f} {} {}'.format(
-            np.sum(afterCharges[ishighstatistics,0]/afterCharges[ishighstatistics,1])/np.sum(1/afterCharges[ishighstatistics,1]),
-            np.sqrt(1/np.sum(1/afterCharges[ishighstatistics,1])),
-            np.mean(afterCharges[ishighstatistics, 0], axis=0),
-            np.std(afterCharges[ishighstatistics, 0], axis=0)
+        print('After peak charge {} {} {} {}'.format(
+            np.sum(afterCharges[ishighstatistics, :, 0]/afterCharges[ishighstatistics, :, 1], axis=0)/np.sum(1/afterCharges[ishighstatistics, :, 1], axis=0),
+            np.sqrt(1/np.sum(1/afterCharges[ishighstatistics, :, 1], axis=0)),
+            np.mean(afterCharges[ishighstatistics, :, 0], axis=0),
+            np.std(afterCharges[ishighstatistics, :, 0], axis=0)
             ))
-        print('After peak charge sigma {:.3f} {:.3f} {} {}'.format(
-            np.sum(afterChargeSigmas[ishighstatistics,0]/afterChargeSigmas[ishighstatistics,1])/np.sum(1/afterChargeSigmas[ishighstatistics,1]),
-            np.sqrt(1/np.sum(1/afterChargeSigmas[ishighstatistics,1])),
-            np.mean(afterChargeSigmas[ishighstatistics, 0], axis=0),
-            np.std(afterChargeSigmas[ishighstatistics, 0], axis=0)
+        print('After peak charge sigma {} {} {} {}'.format(
+            np.sum(afterChargeSigmas[ishighstatistics, :, 0]/afterChargeSigmas[ishighstatistics, :, 1], axis=0)/np.sum(1/afterChargeSigmas[ishighstatistics, :, 1], axis=0),
+            np.sqrt(1/np.sum(1/afterChargeSigmas[ishighstatistics, :, 1], axis=0)),
+            np.mean(afterChargeSigmas[ishighstatistics, :, 0], axis=0),
+            np.std(afterChargeSigmas[ishighstatistics, :, 0], axis=0)
             ))
-        print('After peak charge Direct {:.3f} {:.3f} {} {}'.format(
-            np.sum(afterChargeDirects[ishighstatistics,0]/afterChargeDirects[ishighstatistics,1])/np.sum(1/afterChargeDirects[ishighstatistics,1]),
-            np.sqrt(1/np.sum(1/afterChargeDirects[ishighstatistics,1])),
-            np.mean(afterChargeDirects[ishighstatistics], axis=0),
-            np.std(afterChargeDirects[ishighstatistics], axis=0)
+        print('After peak charge Direct {} {} {} {}'.format(
+            np.sum(afterChargeDirects[ishighstatistics, :, 0]/afterChargeDirects[ishighstatistics, :, 1], axis=0)/np.sum(1/afterChargeDirects[ishighstatistics, :, 1], axis=0),
+            np.sqrt(1/np.sum(1/afterChargeDirects[ishighstatistics, :, 1], axis=0)),
+            np.mean(afterChargeDirects[ishighstatistics, :, 0], axis=0),
+            np.std(afterChargeDirects[ishighstatistics, :, 0], axis=0)
             ))
         print('Rise {:.3f} {:.3f} {:.3f} {:.3f}'.format(
             np.sum(pmtcsv[selectMCP]['Rise']/pmtcsv[selectMCP]['RiseVar'])/np.sum(1/pmtcsv[selectMCP]['RiseVar']),
