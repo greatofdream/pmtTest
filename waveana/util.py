@@ -5,6 +5,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.special import erf
 import numdifftools as nd
+from waveana.waveana import Qb, Qe
 import ROOT
 class RootFit():
     def setFunc(self, func, x0):
@@ -158,6 +159,35 @@ def getIntervals(xs, ys, thresholds, pre_ser_length, after_ser_length, padding=2
     if len(indexs) == 0:
         indexs = np.array([max(np.argmax(ys) - pre_ser_length, 0), min(np.argmax(ys) + after_ser_length, end-1)]).reshape((-1,2))
     return xs[indexs]
+def mergeIntervals(xs, ys, intervals, threshold):
+    time_paras = []
+    candidate = np.zeros(xs.shape, dtype=bool)
+    for interval in intervals:
+        index = np.argmin(ys[interval[0]:interval[1]])
+        t = xs[interval[0]:interval[1]][index]
+        pv = -ys[interval[0]:interval[1]][index]
+        if pv>threshold:
+            up10, up50, up90 = Qb(ys, t, 0)
+            down10, down50, down90 = Qe(ys, t, 0)
+            if candidate[index]:
+                if pv<time_paras[-1][1]:
+                    continue
+                else:
+                    time_paras[-1] = (t, pv, up10, up50, up90, down10, down50, down90)
+                    candidate[int(up10):int(down10+1)] = True
+            else:
+                time_paras.append((t, pv, up10, up50, up90, down10, down50, down90))
+                candidate[int(up10):int(down10+1)] = True
+    if np.sum(candidate)==0:
+        return [], []
+    else:
+        candidate = np.append(candidate, False)
+        candidate[0] = False
+        candidate = candidate.astype(int)
+        indexs = np.where(np.abs(candidate[1:] - candidate[:-1])==1)[0].reshape((-1,2))
+        return xs[indexs], time_paras
+
+        
 def getTQ(xs, ys, ser):
     index = np.argmax(ys)
     ts = xs[index]
