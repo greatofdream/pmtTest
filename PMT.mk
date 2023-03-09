@@ -37,9 +37,14 @@ ExPMT/GLM/775_777_779_784.h5:
 ExPMT/GLM/786_788_790_792.h5:
 	python3 TriggerPDE.py -i ExResult/{}/600ns/chargeSelect.h5 -o $@ --runs 786 788 790 792 --ref CR365 --glm > $@.log
 	python3 storePDE.py -i $@ --csv ExResult/TestSummary.csv --calibcsv ExPMT/Calibration.csv --runs 786 788 790 792
+ExPMT/GLM/786_790_792.h5:
+	python3 TriggerPDE.py -i ExResult/{}/600ns/chargeSelect.h5 -o $@ --runs 786 790 792 --ref CR365 --glm > $@.log
+	python3 storePDE.py -i $@ --csv ExResult/TestSummary.csv --calibcsv ExPMT/Calibration.csv --runs 786 790 792
 ExPMT/GLM/794_796_798_800.h5:
 	python3 TriggerPDE.py -i ExResult/{}/600ns/chargeSelect.h5 -o $@ --runs 794 796 798 800 --ref CR365 --glm > $@.log
 	python3 storePDE.py -i $@ --csv ExResult/TestSummary.csv --calibcsv ExPMT/Calibration.csv --runs 794 796 798 800
+ExPMT/GLM/761_762_763_764_794_796_798_800.h5:
+	python3 TriggerPDE.py -i ExResult/{}/600ns/chargeSelect.h5 -o $@ --runs 761 762 763 764 794 796 798 800 --ref CR365 --glm > $@.log
 ExPMT/GLM/802.h5:
 	python3 TriggerPDE.py -i ExResult/{}/600ns/chargeSelect.h5 -o $@ --runs 802 --ref CR365 > $@.log
 .DELETE_ON_ERROR:
