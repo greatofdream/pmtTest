@@ -40,7 +40,7 @@ if __name__=="__main__":
     process = subprocess.Popen("ls {}/{} -v".format(args.datadir, runno), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     path = process.stdout.read().decode('utf-8').split('\n')
     path = ['{}/{}/'.format(args.datadir, runno)+i for i in path[:-1]]
-    waveforms = uproot.concatenate([i+':Readout' for i in path[:10]], filter_name='Waveform',library='np')['Waveform']
+    waveforms = uproot.concatenate([i+':Readout' for i in path[:2]], filter_name='Waveform',library='np')['Waveform']
     ch = uproot.concatenate([i+':Readout' for i in path[:1]], filter_name='ChannelId',library='np')['ChannelId'][0]
     # h5py读入分析结果
     with h5py.File(args.ana, 'r') as ipt:
@@ -50,7 +50,7 @@ if __name__=="__main__":
     with PdfPages(args.opt) as pdf:
         # 获取波形
         fignum = 0
-        for eid in np.where((info['isTrigger'] & (info['FWHM']>5) & (info['minPeakCharge']>50))[:len(waveforms)])[0]:
+        for eid in [11088,11148]:#np.where((info['isTrigger'] & (info['FWHM']>5) & (info['minPeakCharge']>50))[:len(waveforms)])[0]:
             wave = waveforms[eid].reshape((ch.shape[0],-1))
             chwave = wave[chmap.loc[cid]][:]
             ## 处理触发后的波形切分
@@ -58,7 +58,7 @@ if __name__=="__main__":
             ## 检查前脉冲
             end = int(trigger[eid]['triggerTime'] + info[eid]['begin10']) - config.anapromptE
             baseline, std = info[eid]['baseline'], info[eid]['std']
-            if np.max(baseline - chwave[start:])<3 or np.max(baseline - chwave[:end]) < 3:
+            if np.max(baseline - chwave[start:])<3 and np.max(baseline - chwave[:end]) < 3:
                 continue
             wavelength = chwave.shape[0]
             threshold = np.max([5 * std, 3])
@@ -84,7 +84,7 @@ if __name__=="__main__":
             ax1.fill_between([int(trigger[eid]['triggerTime'] + info[eid]['begin10'])-promptB, int(trigger[eid]['triggerTime'] + info[eid]['begin10'])-promptE], [0, 0], [3, 3], alpha=0.5, color='orange', label='Pre-pulse search window')
             ax1.set_xlabel('t/ns')
             ax1.set_ylabel('Amplitude/ADC')
-            ax1.set_xlim([200, intervals[-1][-1]+50])            
+            ax1.set_xlim([intervals[0][0]-50, intervals[-1][-1]+50])            
             ax2.set_xlim([10200, wavelength])
             # ax.set_xscale('log')
             ax1.xaxis.set_minor_locator(MultipleLocator(100))

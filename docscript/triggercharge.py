@@ -160,9 +160,9 @@ for j in range(len(args.channel)):
     a_v, b_v, c_v = paraRoot[0]*100, paraRoot[1], paraRoot[2]
     results['vallyS'][j] = paraRoot[0]
     paraSigma2[['vallyC', 'vallyV', 'vallyS']][j] = (errorRoot[1]**2, errorRoot[2]**2, errorRoot[0]**2)
-    ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v/100 * (h[1][(li-vallyspanl):(li+vallyspanr)] - b_v)**2 +c_v, color='g', label='vally fit')
+    ax.plot(h[1][(li-vallyspanl):(li+vallyspanr)], a_v/100 * (h[1][(li-vallyspanl):(li+vallyspanr)] - b_v)**2 +c_v, color='g', label='valley fit')
     vi, vv = b_v, c_v
-    ax.fill_betweenx([0, vv], h[1][li-vallyspanl], h[1][li+vallyspanr], alpha=0.5, color='lightgreen', label='vally fit interval')
+    ax.fill_betweenx([0, vv], h[1][li-vallyspanl], h[1][li+vallyspanr], alpha=0.5, color='lightgreen', label='valley fit interval')
     ax.scatter([pi, vi], [pv, vv], color='r')
     ## 将参数放入legend里
     totalselect = (info[j]['minPeak']>3)&(info[j]['minPeakCharge']>0.25*mu)&(info[j]['minPeakCharge']<1000)&info[j]['isTrigger']
