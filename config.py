@@ -19,7 +19,7 @@ laserE = -10
 elasticB = 20
 elasticE = 80
 # 前后脉冲时间区间,analyze start and end are 0,wavelength
-anapromptE = 5
+anapromptE = 0
 anadelay1B = 35
 promptB = 100
 promptE = 10
@@ -35,8 +35,10 @@ PMTResultDir = 'ExPMT'
 TestResultDir = 'ExResult'
 TestSummaryPath = TestResultDir + '/TestSummary.csv'
 # 后脉冲
-searchwindowsMCP = [[250, 350], [400, 500], [550, 650], [1100,1300], [1600,2000]]
-boundsMCP = [[5,30], [5,50], [5,40], [10,100], [10,100]]
+fitWindowMCP = [200, 2500]
+fitWindowHama = [200, 9000]
+searchwindowsMCP = [[200, 350], [380, 460], [530, 700], [1100,1300], [1600,2200]]
+boundsMCP = [[2,30], [10,50], [10,40], [20,100], [40,100]]
 searchwindowsHama = [[200, 700], [1600,1900], [6000, 9000]]
 boundsHama = [[5,800], [5, 1000], [5, 2000]]
 additionWindowMCP = [[4000, 8000]]
