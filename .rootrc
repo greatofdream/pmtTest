@@ -1,0 +1,43 @@
+#
+# .rootrc
+#
+Gui.DefaultFont:            -*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+Gui.MenuFont:               -*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+Gui.MenuHiFont:             -*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-1
+Gui.DocFixedFont:           -*-courier-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+Gui.DocPropFont:            -*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+Gui.IconFont:               -*-helvetica-medium-r-*-*-10-*-*-*-*-*-iso8859-1
+Gui.StatusFont:             -*-helvetica-medium-r-*-*-10-*-*-*-*-*-iso8859-1
+
+#Gui.NormalFont:   -adobe-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+#Gui.BoldFont:     -adobe-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-1
+#Gui.SmallFont:    -adobe-helvetica-medium-r-*-*-10-*-*-*-*-*-iso8859-1
+#Gui.ProportionalFont:  -adobe-courier-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+
+# Path where to look for TrueType fonts.
+Unix.*.Root.UseTTFonts:     true
+#*.*.Root.TTFontPath:        $(ROOTSYS)/fonts
+#*.*.Root.TTFontPath:        /usr/local/root/share/root/fonts/
+
+X11.UseXft  yes
+
+Gui.BackgroundColor:        white
+Gui.ForegroundColor:        black
+Gui.SelectForegroundColor:  white
+Gui.SelectBackgroundColor:  black
+#Gui.IconPath:      $HOME/root/icons:$ROOTSYS/icons:.
+#Gui.MimeTypeFile:  $HOME/root/root.mimes (else $ROOTSYS/icons/root.mimes)
+#
+#
+Browser.IconStyle: small
+Browser.SortBy:    name
+#
+#
+#Unix.*.Root.DynamicPath:	.:~/root/lib
+#Unix.*.Root.MacroPath:		.:~/root/macros
+#
+#
+#Rint.Load:               ~/root/rootalias.C
+#Rint.Logon:              ~/root/rootlogon.C
+#Rint.Logoff:             ~/root/rootlogoff.C
+
