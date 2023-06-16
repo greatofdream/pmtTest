@@ -10,5 +10,9 @@ make phase1=sk6 phase2=sk7 -f initRuns.mk sk6_sk7.csv
 ```
 
 ```
-python3 flow.py
+python3 ana.py
+```
+
+```
+python3 compare.py
 ```
