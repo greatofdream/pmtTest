@@ -14,6 +14,7 @@
 #include <string>
 #include <regex>
 #include <time.h>
+#include "Util.h"
 using namespace std;
 
 void plot1(char *filename, string fout)
@@ -37,17 +38,20 @@ void plot1(char *filename, string fout)
     //make histograms
     //-------------------------------------------------------------
     TH1F *h11 = new TH1F("h11","bsenergy w/o LINAC*",80,0.,40.);
-    TH1F *h12 = new TH1F("h12","bsenergy LINAC",80,0.,40.);
+    // TH1F *h12 = new TH1F("h12","bsenergy LINAC",80,0.,40.);
     TH1F *h13 = new TH1F("h13","bsenergy LINAC-RF",80,0.,40.);
 
     TH1F *h14 = new TH1F("h14","ovaq w/o LINAC*",100,0.,1.);
-    TH1F *h15 = new TH1F("h15","ovaq LINAC",100,0.,1.);
+    // TH1F *h15 = new TH1F("h15","ovaq LINAC",100,0.,1.);
     TH1F *h16 = new TH1F("h16","ovaq LINAC-RF",100,0.,1.);
 
     TH2F *h21 = new TH2F("h21","r2 vs Z w/o LINAC*", 80,0,222.01,80,-16.1,+16.1);
-    TH2F *h22 = new TH2F("h22","r2 vs Z LINAC", 80,0,222.01,80,-16.1,+16.1);
+    // TH2F *h22 = new TH2F("h22","r2 vs Z LINAC", 80,0,222.01,80,-16.1,+16.1);
     TH2F *h23 = new TH2F("h23","r2 vs Z LINAC-RF", 80,0,222.01,80,-16.1,+16.1);
-
+    Res res = readRes(filename);
+    TH1F *h12 = res.bsenergy;
+    TH1F *h15 = res.ovaq;
+    TH2F *h22 = res.r2z;
     //-------------------------------------------------------------
     // read lowe events
     //-------------------------------------------------------------
@@ -115,13 +119,13 @@ void plot1(char *filename, string fout)
 	    h21->Fill(r2,z);
 	}
 
-	if ((HEAD->idtgsk & 2**24) != 0) {
+/*	if ((HEAD->idtgsk & 2**24) != 0) {
 	    // LINAC
 	    h12->Fill(LOWE->bsenergy);
 	    h15->Fill(bsovaq);
 	    h22->Fill(r2,z);
 	}
-	if ((HEAD->idtgsk & 2**25) != 0) {
+*/	if ((HEAD->idtgsk & 2**25) != 0) {
 	    // LINAC microwave
 	    h13->Fill(LOWE->bsenergy);
 	    h16->Fill(bsovaq);
@@ -130,15 +134,15 @@ void plot1(char *filename, string fout)
    
     }
     cout << "done." << endl;
-   
+    //file->Close(); 
   
     //-------------------------------------------------------------
     // draw
     //-------------------------------------------------------------
-    gStyle->SetPadTopMargin(0.01);
-    gStyle->SetPadLeftMargin(0.01);
-    gStyle->SetPadRightMargin(0.01);
-    gStyle->SetPadBottomMargin(0.01);
+    gStyle->SetPadTopMargin(0.05);
+    gStyle->SetPadLeftMargin(0.15);
+    gStyle->SetPadRightMargin(0.05);
+    gStyle->SetPadBottomMargin(0.1);
     gStyle->SetOptDate(1);
     gStyle->SetOptStat(10);
     gStyle->SetStatW(0.45);
@@ -338,7 +342,44 @@ void plot1(char *filename, string fout)
     h23->GetZaxis()->SetNdivisions(505,kTRUE);
     h23->DrawCopy("colz");
 
-    c1->Print(fout.c_str());
+    c1->Print((fout+"(").c_str(), ".pdf");//);
+    TCanvas *c2 = new TCanvas("c2","c2",800,800);
+    c2->Divide(3,3);
+    c2->cd(1);
+    gPad->SetTicks(1, 1);
+    res.Vertexes[0]->GetXaxis()->SetTitle("X[cm]");
+    res.Vertexes[0]->GetXaxis()->SetRangeUser(-2000, 0);
+    res.Vertexes[0]->Draw("HIST");    
+    c2->cd(2);
+    res.Vertexes[1]->SetXTitle("Y[cm]");
+    res.Vertexes[1]->GetXaxis()->SetRangeUser(-1000, 1000);
+    res.Vertexes[1]->Draw("HIST");
+    c2->cd(3);
+    res.Vertexes[2]->Draw("HIST");
+    res.Vertexes[2]->GetXaxis()->SetRangeUser(-2000, 2000);
+    res.Vertexes[2]->SetXTitle("Z[cm]");
 
+    c2->cd(4);
+    res.Directions[0]->Draw("HIST");
+    c2->cd(5);
+    res.Directions[1]->Draw("HIST");
+    c2->cd(6);
+    res.Directions[2]->Draw("HIST");
+
+    c2->cd(7);
+    res.Neff->Draw("HIST");
+    c2->cd(8);
+    res.bsGoodness->Draw("HIST");
+    c2->cd(9);
+    res.bsDirectionKS->Draw("HIST");
+    
+    c2->Update();
+    c2->Print((fout+")").c_str());
+    //c2->Print(fout.c_str());
+
+    /*TCanvas *c3 = new TCanvas("c3", "c3", 800, 800);
+    res.Vertexes[0]->Draw("HIST");
+    c3->Print((fout+")").c_str());
+    */
 }
 
