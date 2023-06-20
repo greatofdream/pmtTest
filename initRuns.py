@@ -3,7 +3,7 @@ from datetime import datetime
 # def getSetting(summary_files):
 def getXZE(comment):
     x, z, E = 0, 0, 0
-    result = re.match(r'.+x=?([-|+]?\d+)m?,? ?z=?([-|+]?\d+)m?,? +(\d+) ?mev', comment, re.I)
+    result = re.match(r'.+x=?([-|+]?\d+)m?,? ?z=?([-|+]?\d+)m?,? ?(\d+) ?mev', comment, re.I)
     if result:
         x, z, E = result.group(1), result.group(2), result.group(3)
     else:
@@ -11,7 +11,7 @@ def getXZE(comment):
         if result:
             x, z, E = result.group(2), result.group(3), result.group(1)
         else:
-            result = re.match(r'.+\(([-|+]?\d+)m?,? ?([-|+]?\d+)m?\),? +(\d+) ?mev', comment, re.I)
+            result = re.match(r'.+\(([-|+]?\d+)m?,? ?([-|+]?\d+)m?\),? ?(\d+) ?mev', comment, re.I)
             if result:
                 x, z, E = result.group(1), result.group(2), result.group(3)
     return x, z, E
@@ -34,5 +34,8 @@ if __name__=="__main__":
         if deltatime > 5:
             if re.search('(mw|micro)', summary['Comment'], re.I):
                 mode = 1
+            else:
+                if deltatime<30:
+                    exit(0)
             x, z, E = getXZE(summary['Comment'])
             print('{},{},{},{},{},{},{}'.format(summary['Run number'], x, z, E, mode, int(deltatime), summary['End Comment'].replace(',', ' ')))
