@@ -105,11 +105,15 @@ void compareM(string run1_no, string run2_no, string run1_x, string run2_x, stri
     for(int j=0; j<11; j++){
         c1->cd(j+1);
         legend = new TLegend(0.6, 0.7, 0.95, 0.95);
+        int tempMax = 0;
         for(int i=0; i<(run2_num+run1_num); i++){
+	    int tempM = thArray[i][j]->GetBinContent(thArray[i][j]->GetMaximumBin());
+	    if(tempM>tempMax) tempMax = tempM;
 	    thArray[i][j]->Draw("same");
             legend->AddEntry(thArray[i][j], labels[i], "l");
 	}
         thArray[0][j]->SetStats(0);
+	thArray[0][j]->SetMaximum(tempMax*1.1);
         thArray[0][j]->GetXaxis()->SetTitle(XTitles[j]);
 	if(lowerV[j]!=upperV[j])
             thArray[0][j]->GetXaxis()->SetRangeUser(lowerV[j], upperV[j]);
@@ -124,11 +128,15 @@ void compareM(string run1_no, string run2_no, string run1_x, string run2_x, stri
     for(int j=0; j<11; j++){
         c2->cd(j+1);
         legend = new TLegend(0.6, 0.7, 0.95, 0.95);
+	int tempMax = 0;
         for(int i=0; i<(run2_num+run1_num); i++){
+	    int tempM = thArray[i][j]->GetBinContent(thArray[i][j]->GetMaximumBin());
+	    if(tempM>tempMax) tempMax = tempM;
 	    thArray[i][j]->Draw("same");
             legend->AddEntry(thArray[i][j], labels[i], "l");
 	}
         thArray[0][j]->SetStats(0);
+	thArray[0][j]->SetMaximum(tempMax*1.1);
         thArray[0][j]->GetXaxis()->SetTitle(XTitles[j]);
 	if(lowerV[j]!=upperV[j])
             thArray[0][j]->GetXaxis()->SetRangeUser(lowerV[j], upperV[j]);
