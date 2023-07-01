@@ -11,8 +11,10 @@ sk6_summary.csv:
 sk7_summary.csv:
 	echo -n > $@
 	for i in {91356..91563};do echo $$i; python3 initRuns.py $$i >> $@; done
-%_summary.dat: %_summary.csv
+%_linac_runsum.dat: %_summary.csv
 	python3 runSummary.py -i $^ -o $@ --phase $* >$@.log
+%_ge_runsum.dat: %_summary.csv
+	python3 runSummary.py -i $^ -o $@ --phase $* --ge >$@.log
 $(phase1)_$(phase2).csv: $(phase1)_summary.csv $(phase2)_summary.csv
 	python3 initSetting.py -i $^ --label $(phase1) $(phase2) -o $@
 $(phase1)_$(phase2)_ZE.csv: $(phase1)_summary.csv $(phase2)_summary.csv
