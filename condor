@@ -1,0 +1,81 @@
+#!/bin/bash -e
+# condor wrapper to be used as GNU Make shell.
+
+# GNU Make convention for the first argument.
+[[ ${1} = '-c' ]] && shift
+
+if [[ -z ${MAKE_TARGET} ]]; then
+	# environment variable MAKE_TARGET is not specified
+	# pass through
+	exec $@
+fi
+
+# [[ -f ${MAKE_TARGET}.sh ]] && exit 0
+
+can_run=yes
+mkdir -p $(dirname ${MAKE_TARGET})
+
+touch ${MAKE_TARGET}.pending
+for s in ${MAKE_SOURCE}; do
+    if [[ -f ${s}.pending ]]; then
+        can_run=no
+        break
+    fi
+done
+
+[[ ${can_run} = no ]] && exit 0
+
+umask 002
+JOB_LIMIT=25
+
+script=${MAKE_TARGET}.sh
+
+cat << EOF > ${script}
+#!/bin/bash -e
+/bin/hostname
+cat /etc/redhat-release || echo "there is no /etc/redhat-release file"
+/usr/bin/free -g
+/usr/bin/lscpu
+echo "JobId: ${_CONDOR_IHEP_JOB_ID}"
+echo "SubmissionTime: ${_CONDOR_IHEP_SUBMISSION_TIME}"
+
+pre_exit() {
+	e=\$?
+	if [[ \$e = 0 ]]; then
+		if [[ -e ${MAKE_TARGET} ]]; then
+			rm -f ${MAKE_TARGET}.pending
+		else
+			touch ${MAKE_TARGET}.fail
+		fi
+	else
+		touch ${MAKE_TARGET}.fail
+	fi
+	exit \$e
+}
+trap pre_exit INT TERM KILL QUIT EXIT
+
+env TIME="time result\ncmd:%C\nreal %es\nuser %Us \nsys  %Ss \nmemory:%MKB \ncpu %P"
+
+time $@
+EOF
+chmod +x ${script}
+
+njobs=${JOB_LIMIT}
+[[ -f njobs ]] && njobs=$(cat njobs)
+
+if [[ ${njobs} -gt ${JOB_LIMIT} ]]; then
+    # njobs=$(hep_q | wc -l)
+    njobs=$(pjstat | grep $(whoami) | wc -l)
+    stime=1
+    while [[ ${njobs} -gt $((${JOB_LIMIT}/4*3)) ]]; do
+        echo "${njobs} jobs are running, wait for ${stime} minutes..."
+        sleep ${stime}m
+        stime=$((${stime} + 1))
+	njobs=$(pjstat | grep $(whoami) | wc -l)
+    done
+fi
+
+echo $((${njobs} + 1)) > njobs
+
+SHELL=/bin/bash pjsub -X -L rscgrp=calib -j -o ${MAKE_TARGET}.log -e ${MAKE_TARGET}.err ${script}
+
