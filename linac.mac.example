@@ -1,0 +1,228 @@
+#=========================================================#
+#
+# DESCRIPTION: 
+#   SK-VI template macro(card) file 
+#
+#   2022.09.12 First version; M.Harada
+#
+#=========================================================#
+
+
+#=========================================================#
+#====                                                     #
+#==                         #01                           #
+#                      Initialization                     #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/control/maximumStoredHistory 1000
+/control/saveHistory ./Documents/MacroHistory.dat
+
+#=========================================================#
+#====                                                     #
+#==                         #02                           #
+#                        Verbosity                        #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/control/verbose 0
+/run/verbose 0
+/run/particle/verbose 0
+/event/verbose 0
+/tracking/verbose -1
+/process/verbose 0
+/process/eLoss/verbose 0
+/process/em/verbose 0
+#/process/had/particle_hp/verbose 0
+/material/verbose 0
+
+/SKG4/Verbose 0
+/SKG4/ErrorVerbose/Primary 0
+/SKG4/ErrorVerbose/Run 0
+/SKG4/ErrorVerbose/Event 0
+/SKG4/ErrorVerbose/Track 0
+/SKG4/ErrorVerbose/Step 0
+/SKG4/ErrorVerbose/Stack 0
+/SKG4/ErrorVerbose/Physics 0
+/SKG4/ErrorVerbose/Construct 0
+/SKG4/ErrorVerbose/Digitizer 0
+
+#=========================================================#
+#====                                                     #
+#==                         #03                           #
+#                          Global                         #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/Global/LowEGainRun 0
+/SKG4/Global/Run 999999
+/SKG4/Global/Subrun 1
+/SKG4/Global/PhysicsType 0
+/SKG4/Global/Geometry 6
+
+
+
+#=========================================================#
+#====                                                     #
+#==                         #04                           #
+#                         Physics                         #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/Physics/Verbose 0
+/SKG4/Physics/SetPhysicsEM emlivermore
+/SKG4/Physics/SetPhysicsOptical local
+/SKG4/Physics/SetPhysicsDecay on
+/SKG4/Physics/SetPhysicsStopping on
+/SKG4/Physics/SetPhysicsExtraEM on
+/SKG4/Physics/SetPhysicsHadronElastic HP
+/SKG4/Physics/SetPhysicsHadronInelastic local_w/_annrigd
+/SKG4/Physics/SetPhysicsIonElastic on
+/SKG4/Physics/SetPhysicsIonInelastic QMD
+
+
+#=========================================================#
+#====                                                     #
+#==                         #05                           #
+#                     Material Property                   #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/Detector/Material/WaterProperty  ./dat_file/MaterialProperty/Latest/WaterProperty.dat
+/SKG4/Detector/Material/AcrylProperty  ./dat_file/MaterialProperty/Latest/AcrylProperty.dat
+/SKG4/Detector/Material/VacuumProperty  ./dat_file/MaterialProperty/Latest/VacuumProperty.dat
+
+/SKG4/Detector/Material/AirProperty  ./dat_file/MaterialProperty/Latest/AirProperty.dat
+/SKG4/Detector/Material/GdHydrate 8
+/SKG4/Detector/Material/GdConcentration 0.0247
+#/SKG4/Detector/Material/WaterParameter 1
+/SKG4/Detector/Material/WaterParameter 202101
+/SKG4/Detector/Material/WaterAbsScaleMode 202101
+/SKG4/Detector/Material/WaterTransparencyMode 2
+/SKG4/Detector/Material/WaterTransparencyRun NORMAL_RUN
+#/SKG4/Detector/Material/WaterTransparency 500
+#/SKG4/Detector/Material/UseWaterParameterWithWaterT true
+/SKG4/Detector/Material/IDTBAParameterMode 3
+/SKG4/Detector/Material/IDTBAParameterRun NORMAL_RUN
+
+
+#=========================================================#
+#====                                                     #
+#==                         #06                           #
+#                       PMT Property                      #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/Detector/ID/PMTData ./dat_file/PMT/pmtmap_20190617.dat
+/SKG4/Detector/ID/PMTQEData ./dat_file/PMT/QETable.dat
+#/SKG4/Detector/ID/PMTMaterialTable ./dat_file/PMT/PMTMaterialTable_SK5.dat
+
+# SK-V LINAC result
+#/SKG4/Detector/ID/CorrectionFactor 0.8914648379
+# Ieki tune with detsim lowfit parameter
+#/SKG4/Detector/ID/CorrectionFactor 0.90571628 
+# Ieki tune with G4 lowfit parameter
+#/SKG4/Detector/ID/CorrectionFactor 0.88996392
+# Ieki tune with after TBA bug fix
+/SKG4/Detector/ID/CorrectionFactor 0.887656
+/SKG4/Detector/ID/PMTQETableVersion 5_3
+
+/SKG4/Detector/OD/PMTData ./dat_file/PMT/apmtmap.dat
+/SKG4/OD/Digitize false
+/SKG4/OD/EffRatio 1.
+/SKG4/OD/ADSCThr 0.25
+/SKG4/OD/ADSThrF 0.01
+/SKG4/OD/DSAntT0 4000.
+
+
+
+#=========================================================#
+#====                                                     #
+#==                         #07                           #
+#                   Detector Construction                 #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/Detector/CheckOverlap false
+/SKG4/Calibration/CalibMode LINAC
+/SKG4/Calibration/LINAC/SetRun LINAC_RUN
+/SKG4/Detector/Update
+
+
+#=========================================================#
+#====                                                     #
+#==                         #08                           #
+#                        Dark Noise                       #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/DarkNoise/Mode 2
+/SKG4/DarkNoise/Run NORMAL_RUN
+
+
+#=========================================================#
+#====                                                     #
+#==                         #09                           #
+#                     Software Trigger                    #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/SWTRG/Apply true
+/SKG4/SWTRG/ThresholdRun NORMAL_RUN
+/SKG4/SWTRG/InGateOnly true
+/SKG4/SWTRG/TriggerMask -1 
+/SKG4/SWTRG/TimeOffset 0
+
+
+#=========================================================#
+#====                                                     #
+#==                         #10                           #
+#                        ROOT File                        #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/RootFile/TTree/Information false
+/SKG4/RootFile/TTree/Cerenkov false
+/SKG4/RootFile/TTree/PMT false
+/SKG4/RootFile/TTree/Incident false
+/SKG4/RootFile/TTree/Secondary false
+/SKG4/RootFile/Name OUT_FILE
+
+
+#=========================================================#
+#====                                                     #
+#==                         #11                           #
+#                     Primary Generator                   #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/process/msc/UseMottCorrection false
+/run/initialize
+
+/SKG4/Primary/ParticleType Calib
+/SKG4/Calibration/LINAC/SetRun LINAC_RUN
+
+
+#=========================================================#
+#====                                                     #
+#==                        #12                            #
+#                      NEUT Settings                      #
+#          ( Must be set after /run/initialize )          #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4NeutCascadeInterfaceCommand/xsecMomentumRange 0 0.5
+/SKG4NeutCascadeInterfaceCommand/addValidElement O
+/SKG4NeutCascadeInterfaceCommand/addValidElement H
+
+
+#=========================================================#
+#====                                                     #
+#==                         #13                           #
+#                         Beam On                         #
+#                                                       ==#
+#                                                     ====#
+#=========================================================#
+/SKG4/Global/Reload
+/run/beamOn 5000
+
