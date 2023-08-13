@@ -119,9 +119,10 @@ Int_t main(const int argc,char *argv[]){
       Float_t neff[N_DATA];
       Float_t neff_err[N_DATA];
       Float_t sigma;
+      for(Int_t j=0; j<5; j++){
       for (Int_t iData=0; iData<N_DATA; iData++) {
          ifs_data >> neff[iData] >> neff_err[iData] >> sigma;
-      }
+      }}
 
       // Loop for data types (Data, Detsim, SKG4 ...)
       for (Int_t iData=0; iData<N_DATA; iData++) {
@@ -260,6 +261,6 @@ Int_t main(const int argc,char *argv[]){
    c2->Print(Form("%s/compare_all.pdf)", dir.Data()));
    c2->SaveAs("test.root");
 
-   return 1; 
+   return 0; 
 
 }

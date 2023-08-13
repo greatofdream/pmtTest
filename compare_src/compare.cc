@@ -164,10 +164,11 @@ int main(int argc,char *argv[]){
    std::ofstream ofs(Form("%s/linac_run%06d.dat", dir_out.Data(), runnum));
 
    // Loop for data
+   for(Int_t j=0; j<5; j++){
    for(Int_t iData=0; iData<N_DATA; iData++){
    
       // Set parameters
-      TH1F* h_this = hist[iData][4];
+      TH1F* h_this = hist[iData][j];
       Float_t cnst = h_this->GetMaximum();
       Int_t maxbin = h_this->GetMaximumBin();
       Float_t mean = h_this->GetXaxis()->GetBinCenter(maxbin);
@@ -185,7 +186,8 @@ int main(int argc,char *argv[]){
       ofs << par[1] << " " << fgaus->GetParError(1) << " " << par[2] << " ";
    
    }
-
+   ofs<<std::endl;
+   }
    ofs.close();
 
    TFile* outfile = new TFile(Form("%s/linac_run%06d.root", dir_out.Data(), runnum), "RECREATE");
@@ -247,5 +249,5 @@ int main(int argc,char *argv[]){
    c1->Update();
    c1->Print(Form("%s/linac_run%06d.pdf", dir_out.Data(), runnum));
 
-   return 1;
+   return 0;
 }

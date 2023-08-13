@@ -24,3 +24,5 @@ compareResult/$(phase)/linac_run$(run).dat: $(datadir)/$(run)/*.root $(mcdir)/$(
 	compare_src/compare $(datadir) $(mcdir) $(dir $@) $(run) $(summaryfile)
 compareResult/$(phase)/compare_all.pdf: compareResult/$(phase)/linac_run*.dat
 	compare_src/compare_all $(run_b) $(run_e) $(dir $@) $(summaryfile)
+compareResult/$(phase)/compare_parameter.pdf: $(sort $(wildcard compareResult/$(phase)/linac_run*.dat))
+	python3 compareParameters.py --phase $(phase) -i $(phase)_summary.csv -o $@ -f $^

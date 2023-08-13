@@ -83,8 +83,8 @@ with PdfPages(args.opt) as pdf:
             axs[0].fill_between([Xs_index[0]+Zs_index[0]-0.3, Xs_index[0]+Zs_index[-1]+0.3], [0, 0], [1, 1], alpha=0.5, color='violet')
             axs[0].text(Xs_index[0]+(Zs_index[0]+Zs_index[-1])/2, 0.5, 'Z='+str(z)+'m', ha='center', va='center')
     handles_mc, handles_data = [], []
-    [handles_data.append(axs[i+1].errorbar(xs, merge[j]-merge[k], yerr=mergeError[j], label=j, fmt='.', color='k')) for i,(j,k) in enumerate(zip(['X_data', 'Y_data', 'Z_data'], ['X_mc', 'Y_mc', 'Z_mc']))]
-    [axs[i+1].set_ylabel(j) for i, j in enumerate(['$X_{\mathrm{Data}}-X_{\mathrm{MC}}$[cm]', '$Y_{\mathrm{Data}}-Y_{\mathrm{MC}}$[cm]', '$Z_{\mathrm{Data}}-Z_{\mathrm{MC}}$[cm]'])]
+    [handles_data.append(axs[i+1].errorbar(xs, merge[j]-merge[k], yerr=np.sqrt(mergeError[j]**2+mergeError[k]), label=j, fmt='.', color='k')) for i,(j,k) in enumerate(zip(['X_data', 'Y_data', 'Z_data'], ['X_mc', 'Y_mc', 'Z_mc']))]
+    [axs[i+1].set_ylabel(j) for i, j in enumerate(['$\mu(X_{\mathrm{Data}})-\mu(X_{\mathrm{MC}})$[cm]', '$\mu(Y_{\mathrm{Data}})-\mu(Y_{\mathrm{MC}})$[cm]', '$\mu(Z_{\mathrm{Data}})-\mu(Z_{\mathrm{MC}})$[cm]'])]
     axs[Nsubfig-1].set_xticks(xs)
     axs[Nsubfig-1].set_xticklabels(merge['RunNo'], rotation=90)
     axs[Nsubfig-1].set_xlim([xs[0]-0.3, xs[-1]+0.3])
