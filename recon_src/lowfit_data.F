@@ -35,11 +35,12 @@ c
       integer iargc, narg
       character*200 fname_in
       character*200 fname_out
+      character*100 fname_linac, fname_ge
       character*10 nsub,tmp,nrun
       character tentative
       character*200 fTentativeConfig
       logical ntentative
-      real watertTentative, betaTentative
+      real watertTentative
 c*** number of hit limit for clusfit
       integer NHIT_CUT
       parameter (NHIT_CUT = 400)
@@ -67,7 +68,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccc
 c*** check arguments
       narg = iargc()
       if (narg .lt. 2) then
-         print *, 'Usage: lowfit_data [runnum] [output file] [input file] [?tentative?] [?config]'
+         print *, 'Usage: lowfit_data [runnum] [output file] [input file] [linac sum dat] [ge sum dat] [?tentative?] [?config]'
          call exit(1)
       endif
 
@@ -84,9 +85,12 @@ c***  prepare input files
          call getarg(i, fname_in) 
          call skroot_set_input_file(lun,fname_in(1:lnblnk(fname_in)))
       enddo
+c***  linac and ge sum dat
+      call getarg(4, fname_linac)
+      call getarg(5, fname_ge)
 #ifdef TENTATIVE
 c***  tentative paramter
-      call getarg(4, tentative)
+      call getarg(6, tentative)
       print *, 'tentative is ', tentative
       read(tentative,*)ntentative
       if (ntentative) then
@@ -127,7 +131,7 @@ c      call skwt
       print *,'relapse(nnrun) = ',relapse(nnrun)
 
 c***  check lininfo
-      call linsum2(nnrun)
+      call linsum2(nnrun, fname_linac, fname_ge)
       print *, 'lininfo2:', lin_mode(nnrun),lin_trg(nnrun),
      $     lin_x(nnrun),lin_y(nnrun),lin_z(nnrun),
      $     lin_badrun(nnrun), lin_runnum, lin_mom(nnrun),
@@ -242,7 +246,7 @@ c*** save event flag
 c***  for select single electron event         
       n=lecompte(lin_x(nnrun),lin_y(nnrun),lin_z(nnrun),width)
       if(n .ne. 1)then
-c         print *,'n,nevsk,nqisk',n,nevsk,nqisk,nread
+         print *,'nelectron,nevsk,nqisk',n,nevsk,nqisk,nread
          goto 10
       end if
 

@@ -28,6 +28,7 @@ c
       integer nrun, iret, ipbank, rlp,lfflag,iday
       real watert, rver
       character*200 fout,fname1,fname2
+      character*100 fname_linac, fname_ge
       character*200 tmpchar
 
       character tentative
@@ -77,9 +78,12 @@ c*** set SK_GEOMETRY
          call skroot_set_input_file(lun,tmpchar(1:lnblnk(tmpchar)))
         print *, "input file  : ", tmpchar
       enddo
+c***  linac and ge sum dat
+      call getarg(4, fname_linac)
+      call getarg(5, fname_ge)
 #ifdef TENTATIVE
 c***  tentative paramter
-      call getarg(4, tentative)
+      call getarg(6, tentative)
       print *, 'tentative is ', tentative
       read(tentative,*)ntentative
       if (ntentative) then
@@ -101,7 +105,7 @@ c      call skwt
       call skwt_gain_corr
 
 c*** check lininfo
-      call linsum2(nrun)
+      call linsum2(nrun, fname_linac, fname_ge)
       print *, 'lininfo2:', lin_mode(nrun),lin_trg(nrun),
      $     lin_x(nrun),lin_y(nrun),lin_z(nrun),
      $     lin_badrun(nrun), lin_runnum, lin_mom(nrun),
