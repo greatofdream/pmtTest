@@ -1,5 +1,5 @@
 //
-// compare.C       20230615   Aiqiang Zhang 
+// compare.C       20230615   Aiqiang Zhang (Modified from Takeuchi)
 //
 // root -q -l -b 'compare.C("run1.root", "run2.root", "run1_run2.csv")'
 //
@@ -14,8 +14,9 @@
 #include <string>
 #include <regex>
 #include <time.h>
+#include "Util.h"
 using namespace std;
-typedef struct {
+/*typedef struct {
     TH1* bsenergy;
     TH1* ovaq;
     TH2* r2z;
@@ -83,7 +84,7 @@ Res readRes(string filename){
     cout << "done." << endl;
    
     return res;
-}
+}*/
 void compare(string run1_filename, string run2_filename, string fout)
 {
     //-------------------------------------------------------------
