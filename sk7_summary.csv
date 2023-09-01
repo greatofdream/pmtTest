@@ -1,0 +1,29 @@
+91366,-12,+12,12,0,86,due to the Linac trigger issue
+91367,-12,+12,12,0,39,noise peak appeared again  change dsicr threshold to 0.15V
+91368,-12,+12,12,0,88,12MeV data taking finishing
+91369,-12,+12,12,1,8,As the Run mode seems strange
+91373,-12,+12,15,0,46,abort here
+91374,-12,+12,15,0,93,to start rf run
+91375,+12,-12,15,1,10,to start Ge run
+91377,-12,+12,8,0,81,to start mu wave run
+91378,0,0,0,1,6,
+91382,-12,+12,6,1,6,to start Ge run
+91390,-12,+12,6,0,68,For linac microwave
+91391,0,0,0,1,6,end of linac microwave
+91400,-12,0,12,0,88,end of linac 12 MeV at x-12 z0
+91402,-12,0,12,1,6,end of linac microwave
+91404,-12,0,6,0,63,end of linac 6MeV x-12mz0m
+91405,-12,0,6,1,11,to start test run and beam tuning
+91407,-12,0,8,0,84,to take LINAC microwave
+91408,-12,0,8,1,8,to start Ge run
+91411,-12,0,15,0,134,to take microwave data.
+91413,-12,0,15,1,10,to take Ge data
+91420,-12,-12,12,0,67,Go to MF
+91422,-12,-12,12,1,8,Stop MW
+91424,-12,-12,6,0,116,Go to MW
+91425,-12,-12,6,1,6,To test run
+91427,-12,-12,8,0,106,to start MW
+91428,-12,-12,8,1,6,finish Ge
+91430,-12,-12,15,0,67,to do bram study
+91432,-12,-12,15,0,101,to take MW
+91434,-12,-12,15,1,7,to change Gun voltage

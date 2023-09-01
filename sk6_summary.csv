@@ -1,0 +1,20 @@
+86119,-12,+12,8,0,110,go to MW
+86120,-12,+12,8,1,9,go to test
+86126,-12,+12,12,0,90,Finish taking a data of Linac 12MeV
+86127,-12,+12,12,1,8,MW finished
+86129,-12,+12,15,0,98,go to Linac MW
+86130,0,0,0,1,6,go to test
+86135,-12,0,8,0,98,data taking end 8MeV
+86136,-12,0,8,1,8,linac mw aborted
+86138,-12,0,12,0,80,go
+86139,-12,0,12,1,6,go to test
+86142,-12,0,15,0,89,go to MW
+86143,-12,0,15,1,6,go to test
+86145,-12,0,6,0,84,LINAC MW
+86146,-12,0,6,1,6,go to test
+86154,-12,-12,8,0,92,8MeV data taking finish
+86155,-12,-12,8,1,7,finish microwave
+86157,-12,-12,12,0,99,end of 12MeV data taking
+86158,-12,-12,12,1,6,microwave finish
+86160,-12,-12,15,0,93,LINAC microwave
+86161,-12,-12,15,1,7,Ge data taking
