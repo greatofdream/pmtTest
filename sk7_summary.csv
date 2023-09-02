@@ -1,5 +1,3 @@
-91366,-12,+12,12,0,86,due to the Linac trigger issue
-91367,-12,+12,12,0,39,noise peak appeared again  change dsicr threshold to 0.15V
 91368,-12,+12,12,0,88,12MeV data taking finishing
 91369,-12,+12,12,1,8,As the Run mode seems strange
 91373,-12,+12,15,0,46,abort here
@@ -27,3 +25,52 @@
 91430,-12,-12,15,0,67,to do bram study
 91432,-12,-12,15,0,101,to take MW
 91434,-12,-12,15,1,7,to change Gun voltage
+91442,-4,+12,12,0,81,to start mu wave
+91443,-4,12,12,1,6,start Ge data and test run
+91446,-4,+12,6,0,162,go to MW
+91449,-4,+12,8,0,76,to take MW data
+91450,-4,+12,8,1,7,go to test run
+91452,-4,+12,15,0,39,to stop linac data taking
+91454,-4,+12,15,0,54,to fix hv problem
+91462,-4,+12,15,0,69,to take linac microwave run
+91463,-4,+12,15,1,6,to start test run
+91470,-4,0,12,0,70,startn microwave run
+91471,-4,0,12,1,6,start Ge data taking
+91473,-4,0,6,0,162,start mu wave
+91474,-4,0,6,1,6,start Ge data
+91476,-4,0,8,0,90,to stop linac data taking
+91477,0,0,0,1,6,to stop LINAC MW
+91479,-4,0,15,0,77,to stop LINAC data taking
+91480,-4,0,15,1,6,to retake LINAC MW
+91492,-4,-12,12,0,95,to start muwave
+91494,-4,-12,12,1,6,normal (to start Ge data)
+91497,-4,-12,8,0,140,stop LINAC
+91498,-4,-12,8,1,11,stop LINAC MW
+91500,-4,-12,15,0,66,stop LINAC data taking
+91501,-4,-12,15,1,7,stop LINAC MW data taking
+91503,-4,-12,6,0,189,stop LINAC data taking
+91504,-4,-12,6,1,6,stop LINAC MW data taking
+91511,-8,12,12,0,66,to take muwave data
+91512,-8,12,12,1,9,To take Ge data
+91514,-8,+12,6,0,143,End of 6MeV at x-8  z+12
+91515,-8,+12,6,1,7,stop LINAC MW data taking
+91517,-8,+12,8,0,83,start LINAC MW data taking
+91518,-8,+12,8,1,7,end of LINAC microwave
+91520,-8,+12,15,0,84,stop LINAC data taking
+91521,-8,+12,15,1,6,stop LINAC MW data taking
+91527,-8,0,12,0,78,to take LINAC MW run
+91528,-8,0,12,1,6,to take Ge data
+91530,-8,0,6,0,156,stop LINAC data taking
+91531,-8,0,6,1,6,stop LINAC MW data taking
+91534,-8,0,8,0,98,to take microwave
+91535,-8,0,8,1,6,to take etst
+91538,-8,0,15,0,80,to take LINAC RF
+91539,0,0,0,1,6,to switch to TEST run
+91549,-8,-12,12,0,92,to start LINAC MW
+91550,-8,-12,12,1,6,to take ge data
+91552,-8,-12,15,0,82,to take MW
+91553,-8,-12,15,1,6,to take ge data
+91555,-8,-12,8,0,140,for microwave data
+91556,-8,-12,8,1,6,For Ge data taking
+91560,-8,-12,6,0,175,for microwave data taking
+91563,-8,-12,6,1,6,end of linac
