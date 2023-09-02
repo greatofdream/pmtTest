@@ -18,9 +18,11 @@ python3 compare.py -i sk6_sk7_ZE.csv
 python3 compare.py -i sk6_sk6.csv --onebyone
 ```
 plot for each run
+
+```shell
+make all
 ```
-python3 ana.py
-```
+
 ## make LINAC run dat and Ge dat
 ```shell
 make sk6_linac_runsum.dat sk6_ge_runsum.dat -f initRuns.mk
