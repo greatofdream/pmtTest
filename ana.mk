@@ -4,4 +4,4 @@ all: $(runs:%=$(state)/%.pdf)
 # root -q -l -b 'plot1.C("/disk03/lowe10/sk7/lin/lin.091368.root", "lin.091368.png")'
 $(state)/%.pdf: $(directory)%.root
 	mkdir -p $(dir $@)
-	root -q -l -b 'plot1.C("$^", "$@")'
+	./wrap_23b root -q -l -b 'plot1.C("$^", "$@")'
