@@ -1,0 +1,23 @@
+#!/bin/bash
+
+declare -A processed
+processed=(
+    ["6"]=/disk02/lowe8/sk6
+    ["7"]=/disk03/lowe10/sk7
+)
+
+RUNS=()
+
+mkdir -p lin
+for fl in $@; do
+    [[ ${fl} =~ sk([[:digit:]]+)_summary.csv ]]
+    phase=${BASH_REMATCH[1]}
+
+    rl=$(cut -d, -f1 < ${fl})
+    for run in ${rl}; do
+        [[ -e lin/${run}.root ]] || ln -sf ${processed[${phase}]}/lin/lin.0${run}.root lin/${run}.root
+    done
+    RUNS+=( ${rl} )
+done
+
+echo RUNS:=${RUNS[@]}
