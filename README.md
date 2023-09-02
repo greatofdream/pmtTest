@@ -7,18 +7,7 @@ make sk7_summary.csv -f initRuns.mk
 + fix the typo error:
   + `86157`: `X=12m`->`X=-12m`
 ## comparision between sk6 and sk7
-+ generate the run map file
-```
-make phase1=sk6 phase2=sk7 -f initRuns.mk sk6_sk7.csv
-make phase1=sk6 phase2=sk7 -f initRuns.mk sk6_sk7_ZE.csv
-```
-+ overlay the different run in a same plots
-```
-python3 compare.py -i sk6_sk7_ZE.csv
-python3 compare.py -i sk6_sk6.csv --onebyone
-```
-plot for each run
-
++ overlay the different run in a same plots, and plot for each run
 ```shell
 make all
 ```
