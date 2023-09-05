@@ -6,6 +6,16 @@ SHELL=bash
 .PHONY: all
 all: $(RUNS:%=lin/%.pdf) $(ZE:%=compare/%.pdf)
 
+sk6:=$(shell echo {86119..86161})
+# 91457 91458 DAQ error; 91561 DAQ stuck
+# https://www-sk1.icrr.u-tokyo.ac.jp/sk-local/logbook/SK7/Vol01/logbook.2023.06.12.pdf
+# https://www-sk1.icrr.u-tokyo.ac.jp/sk-local/logbook/SK7/Vol01/logbook.2023.06.22.pdf
+# 91366 91367 的 descriminator 有问题，导致 trigger 直方图异常
+sk7:=$(filter-out 91366 91367 91457 91458 91561,$(shell echo {91356..91563}))
+%_summary.csv:
+	parallel -j1 ./initRuns.py {} ::: $($*) > $@
+	sed 's/86157,12/86157,-12/' -i $@ # 86157 的 run summary 写错了
+
 mk/run: sk6_summary.csv sk7_summary.csv
 	mkdir -p $(@D)
 	echo `sh/prepare_raw $^` >> $@
@@ -32,3 +42,6 @@ E=$(subst E,,$(word 2,$(Z_E)))
 compare/%.pdf: $$(r_files)
 	mkdir -p $(@D)
 	./wrap_23b root -l -b -q 'compareM.C("$(r_sk6)","$(r_sk7)","$(call repeat,-12,$(r_sk6))","$(call repeat,-12,$(r_sk7))","lin/","lin/",$(Z),$(E),"$@")'
+
+.SECONDARY:
+.DELETE_ON_ERROR:

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse, os, re, pandas as pd, numpy as np
 from datetime import datetime
 # def getSetting(summary_files):
@@ -19,11 +20,7 @@ def getXZE(comment):
 if __name__=="__main__":
     psr = argparse.ArgumentParser()
     psr.add_argument('ipt', help='run no')
-    psr.add_argument('--badrun', dest='badrun', default='BadRun.txt', help='bad run file')
     args = psr.parse_args()
-    badruns = np.loadtxt(args.badrun, dtype=int)
-    if int(args.ipt) in badruns:
-        exit(0)
     response = os.popen('summary {}'.format(args.ipt))
     summary = {}
     for res in response:
