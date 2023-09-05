@@ -4,15 +4,15 @@ from datetime import datetime
 # def getSetting(summary_files):
 def getXZE(comment):
     x, z, E = 0, 0, 0
-    result = re.match(r'.+x=?([-|+]?\d+)m?,? ?z=?([-|+]?\d+)m?,? ?(\d+) ?mev', comment, re.I)
+    result = re.match(r'.+x=?([-+]?\d+)m?,? *z=?([-+]?\d+)m?,? ?(\d+) ?mev', comment, re.I)
     if result:
         x, z, E = result.group(1), result.group(2), result.group(3)
     else:
-        result = re.match(r'.+(\d+) ?mev,? ?x=?([-|+]?\d+)m?,? ?z=?([-|+]?\d+)m?', comment, re.I)
+        result = re.match(r'.+(\d+) ?mev,? ?x=?([-+]?\d+)m?,? ?z=?([-+]?\d+)m?', comment, re.I)
         if result:
             x, z, E = result.group(2), result.group(3), result.group(1)
         else:
-            result = re.match(r'.+\(([-|+]?\d+)m?,? ?([-|+]?\d+)m?\),? ?(\d+) ?mev', comment, re.I)
+            result = re.match(r'.+\(([-+]?\d+)m?,? ?([-+]?\d+)m?\),? ?(\d+) ?mev', comment, re.I)
             if result:
                 x, z, E = result.group(1), result.group(2), result.group(3)
     return x, z, E
