@@ -1,0 +1,9 @@
+#!/bin/bash
+# 执行 SK 官方环境的代码
+
+# printf 的用法参考自 https://stackoverflow.com/a/50367671/391057
+# %q Causes printf to output the corresponding argument in a format that can be reused as shell input.
+env -u PATH bash --noprofile --norc <<EOF
+source /usr/local/sklib_gcc8/bashenv_gcc8_skofl_23b+atmpd_23b
+$(printf ' %q' "$@")
+EOF

@@ -1,22 +1,27 @@
-import argparse, pandas as pd
+#!/usr/bin/env python3
+'''
+按照 (X, Z, E) 三元组对 run 分类，用于生成对比图的 PDF 文件列表等。
+'''
+import argparse
+import pandas as pd
+
 summary_header = ['RunNo', 'X', 'Z', 'E', 'Mode', 'Time', 'Comment']
-if __name__=="__main__":
-    psr = argparse.ArgumentParser()
-    psr.add_argument('-i', dest='ipt', nargs='+', help='input summary files')
-    psr.add_argument('-o', dest='opt', help='ouput file')
-    psr.add_argument('--label', dest='label', nargs='+', help='phase tags')
-    psr.add_argument('--on', dest='on', nargs='+', default=['X', 'Z', 'E'])
-    psr.add_argument('--how', dest='how', default='inner')
-    args = psr.parse_args()
-    if len(args.ipt) != len(args.label):
-        print('error! length of summary files and labels different')
-        exit(0)
-    phase1_df, phase2_df = pd.read_csv(args.ipt[0], names=summary_header), pd.read_csv(args.ipt[1], names=summary_header)
-    phase1_df['RunNo'] = phase1_df['RunNo'].astype(pd.Int64Dtype())
-    phase1_df['X'] = phase1_df['X'].astype(pd.Int64Dtype())
-    phase1_df, phase2_df = phase1_df.loc[phase1_df['Mode']==0][['RunNo', 'X', 'Z', 'E']], phase2_df.loc[phase2_df['Mode']==0][['RunNo', 'X', 'Z', 'E']]
-    print(phase1_df)
-    print(phase2_df)
-    combineDf = pd.merge(phase1_df, phase2_df, on=args.on, how=args.how, suffixes=args.label)
-    # phase1_gp, phase2_gp = phase1_df.groupby(['X', 'Z', 'E']), phase2_df.groupby(['X', 'Z', 'E'])
-    combineDf.to_csv(args.opt, index=False)
+
+psr = argparse.ArgumentParser()
+psr.add_argument('-i', dest='ipt', nargs=2, help='input summary files')
+psr.add_argument('-o', dest='opt', help='ouput file')
+args = psr.parse_args()
+
+summary = pd.concat([ pd.read_csv(fn, names=summary_header).assign(Phase=fn.split("_")[0]) 
+                      for fn in args.ipt ], axis=0)
+summary.query("Mode==0", inplace=True)
+
+# 因为 SK6 的 LINAC 刻度只有 X=-12m，此处只做 Z 和 E 的区分。
+ZE = set()
+
+with open(args.opt, "w") as opt:
+    for k, v in summary.groupby(['X', 'Z', 'E', 'Phase'])["RunNo"]:
+        if k[0] == -12:
+            print(f"Z{k[1]}_E{k[2]}_{k[3]}:={' '.join(v.values.astype(str))}", file=opt)
+            ZE.add(f"Z{k[1]}_E{k[2]}")
+    print(f"ZE:={' '.join(ZE)}", file=opt)

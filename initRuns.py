@@ -1,17 +1,18 @@
+#!/usr/bin/env python3
 import argparse, os, re, pandas as pd, numpy as np
 from datetime import datetime
 # def getSetting(summary_files):
 def getXZE(comment):
     x, z, E = 0, 0, 0
-    result = re.match(r'.+x=?([-|+]?\d+)m?,? ?z=?([-|+]?\d+)m?,? ?(\d+) ?mev', comment, re.I)
+    result = re.match(r'.+x=?([-+]?\d+)m?,? *z=?([-+]?\d+)m?,? ?(\d+) ?mev', comment, re.I)
     if result:
         x, z, E = result.group(1), result.group(2), result.group(3)
     else:
-        result = re.match(r'.+(\d+) ?mev,? ?x=?([-|+]?\d+)m?,? ?z=?([-|+]?\d+)m?', comment, re.I)
+        result = re.match(r'.+(\d+) ?mev,? ?x=?([-+]?\d+)m?,? ?z=?([-+]?\d+)m?', comment, re.I)
         if result:
             x, z, E = result.group(2), result.group(3), result.group(1)
         else:
-            result = re.match(r'.+\(([-|+]?\d+)m?,? ?([-|+]?\d+)m?\),? ?(\d+) ?mev', comment, re.I)
+            result = re.match(r'.+\(([-+]?\d+)m?,? ?([-+]?\d+)m?\),? ?(\d+) ?mev', comment, re.I)
             if result:
                 x, z, E = result.group(1), result.group(2), result.group(3)
     return x, z, E
@@ -19,11 +20,7 @@ def getXZE(comment):
 if __name__=="__main__":
     psr = argparse.ArgumentParser()
     psr.add_argument('ipt', help='run no')
-    psr.add_argument('--badrun', dest='badrun', default='BadRun.txt', help='bad run file')
     args = psr.parse_args()
-    badruns = np.loadtxt(args.badrun, dtype=int)
-    if int(args.ipt) in badruns:
-        exit(0)
     response = os.popen('summary {}'.format(args.ipt))
     summary = {}
     for res in response:
