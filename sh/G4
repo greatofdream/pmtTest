@@ -1,0 +1,10 @@
+#!/bin/bash
+# 执行 SKG4 的代码
+
+cd $1
+shift 1
+
+env -i bash --noprofile --norc <<EOF
+source G4ROOTsource.sh
+$(printf ' %q' "$@")
+EOF

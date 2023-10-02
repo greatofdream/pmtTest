@@ -27,6 +27,14 @@ lin/%.pdf: lin/%.root
 	mkdir -p $(@D)
 	./wrap_23b root -q -l -b 'plot1.C("$^", "$@")'
 
+SKG4/bin/Linux-g++/SKG4:
+	sh/G4 SKG4 ./Make.sh
+linac_sk7.mac: linac_sk6.mac
+	sed -f sed/SK7 $< > $@
+MC/%.root: MC/%.mac SKG4/bin/Linux-g++/SKG4
+	[[ -e SKG4/MC ]] || ln -s ../MC SKG4/MC
+	sh/G4 SKG4 bin/Linux-g++/SKG4 $< $*
+
 define repeat
 $(strip $(shell printf '%.0s $(1)' {1..$(words $(2))}))
 endef
@@ -41,7 +49,12 @@ E=$(subst E,,$(word 2,$(Z_E)))
 # SK6 的 run 只有 X=-12
 compare/%.pdf: $$(r_files)
 	mkdir -p $(@D)
-	./wrap_23b root -l -b -q 'compareM.C("$(r_sk6)","$(r_sk7)","$(call repeat,-12,$(r_sk6))","$(call repeat,-12,$(r_sk7))","lin/","lin/",$(Z),$(E),"$@")'
+	sh/23b root -l -b -q 'compareM.C("$(r_sk6)","$(r_sk7)","$(call repeat,-12,$(r_sk6))","$(call repeat,-12,$(r_sk7))","lin/","lin/",$(Z),$(E),"$@")'
+
+phase=sk$(phase_$*)
+MC/%.mac: linac_$$(phase).mac
+	mkdir -p $(dir $@)
+	sed -e 's/LINAC_RUN/$*/' -e's/NORMAL_RUN/$(prevn_$*)/' -e 's,OUT_FILE,$(@:.mac=.root),' $^ > $@
 
 .SECONDARY:
 .DELETE_ON_ERROR:
