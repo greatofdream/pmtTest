@@ -13,12 +13,12 @@ sk6:=$(shell echo {86119..86161})
 # 91366 91367 的 descriminator 有问题，导致 trigger 直方图异常
 sk7:=$(filter-out 91366 91367 91457 91458 91561,$(shell echo {91356..91563}))
 %_summary.csv:
-	parallel -j1 ./initRuns.py {} ::: $($*) > $@
+	./initRuns.py $($*) > $@
 	sed 's/86157,12/86157,-12/' -i $@ # 86157 的 run summary 写错了
 
 mk/run: sk6_summary.csv sk7_summary.csv
 	mkdir -p $(@D)
-	echo `sh/prepare_raw $^` >> $@
+	sh/prepare_raw $^ > $@
 mk/compare: sk6_summary.csv sk7_summary.csv
 	mkdir -p $(@D)
 	./initSetting.py -i $^ -o $@

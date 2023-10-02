@@ -13,11 +13,13 @@ for fl in $@; do
     [[ ${fl} =~ sk([[:digit:]]+)_summary.csv ]]
     phase=${BASH_REMATCH[1]}
 
-    rl=$(cut -d, -f1 < ${fl})
-    for run in ${rl}; do
+    IFS=,
+    while read run X Z E mode length comment normal; do
         [[ -e lin/${run}.root ]] || ln -sf ${processed[${phase}]}/lin/lin.0${run}.root lin/${run}.root
-    done
-    RUNS+=( ${rl} )
+        echo phase_${run}:=${phase}
+        echo prevn_${run}:=${normal}
+        RUNS+=( ${run} )
+    done < ${fl}
 done
 
 echo RUNS:=${RUNS[@]}
