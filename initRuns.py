@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-import argparse, os, re, pandas as pd, numpy as np
+import argparse
+import os
+import re
 from datetime import datetime
 from functools import cache
+import sys
 
 # def getSetting(summary_files):
 def getXZE(comment: str):
@@ -17,7 +20,7 @@ def getXZE(comment: str):
             result = re.match(r'.+\(([-+]?\d+)m?,? ?([-+]?\d+)m?\),? ?(\d+) ?mev', comment, re.I)
             if result:
                 x, z, E = result.group(1), result.group(2), result.group(3)
-    return x, z, E
+    return int(x), int(z), int(E)
 
 @cache
 def getMeta(run: int) -> dict:
@@ -38,11 +41,13 @@ def getNormalRun(run: int) -> int:
 
 if __name__=="__main__":
     psr = argparse.ArgumentParser()
-    psr.add_argument('ipt', nargs="+", help='run numbers')
+    psr.add_argument('ipt', nargs="+", type=int, help='run numbers')
     args = psr.parse_args()
 
+    # 91375, 91378, 91391, 91477, 91539 的 run summary 没有写全，使用前一个 run 的信息
+    formers = (0, 0, 0, 0) # run, X, Z, E
     for run in args.ipt:
-        summary = getMeta(int(run))
+        summary = getMeta(run)
 
         mode = 0
         if summary['Run Mode']=='10:LINAC' and (not re.search('(retune|error)', summary['End Comment'], re.I)):
@@ -54,7 +59,12 @@ if __name__=="__main__":
                 else:
                     if deltatime<30:
                         continue
-                x, z, E = getXZE(summary['Comment'])
+                X, Z, E = getXZE(summary['Comment'])
+                if run == formers[0] + 1 and formers[1:] != (X, Z, E):
+                    print(f'{run} use former run {formers[0]} info', file=sys.stderr)
+                    X, Z, E = formers[1:]
                 end_comment = summary['End Comment'].replace(',', ' ')
                 prev_normal_run = getNormalRun(int(summary['Run number']))
-                print(f"{summary['Run number']},{x},{z},{E},{mode},{int(deltatime)},{end_comment},{prev_normal_run}")
+                print(f"{summary['Run number']},{X},{Z},{E},{mode},{int(deltatime)},{end_comment},{prev_normal_run}")
+                formers = (run, X, Z, E)
+                

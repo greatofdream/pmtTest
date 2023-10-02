@@ -1,0 +1,13 @@
+#!/usr/bin/env awk
+# convert from rough meters into centimeters.
+BEGIN {
+    X["-12"]="-1237"
+    X["-8"]="-813.05"
+    X["-4"]="-388.85"
+    Y="-70.7"
+    Z["12"]="1197"
+    Z["0"]="-6"
+    Z["-12"]="-1209"
+}
+# run, E, mode, X, Y, Z, prev_normal
+{ print $1,$4,$5,X[$2],Y,Z[$3],$8 }
