@@ -1,0 +1,3 @@
+[submodule "SKG4"]
+	path = SKG4
+	url = git@gitlab.airelinux.org:SK/SKG4.git
