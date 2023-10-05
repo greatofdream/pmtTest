@@ -18,11 +18,6 @@ setting = {
     }
 summary_header = ['RunNo', 'X', 'Z', 'E', 'Mode', 'Time', 'Comment']
 dat_header = ['LinacRunNo', 'EnergyMode', 'RunMode', 'X', 'Y', 'Z', 'NormalRunNo']
-vertexMap = {
-        'X': { -12: '-1237', -8: '-813.05', -4: '-388.85'},
-        'Y': {-7: '-70.7'},
-        'Z': {12: '1197', 0: '-6', -12: '-1209'},
-    }
 geMap = {
         3: '4.700',
         4: '5.076',

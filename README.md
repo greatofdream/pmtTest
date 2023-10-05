@@ -19,33 +19,9 @@ make sk6_linac_runsum.dat sk6_ge_runsum.dat -f initRuns.mk
 make sk7_linac_runsum.dat sk7_ge_runsum.dat -f initRuns.mk
 ```
 ## MC production
-+ modify the SKG4 code
-```c++
-// src/Construct/SKG4DetectorMessenger.cc:L77
-	fWaterTransparencyCmd = new G4UIcmdWithADouble("/SKG4/Detector/Material/WaterTransparency",this);
-	fWaterTransparencyCmd->SetGuidance("Set specified water transparency");
-	fWaterTransparencyCmd->SetParameterName("fWaterTransparency",0.);
-	fWaterTransparencyCmd->SetDefaultValue(0.);
-// src/Construct/SKG4DetectorMessenger.cc:L77
-if (command==fWaterTransparencyCmd)	
-      SKG4Materials->SetWaterTransparency(fWaterTransparencyCmd->GetNewDoubleValue(newValue));
-// src/Construct/SKG4DetectorMessenger.cc:L379
-delete fWaterTransparencyCmd;
-// include/Construct/SKG4DetectorMessenger.cc:L65
-G4UIcmdWithADouble*   fWaterTransparencyCmd;
-// include/Construct/SKG4ConstructMaterials.hh:L167
-G4double fWaterTransparency;
-// include/Construct/SKG4ConstructMaterials.hh:L70
-		inline void SetWaterTransparency(G4double val)	{fWaterTransparency = val;}
-		inline G4double GetWaterTransparency() const {return fWaterTransparency;}
-// src/Construct/SKG4ConstructMaterials.cc:L626
-fWaterT = GetWaterTransparency();
-
-```
 + generate the data: the linac macro should be set whether using the tentative
 ```shell
-make phase=sk6 -f mc.mk
-make phase=sk7 -f mc.mk
+make all
 ```
 ## Recon
 ### recon code
