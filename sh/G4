@@ -1,10 +1,19 @@
 #!/bin/bash
 # 执行 SKG4 的代码
 
+case $(hostname) in
+    bat)
+        A8="bwrap --ro-bind /var/lib/lxc/a8/rootfs/ / --dev /dev --tmpfs /tmp --bind /mnt/stage /mnt/stage --bind /home /home --bind /usr/local /usr/local --bind /ackermann/SK/disk01 /disk01"
+        ;;
+    sukap*)
+        A8="env -i"
+        ;;
+esac
+
 cd $1
 shift 1
 
-env -i bash --noprofile --norc <<EOF
+${A8} bash --noprofile --norc <<EOF
 source G4ROOTsource.sh
 $(printf ' %q' "$@")
 EOF
