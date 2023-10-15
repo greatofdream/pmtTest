@@ -51,8 +51,8 @@ if __name__=="__main__":
 
         mode = 0
         if summary['Run Mode']=='10:LINAC' and (not re.search('(retune|error)', summary['End Comment'], re.I)):
-            deltatime = (datetime.strptime(summary['End time'], "%a %b %d %H:%M:%S %Y") - datetime.strptime(summary['Start time'], "%a %b %d %H:%M:%S %Y")).total_seconds()/60
-        # if summary['Run Mode']=='10:LINAC' and not (re.search('MW', summary['Comment'], 0) or re.search('micro', summary['Comment'], 1) or re.search('[retune|error]', summary['End Comment'], 1)):
+            deltatime = (datetime.strptime(summary['End time'], "%a %b %d %H:%M:%S %Y")
+                         - datetime.strptime(summary['Start time'], "%a %b %d %H:%M:%S %Y")).total_seconds()/60
             if deltatime > 5:
                 if re.search('(mw|micro)', summary['Comment'], re.I):
                     mode = 1
@@ -60,6 +60,8 @@ if __name__=="__main__":
                     if deltatime<30:
                         continue
                 X, Z, E = getXZE(summary['Comment'])
+                if run == 86157: # 86157 的 run summary 写错了, x 应为 -12
+                    X = -12
                 if run == formers[0] + 1 and formers[1:] != (X, Z, E):
                     print(f'{run} use former run {formers[0]} info', file=sys.stderr)
                     X, Z, E = formers[1:]
