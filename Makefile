@@ -14,7 +14,7 @@ sk6:=$(shell echo {86119..86161})
 sk7:=$(filter-out 91366 91367 91457 91458 91561,$(shell echo {91356..91563}))
 %_summary.csv:
 	./initRuns.py $($*) > $@
-	sed 's/86157,12/86157,-12/' -i $@ # 86157 的 run summary 写错了
+
 # 用于追加到 /home/sklowe/linac/const/linac_runsum.dat
 %_runsum.dat: %_summary.csv
 	awk -F, -f awk/precise $^ > $@
