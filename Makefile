@@ -28,7 +28,10 @@ mk/compare: sk6_summary.csv sk7_summary.csv
 
 lin/%.pdf: lin/%.root
 	mkdir -p $(@D)
-	./wrap_23b root -q -l -b 'plot1.C("$^", "$@")'
+	sh/23b root -q -l -b 'plot1.C("$^", "$@")'
+
+recon_src/lowfit_mc_tentative recon_src/lowfit_data_tentative:
+	sh/23b $(MAKE) tentative=1 KAMIOKA_SUKAP64=1 -C $(@D)
 
 SKG4/bin/Linux-g++/SKG4:
 	sh/G4 SKG4 ./Make.sh
