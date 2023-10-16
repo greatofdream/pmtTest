@@ -32,6 +32,8 @@ lin/%.pdf: lin/%.root
 
 recon_src/lowfit_mc_tentative recon_src/lowfit_data_tentative:
 	sh/23b $(MAKE) tentative=1 KAMIOKA_SUKAP64=1 -C $(@D)
+recon_src/lowfit_mc recon_src/lowfit_data:
+	sh/23b $(MAKE) KAMIOKA_SUKAP64=1 -C $(@D)
 
 SKG4/bin/Linux-g++/SKG4:
 	sh/G4 SKG4 ./Make.sh
