@@ -3,8 +3,9 @@
 
 SHELL=bash
 
-.PHONY: all
-all: $(RUNS:%=lin/%.pdf) $(ZE:%=compare/%.pdf) $(RUNS:%=MC/%.root) linac_sk7_runsum.dat
+.PHONY: all comparesk6_7
+all:  $(RUNS:%=MC/%.root) linac_sk7_runsum.dat
+comparesk6_7: $(RUNS:%=lin/%.pdf) $(ZE:%=compare/%.pdf)
 
 sk6:=$(shell echo {86119..86161})
 # 91457 91458 DAQ error; 91561 DAQ stuck
@@ -50,6 +51,8 @@ endef
 .SECONDEXPANSION:
 r_sk6=$($*_sk6)
 r_sk7=$($*_sk7)
+r_sk6_x=$($*_sk6_x)
+r_sk7_x=$($*_sk7_x)
 r_files=$(patsubst %,lin/%.root,$(r_sk6) $(r_sk7))
 Z_E=$(subst _, ,$*)
 Z=$(subst Z,,$(word 1,$(Z_E)))
@@ -57,7 +60,7 @@ E=$(subst E,,$(word 2,$(Z_E)))
 # SK6 的 run 只有 X=-12
 compare/%.pdf: $$(r_files)
 	mkdir -p $(@D)
-	sh/23b root -l -b -q 'compareM.C("$(r_sk6)","$(r_sk7)","$(call repeat,-12,$(r_sk6))","$(call repeat,-12,$(r_sk7))","lin/","lin/",$(Z),$(E),"$@")'
+	sh/23b root -l -b -q 'compareM.C("$(r_sk6)","$(r_sk7)","$(r_sk6_x)","$(r_sk7_x)","lin/","lin/",$(Z),$(E),"$@")'
 
 phase=sk$(phase_$*)
 MC/%.mac: linac_$$(phase).mac
