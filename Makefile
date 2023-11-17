@@ -44,10 +44,6 @@ MC/%.root: MC/%.mac SKG4/bin/Linux-g++/SKG4
 	[[ -e SKG4/MC ]] || ln -s ../MC SKG4/MC
 	sh/G4 SKG4 bin/Linux-g++/SKG4 $< $*
 
-define repeat
-$(strip $(shell printf '%.0s $(1)' {1..$(words $(2))}))
-endef
-
 .SECONDEXPANSION:
 r_sk6=$($*_sk6)
 r_sk7=$($*_sk7)
