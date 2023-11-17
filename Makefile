@@ -54,7 +54,7 @@ Z_E=$(subst _, ,$*)
 Z=$(subst Z,,$(word 1,$(Z_E)))
 E=$(subst E,,$(word 2,$(Z_E)))
 # SK6 的 run 只有 X=-12
-compare/%.pdf: $$(r_files) mk/compare
+compare/%.pdf: $$(r_files)
 	mkdir -p $(@D)
 	sh/23b root -l -b -q 'compareM.C("$(r_sk6)","$(r_sk7)","$(r_sk6_x)","$(r_sk7_x)","lin/","lin/",$(Z),$(E),"$@")'
 
